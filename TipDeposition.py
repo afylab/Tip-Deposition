@@ -7,7 +7,12 @@ which handles the backend of executing a recipe.
 import threading
 import labrad
 
-from logging import recipe_logger
+from data_logging import recipe_logger
+
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QApplication, QMainWindow
+
+from Interfaces.Process_Window import Process_Window
 
 class Sequencer(threading.Thread):
     '''
@@ -82,5 +87,13 @@ class Sequencer(threading.Thread):
 
 # Start the Program
 if __name__ == '__main__':
-    cxn = labrad.connect('localhost', password='pass')
-    rand = cxn.random_server
+    # cxn = labrad.connect('localhost', password='pass')
+    # rand = cxn.random_server
+
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    mainWindow = QtWidgets.QMainWindow()
+    ui = Process_Window()
+    ui.setupUi(mainWindow)
+    mainWindow.show()
+    sys.exit(app.exec_())
