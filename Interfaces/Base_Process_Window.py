@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Base_Process_Window.ui'
+# Form implementation generated from reading ui file 'Interfaces/Base_Process_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.2
 #
@@ -22,9 +22,6 @@ class Ui_mainWindow(object):
         self.instructionsFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.instructionsFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.instructionsFrame.setObjectName("instructionsFrame")
-        self.textBrowser = QtWidgets.QTextBrowser(self.instructionsFrame)
-        self.textBrowser.setGeometry(QtCore.QRect(5, 1, 661, 351))
-        self.textBrowser.setObjectName("textBrowser")
         self.stepStaticLabel = QtWidgets.QLabel(self.instructionsFrame)
         self.stepStaticLabel.setGeometry(QtCore.QRect(670, 0, 71, 31))
         font = QtGui.QFont()
@@ -37,13 +34,21 @@ class Ui_mainWindow(object):
         font.setPointSize(14)
         self.stepLabel.setFont(font)
         self.stepLabel.setObjectName("stepLabel")
+        self.insDisplay = QtWidgets.QTextEdit(self.instructionsFrame)
+        self.insDisplay.setGeometry(QtCore.QRect(0, 0, 661, 351))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.insDisplay.setFont(font)
+        self.insDisplay.setAcceptDrops(False)
+        self.insDisplay.setReadOnly(True)
+        self.insDisplay.setObjectName("insDisplay")
         self.parametersFrame = QtWidgets.QFrame(self.centralWidget)
         self.parametersFrame.setGeometry(QtCore.QRect(-1, 399, 1041, 231))
         self.parametersFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.parametersFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.parametersFrame.setObjectName("parametersFrame")
         self.proceedButton = QtWidgets.QPushButton(self.centralWidget)
-        self.proceedButton.setEnabled(False)
+        self.proceedButton.setEnabled(True)
         self.proceedButton.setGeometry(QtCore.QRect(164, 355, 181, 41))
         font = QtGui.QFont()
         font.setPointSize(16)

@@ -29,16 +29,6 @@
     <property name="frameShadow">
      <enum>QFrame::Raised</enum>
     </property>
-    <widget class="QTextBrowser" name="textBrowser">
-     <property name="geometry">
-      <rect>
-       <x>5</x>
-       <y>1</y>
-       <width>661</width>
-       <height>351</height>
-      </rect>
-     </property>
-    </widget>
     <widget class="QLabel" name="stepStaticLabel">
      <property name="geometry">
       <rect>
@@ -75,6 +65,27 @@
       <string>##</string>
      </property>
     </widget>
+    <widget class="QTextEdit" name="insDisplay">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>661</width>
+       <height>351</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>14</pointsize>
+      </font>
+     </property>
+     <property name="acceptDrops">
+      <bool>false</bool>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
    <widget class="QFrame" name="parametersFrame">
     <property name="geometry">
@@ -94,7 +105,7 @@
    </widget>
    <widget class="QPushButton" name="proceedButton">
     <property name="enabled">
-     <bool>false</bool>
+     <bool>true</bool>
     </property>
     <property name="geometry">
      <rect>

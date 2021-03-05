@@ -5,21 +5,24 @@ which handles the backend of executing a recipe.
 '''
 
 import threading
-import labrad
+#import labrad
 
 from data_logging import recipe_logger
 
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow
 
 from Interfaces.Process_Window import Process_Window
+
+from Recipes.Testing_Calibration import Sequencer_Unit_Test
+
+import sys
 
 class Sequencer(threading.Thread):
     '''
     Backend of the tip deposition that translates a tip deposition recipe into a sequence
     of hardware commands, checking user input
     '''
-    def __init__(self, recipe, servers):
+    def __init__(self, recipe, servers, gui):
         '''
         Setup the recipe.
 
@@ -27,11 +30,15 @@ class Sequencer(threading.Thread):
             recipe : The recipe object to load
             servers : A dictionary ordered with 'equipment-name':labRAD-Server-Reference. The
                 key will be used as a generic key to lookup the hardware from Sequencer.servers[key]
+            gui : the process window that controlls the sequence moving foreward
         '''
+        super(Sequencer, self).__init__()
+
         self.active = False # Parameter is active when a tip is being deposited
 
         self.recipe = recipe
         self.servers = servers
+        self.gui = gui
 
         # Check that the recipe has all the equipment it needs
         if not self.recipe.equipment_check(self.servers):
@@ -61,6 +68,7 @@ class Sequencer(threading.Thread):
         # Validate, make sure the parameters are all in range and no obvious problems are going to occur
 
         # Confirm Start on UI
+        self.gui.append_ins_text("Recipe \"" + self.recipe.name + "\" v" + self.recipe.version + " Loaded")
 
         logger = recipe_logger(self.recipe)
 
@@ -90,10 +98,16 @@ if __name__ == '__main__':
     # cxn = labrad.connect('localhost', password='pass')
     # rand = cxn.random_server
 
-    import sys
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = QtWidgets.QMainWindow()
     ui = Process_Window()
     ui.setupUi(mainWindow)
+
+    recipe = Sequencer_Unit_Test()
+    sequence = Sequencer(recipe, None, ui)
+
+    sequence.start()
     mainWindow.show()
+    #sequence.stop() # Add shutdown procedure for anything in process
+
     sys.exit(app.exec_())

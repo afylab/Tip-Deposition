@@ -22,11 +22,18 @@ class Recipe():
 
     Main function to inherit and override is proceed() which is a generator that contains
     each step before a yield keyword.
+
+    Recipe parameters are entered on the interface. The interface will automatically load
+    the parameters defined in Recipe.recipe_params, a dictionary containg the parameters as
+    {name:value}. Define this variable with default values in recipe.__init__ function and
+    the previous values may be automatically loaded at startup.
+
     '''
     def __init__(self):
         '''
         '''
-        pass
+        self.name = type(self).__name__.replace("_"," ")
+        self.version = "1.0.0"
     #
 
     '''
