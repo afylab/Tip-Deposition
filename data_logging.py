@@ -10,6 +10,10 @@ class recipe_logger():
     def __init__(self, recipe):
         pass
     #
+
+    def log(self,step):
+        pass
+    #
 #
 
 class data_logger():

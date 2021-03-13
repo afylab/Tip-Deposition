@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Interfaces/Base_Process_Window.ui'
+# Form implementation generated from reading ui file 'Base_Process_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.2
 #
@@ -18,7 +18,7 @@ class Ui_mainWindow(object):
         self.centralWidget = QtWidgets.QWidget(mainWindow)
         self.centralWidget.setObjectName("centralWidget")
         self.instructionsFrame = QtWidgets.QFrame(self.centralWidget)
-        self.instructionsFrame.setGeometry(QtCore.QRect(-1, -1, 1041, 351))
+        self.instructionsFrame.setGeometry(QtCore.QRect(0, 0, 1041, 351))
         self.instructionsFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.instructionsFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.instructionsFrame.setObjectName("instructionsFrame")
@@ -35,7 +35,7 @@ class Ui_mainWindow(object):
         self.stepLabel.setFont(font)
         self.stepLabel.setObjectName("stepLabel")
         self.insDisplay = QtWidgets.QTextEdit(self.instructionsFrame)
-        self.insDisplay.setGeometry(QtCore.QRect(0, 0, 661, 351))
+        self.insDisplay.setGeometry(QtCore.QRect(3, 3, 661, 351))
         font = QtGui.QFont()
         font.setPointSize(14)
         self.insDisplay.setFont(font)

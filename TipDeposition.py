@@ -1,95 +1,143 @@
 '''
-Primary module for tip deposition, contains the sequencer at the heart of the program
-which handles the backend of executing a recipe.
+Guides the user through the deposition process, running a recipe
 
+Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
+from PyQt5 import QtGui, QtWidgets
 
-import threading
-#import labrad
-
-from data_logging import recipe_logger
-
-from PyQt5 import QtWidgets
-
-from Interfaces.Process_Window import Process_Window
+from Interfaces.Base_Process_Window import Ui_mainWindow as Process_Window_Base
+from sequencer import Sequencer
 
 from Recipes.Testing_Calibration import Sequencer_Unit_Test
 
 import sys
 
-class Sequencer(threading.Thread):
+class Process_Window(Process_Window_Base):
     '''
-    Backend of the tip deposition that translates a tip deposition recipe into a sequence
-    of hardware commands, checking user input
+    The window used to execute a recipe. Adds functionality to the base class made in
+    Qt Designer.
     '''
-    def __init__(self, recipe, servers, gui):
+
+    def __init__(self, recipe):
+        super(Process_Window, self).__init__()
+
+        self.step_cnt = 0
+        self.ins_text = ""
+
+        # More advanced loading of recipe
+
+        # Setup the sequencer
+
+        self.sequencer = Sequencer(recipe, None)
+
+        # Connect Signals from Sequencer
+        self.sequencer.instructSignal.connect(self.append_ins_text)
+        self.sequencer.warnSignal.connect(self.append_ins_warning)
+        self.sequencer.startupSignal.connect(self.setup_step)
+        self.sequencer.autoStepSignal.connect(self.auto_step)
+        self.sequencer.userStepSignal.connect(self.user_step)
+
+        # Connect singals back to the sequencer
+        self.sequencer.canAdvanceSignal.connect(self.sequencer.advance)
+
+
+        self.sequencer.start()
+
+
+    #
+
+    def setupUi(self, mainWindow):
+        super(Process_Window, self).setupUi(mainWindow)
+
+        # Read only text
+        self.insDisplay.setReadOnly(True)
+
+        # Bind Buttons
+        self.proceedButton.clicked.connect(self.proceedCallback)
+        # self.proceedButton.setEnabled(True)
+        self.abortButton.clicked.connect(self.abortCallback)
+
+        self.stepLabel.setText(str(self.step_cnt))
+    #
+
+    def setup_step(self, step):
         '''
-        Setup the recipe.
+        Handels the inital setup of the recipe
+        '''
+        pass
+    #
+
+
+    def user_step(self, step):
+        '''
+        Display a step requiring user input. If inputspec is None the user simply
+        needs to click the proceed button after performing an action, otherwise
+        the user is prompted for some input.
 
         Args:
-            recipe : The recipe object to load
-            servers : A dictionary ordered with 'equipment-name':labRAD-Server-Reference. The
-                key will be used as a generic key to lookup the hardware from Sequencer.servers[key]
-            gui : the process window that controlls the sequence moving foreward
+            step : The Step object corresponding to the input
         '''
-        super(Sequencer, self).__init__()
+        self.step_cnt += 1
+        self.stepLabel.setText(str(self.step_cnt))
+        self.append_ins_text(step.instructions)
 
-        self.active = False # Parameter is active when a tip is being deposited
+    #
 
-        self.recipe = recipe
-        self.servers = servers
-        self.gui = gui
+    def auto_step(self, message=None):
+        '''
+        Display an automated step, i.e. one requiring no user input
 
-        # Check that the recipe has all the equipment it needs
-        if not self.recipe.equipment_check(self.servers):
-            # Manage equipment
-            pass
+        Args:
+            message (string) : The message to display to the user, if None nothing is output.
+        '''
 
-        # Initlize the process window
-        # Probably needs to be outside the thread
-        # self.gui = ProcessWindow
-
-
-        # Setup the equipment
+        self.step_cnt += 1
+        self.stepLabel.setText(str(self.step_cnt))
+        if message is not None:
+            self.append_ins_text(message)
     #
 
     '''
-    Main loop of the sequencer, handles the basic process of the running a recipe.
-    Basic process is to run recipe.proceed generator and context switch from the recipe to
-    the sequencer, with the recipe yielding feedback which the sequencer processes.
-
-    The sequencer handels the queueing of steps and control flow, and also feedsback to the
-    GUI to get user feedback and user steps.
+    TEXT PROCESSING
     '''
-    def run(self):
-        # Setup, load old control parameters into the recipe and UI and allow the user to update
-        self.recipe.setup()
 
-        # Validate, make sure the parameters are all in range and no obvious problems are going to occur
+    def append_ins_text(self, txt):
+        '''
+        Add text to the instructions browser
+        '''
+        self.ins_text += txt+"<br>"
+        self.insDisplay.setHtml(self.ins_text)
+        self.insDisplay.moveCursor(QtGui.QTextCursor.End)
+    #
 
-        # Confirm Start on UI
-        self.gui.append_ins_text("Recipe \"" + self.recipe.name + "\" v" + self.recipe.version + " Loaded")
+    def append_ins_warning(self, txt):
+        '''
+        Add text to the instructions browser, highligted in red
+        '''
+        self.ins_text += "<font color=red>"+txt+"</font><br>"
+        self.insDisplay.setHtml(self.ins_text)
+        self.insDisplay.moveCursor(QtGui.QTextCursor.End)
+    #
 
-        logger = recipe_logger(self.recipe)
+    '''
+    CALLBACK FUNCTIONS
+    '''
+    def proceedCallback(self):
+        '''
+        Callback function for the proceed button
+        '''
+        self.append_ins_text("Got Here "+str(self.step_cnt))
+        self.step_cnt += 1
+        self.stepLabel.setText(str(self.step_cnt))
+        self.sequencer.canAdvanceSignal.emit()
+    #
 
-        # Begin the main loop
-        steps = self.recipe.proceed() # Generator for controlling steps
-        try:
-            for step in steps: # Proceed through steps, process feedback as it arises.
-
-                # If user action is needed, ask for it and wait
-                if step.user_input:
-                    pass
-
-                # Log information
-                self.logger.log(step)
-
-            #
-        except Exception as ex:
-            # Handle specific errors and attempt to recover
-            pass
-
-        # Safely shutdown the thread, put all equipment on standby
+    def abortCallback(self):
+        '''
+        Callback function for the abort button
+        '''
+        self.append_ins_warning("Aborting Process...")
+        #self.ins_text("Got Here "+str(self.step_cnt))
     #
 #
 
@@ -98,16 +146,13 @@ if __name__ == '__main__':
     # cxn = labrad.connect('localhost', password='pass')
     # rand = cxn.random_server
 
+    recipe = Sequencer_Unit_Test
+
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = QtWidgets.QMainWindow()
-    ui = Process_Window()
+    ui = Process_Window(recipe)
     ui.setupUi(mainWindow)
 
-    recipe = Sequencer_Unit_Test()
-    sequence = Sequencer(recipe, None, ui)
-
-    sequence.start()
     mainWindow.show()
-    #sequence.stop() # Add shutdown procedure for anything in process
 
     sys.exit(app.exec_())
