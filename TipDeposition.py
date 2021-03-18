@@ -20,15 +20,23 @@ class Process_Window(Process_Window_Base):
     Qt Designer.
     '''
 
-    def __init__(self, recipe):
+    def __init__(self):
         super(Process_Window, self).__init__()
 
         self.step_cnt = 0
         self.ins_text = ""
         self.stepQueue = Queue(1000)
 
-        # More advanced loading of recipe
+        # IMPLEMENT More advanced loading of recipe
+        recipe = Sequencer_Unit_Test
+        self.setupSequencer(recipe)
 
+    #
+
+    def setupSequencer(self, recipe):
+        '''
+        Setup the Sequencer thread
+        '''
         # Setup the sequencer
         self.sequencer = Sequencer(recipe, None)
 
@@ -68,13 +76,13 @@ class Process_Window(Process_Window_Base):
         '''
         Handels the inital setup of the recipe, getting the parameters
         '''
-        self.add_user_inputs(step, self.coreParamsLayout)
+        self.add_user_inputs(step, self.coreParamsLayout, max=12, overflow=False)
     #
 
 
     def user_step(self, step):
         '''
-        Display a step requiring user input. If inputspec is None the user simply
+        Display a step requiring user input. If step.get_params is false the user simply
         needs to click the proceed button after performing an action, otherwise
         the user is prompted for some input.
 
@@ -84,7 +92,9 @@ class Process_Window(Process_Window_Base):
         self.step_cnt += 1
         self.stepLabel.setText(str(self.step_cnt))
         self.append_ins_text(step.instructions)
-
+        self.proceedButton.setEnabled(True)
+        if step.get_params:
+            self.add_user_inputs(step, self.paramCol1Layout)
     #
 
     def auto_step(self, message=None):
@@ -120,9 +130,32 @@ class Process_Window(Process_Window_Base):
         self.status = status
     #
 
-    def add_user_inputs(self, step, layout):
+    def add_user_inputs(self, step, layout, max=8, overflow=True):
+        '''
+        Add widgets for user input
+
+        Args:
+            step : Step object, will load widgets specified in step.input_spec
+            layout : The QFormLayout to add the widgets to
+            max (int) : The Maximum number of rows
+            overflow : If layout is full will attempt to put widgets here, if None will throw an exception
+        '''
         for k in step.input_spec.keys():
             try:
+                # If the box is full, move to next box if there is one
+                if layout.rowCount() >= max:
+                    if overflow:
+                        for lay in [self.paramCol1Layout, self.paramCol2Layout, self.paramCol3Layout, "outofspace"]:
+                            if lay == "outofspace":
+                                raise Exception("Attempting to add parameter "+str(k)+" widgets to a full layout, maximum widgets reached")
+                            if lay.rowCount() < max:
+                                layout = lay
+                                break
+                    else:
+                        raise Exception("Attempting to add parameter "+str(k)+" widgets to a full layout, cannot overflow")
+                #
+
+                # Make the widgets
                 spec = step.input_spec[k]
                 if spec[2] is not None: # Select between options
                     widget = QComboBox()
@@ -154,7 +187,8 @@ class Process_Window(Process_Window_Base):
             except:
                 self.sequencer.errorSignal.emit()
                 self.abortCallback()
-
+                break
+        #
         self.stepQueue.put(step)
     #
 
@@ -201,6 +235,7 @@ class Process_Window(Process_Window_Base):
     '''
     def startCallback(self):
         self.processQueuedStep()
+        self.proceedButton.setEnabled(False)
         self.proceedButton.setText("Proceed")
         self.proceedButton.clicked.disconnect()
         self.proceedButton.clicked.connect(self.proceedCallback)
@@ -211,10 +246,9 @@ class Process_Window(Process_Window_Base):
         '''
         Callback function for the proceed button
         '''
-        self.append_ins_text("Got Here "+str(self.step_cnt))
+        self.proceedButton.setEnabled(False)
         self.step_cnt += 1
         self.stepLabel.setText(str(self.step_cnt))
-
         self.processQueuedStep()
         self.sequencer.canAdvanceSignal.emit()
     #
@@ -223,6 +257,7 @@ class Process_Window(Process_Window_Base):
         '''
         Callback function for the abort button
         '''
+        self.proceedButton.setEnabled(False)
         self.append_ins_warning("Aborting Process...IMPLEMENT")
         #self.ins_text("Got Here "+str(self.step_cnt))
     #
@@ -233,11 +268,9 @@ if __name__ == '__main__':
     # cxn = labrad.connect('localhost', password='pass')
     # rand = cxn.random_server
 
-    recipe = Sequencer_Unit_Test
-
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = QtWidgets.QMainWindow()
-    ui = Process_Window(recipe)
+    ui = Process_Window()
     ui.setupUi(mainWindow)
 
     mainWindow.show()

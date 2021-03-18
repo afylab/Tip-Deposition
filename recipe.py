@@ -42,6 +42,8 @@ class Step():
         if self.processed:
             raise ValueError("Attempted to add a parameter to a Step that has already been processed.")
         else:
+            if not self.user_input:
+                self.user_input = True
             self.get_params = True
             self.input_spec[name] = [default, limits, options, isInt]
             self.input_param_values[name] = None

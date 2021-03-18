@@ -17,6 +17,7 @@ class Sequencer_Unit_Test(Recipe):
 
     def proceed(self):
         step1 = Step(False, "You must answer me these questions three, err the other side ye see")
+
         yield step1
         sleep(1)
 
@@ -24,7 +25,7 @@ class Sequencer_Unit_Test(Recipe):
         yield step2
         sleep(1)
 
-        step3 = Step(True, "What if your name?")
+        step3 = Step(True, "What is your name?")
         step3.add_input_param("YourName")
         yield step3
         sleep(1)
@@ -36,7 +37,7 @@ class Sequencer_Unit_Test(Recipe):
 
         step5 = Step(True, "What if your favorite color?")
         step5.add_input_param("FavColor", options=["Blue", "Blue, No Yellow"])
-        yield step4
+        yield step5
         sleep(1)
     #
 #

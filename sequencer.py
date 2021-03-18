@@ -3,8 +3,6 @@ Primary module for tip deposition, contains the sequencer at the heart of the pr
 which handles the backend of executing a recipe.
 
 '''
-
-#import threading
 from traceback import format_exc
 from time import sleep
 from os.path import exists
@@ -41,7 +39,7 @@ class Sequencer(QThread):
         '''
         self.active = False # Parameter is active when a tip is being deposited
 
-        # FOR DEV, Implement better recipe loading
+        # FOR DEVELOPMENT, Implement better recipe loading
         self.recipe = recipe()
 
         self.servers = servers
@@ -69,7 +67,8 @@ class Sequencer(QThread):
             startupstep = self.recipe.setup()
             self.startupSignal.emit(startupstep)
             self.wait_for_gui() # Wait for the user to enter the starting parameters and press start
-            startupstep.processed = True
+            startupstep.processed = True # Flag the step as processed
+            self.logger.log(startupstep) # Log information
             self.recipe._process_startup(startupstep) # laod the startup paramters into the recipe
         except:
             self.warnSignal.emit("Error starting up, process canceled.")
@@ -83,17 +82,14 @@ class Sequencer(QThread):
                 print(step.instructions, step.user_input)
                 if step.user_input: # If user action is needed, ask for it and wait
                     self.userStepSignal.emit(step)
+                    self.wait_for_gui()
                 else:
                     self.autoStepSignal.emit(step.instructions)
                 #
-                self.wait_for_gui()
-
                 step.processed = True # Flag the step as processed
-
                 self.logger.log(step) # Log information
             #
-        except Exception as ex:
-            print(ex)
+        except:
             # Handle specific errors and attempt to recover
             # if ex is ...
                 # some error raised by aborting the process?
@@ -101,8 +97,6 @@ class Sequencer(QThread):
             # else
             self.warnSignal.emit("Unexpected Error, process canceled. Attempting to shutdown equipment safely.")
             self.record_error()
-
-            self.warnSignal.emit("Attempting to shutdown equipment safely.")
 
         # Safely shutdown the thread, put all equipment on standby
         try:
