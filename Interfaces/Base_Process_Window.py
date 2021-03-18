@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Base_Process_Window.ui'
+# Form implementation generated from reading ui file 'Interfaces\Base_Process_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.2
 #
@@ -42,6 +42,27 @@ class Ui_mainWindow(object):
         self.insDisplay.setAcceptDrops(False)
         self.insDisplay.setReadOnly(True)
         self.insDisplay.setObjectName("insDisplay")
+        self.statusStaticLabel = QtWidgets.QLabel(self.instructionsFrame)
+        self.statusStaticLabel.setGeometry(QtCore.QRect(820, 0, 61, 31))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.statusStaticLabel.setFont(font)
+        self.statusStaticLabel.setObjectName("statusStaticLabel")
+        self.statusLabel = QtWidgets.QLabel(self.instructionsFrame)
+        self.statusLabel.setEnabled(True)
+        self.statusLabel.setGeometry(QtCore.QRect(883, 0, 151, 31))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.statusLabel.setFont(font)
+        self.statusLabel.setObjectName("statusLabel")
+        self.formLayoutWidget = QtWidgets.QWidget(self.instructionsFrame)
+        self.formLayoutWidget.setGeometry(QtCore.QRect(670, 40, 271, 311))
+        self.formLayoutWidget.setObjectName("formLayoutWidget")
+        self.coreParamsLayout = QtWidgets.QFormLayout(self.formLayoutWidget)
+        self.coreParamsLayout.setContentsMargins(0, 0, 0, 0)
+        self.coreParamsLayout.setHorizontalSpacing(7)
+        self.coreParamsLayout.setVerticalSpacing(5)
+        self.coreParamsLayout.setObjectName("coreParamsLayout")
         self.parametersFrame = QtWidgets.QFrame(self.centralWidget)
         self.parametersFrame.setGeometry(QtCore.QRect(-1, 399, 1041, 231))
         self.parametersFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -82,7 +103,9 @@ class Ui_mainWindow(object):
         mainWindow.setWindowTitle(_translate("mainWindow", "MainWindow"))
         self.stepStaticLabel.setText(_translate("mainWindow", "Step #:"))
         self.stepLabel.setText(_translate("mainWindow", "##"))
-        self.proceedButton.setText(_translate("mainWindow", "Proceed"))
+        self.statusStaticLabel.setText(_translate("mainWindow", "Status:"))
+        self.statusLabel.setText(_translate("mainWindow", "<Standby>"))
+        self.proceedButton.setText(_translate("mainWindow", "Start"))
         self.abortButton.setText(_translate("mainWindow", "Abort"))
 
 

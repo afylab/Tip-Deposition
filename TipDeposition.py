@@ -4,6 +4,7 @@ Guides the user through the deposition process, running a recipe
 Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
 from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox
 
 from Interfaces.Base_Process_Window import Ui_mainWindow as Process_Window_Base
 from sequencer import Sequencer
@@ -11,6 +12,7 @@ from sequencer import Sequencer
 from Recipes.Testing_Calibration import Sequencer_Unit_Test
 
 import sys
+from queue import Queue
 
 class Process_Window(Process_Window_Base):
     '''
@@ -23,11 +25,11 @@ class Process_Window(Process_Window_Base):
 
         self.step_cnt = 0
         self.ins_text = ""
+        self.stepQueue = Queue(1000)
 
         # More advanced loading of recipe
 
         # Setup the sequencer
-
         self.sequencer = Sequencer(recipe, None)
 
         # Connect Signals from Sequencer
@@ -39,11 +41,9 @@ class Process_Window(Process_Window_Base):
 
         # Connect singals back to the sequencer
         self.sequencer.canAdvanceSignal.connect(self.sequencer.advance)
-
+        self.sequencer.errorSignal.connect(self.sequencer.slient_error)
 
         self.sequencer.start()
-
-
     #
 
     def setupUi(self, mainWindow):
@@ -53,18 +53,22 @@ class Process_Window(Process_Window_Base):
         self.insDisplay.setReadOnly(True)
 
         # Bind Buttons
-        self.proceedButton.clicked.connect(self.proceedCallback)
+        self.proceedButton.clicked.connect(self.startCallback)
         # self.proceedButton.setEnabled(True)
         self.abortButton.clicked.connect(self.abortCallback)
 
         self.stepLabel.setText(str(self.step_cnt))
+
+        self.params = dict()
+
+        self.set_status("standby")
     #
 
     def setup_step(self, step):
         '''
-        Handels the inital setup of the recipe
+        Handels the inital setup of the recipe, getting the parameters
         '''
-        pass
+        self.add_user_inputs(step, self.coreParamsLayout)
     #
 
 
@@ -98,6 +102,79 @@ class Process_Window(Process_Window_Base):
     #
 
     '''
+    Functions to Handel User Inputs
+    '''
+
+    def set_status(self, status):
+        if status == "standby":
+            self.statusLabel.setText("Standby")
+            self.statusLabel.setStyleSheet("color:black")
+        elif status == "active":
+            self.statusLabel.setText("Active")
+            self.statusLabel.setStyleSheet("color:green")
+        elif status == "error":
+            self.statusLabel.setText("Error")
+            self.statusLabel.setStyleSheet("color:red")
+        else:
+            print("Warning Status not recognized in set_status, no change")
+        self.status = status
+    #
+
+    def add_user_inputs(self, step, layout):
+        for k in step.input_spec.keys():
+            try:
+                spec = step.input_spec[k]
+                if spec[2] is not None: # Select between options
+                    widget = QComboBox()
+                    widget.addItems(spec[2])
+                elif spec[1] is not None and spec[3]: # If it has limits, integer
+                    widget = QSpinBox()
+                    widget.setRange(int(spec[1][0]), int(spec[1][1]))
+                    if spec[0] is not None:
+                        widget.setValue(int(spec[0]))
+                    else:
+                        widget.setValue(0)
+                elif spec[1] is not None and not spec[3]: # If it has limits, floating point value
+                    widget = QDoubleSpinBox()
+                    widget.setRange(spec[1][0], spec[1][1])
+                    if spec[0] is not None:
+                        widget.setValue(float(spec[0]))
+                    else:
+                        widget.setValue(0.0)
+                else:
+                    widget = QLineEdit()
+                    if spec[0] is not None:
+                        widget.setText(str(spec[0]))
+                self.params[k] = widget
+                layout.addRow(QLabel(k), self.params[k])
+            except ValueError:
+                self.sequencer.errorSignal.emit()
+                self.append_ins_warning("Could not add parameter " + k + ". Probably improperly specified")
+                self.append_ins_warning("Process may be unstable without parameter, abort recommended.")
+            except:
+                self.sequencer.errorSignal.emit()
+                self.abortCallback()
+
+        self.stepQueue.put(step)
+    #
+
+    def processQueuedStep(self):
+        if not self.stepQueue.empty():
+            step = self.stepQueue.get()
+            for k in step.input_spec.keys():
+                widget = self.params[k]
+                if isinstance(widget, QComboBox): # if it is an option box
+                    val = widget.currentText()
+                elif isinstance(widget, QSpinBox) or isinstance(widget, QDoubleSpinBox): # if it is a numerical entry
+                    val = widget.value()
+                else: # if it is a simple label
+                    val = widget.text()
+                step.input_param_values[k] = val
+                widget.setEnabled(False)
+        #
+    #
+
+    '''
     TEXT PROCESSING
     '''
 
@@ -122,6 +199,14 @@ class Process_Window(Process_Window_Base):
     '''
     CALLBACK FUNCTIONS
     '''
+    def startCallback(self):
+        self.processQueuedStep()
+        self.proceedButton.setText("Proceed")
+        self.proceedButton.clicked.disconnect()
+        self.proceedButton.clicked.connect(self.proceedCallback)
+        self.sequencer.canAdvanceSignal.emit()
+    #
+
     def proceedCallback(self):
         '''
         Callback function for the proceed button
@@ -129,6 +214,8 @@ class Process_Window(Process_Window_Base):
         self.append_ins_text("Got Here "+str(self.step_cnt))
         self.step_cnt += 1
         self.stepLabel.setText(str(self.step_cnt))
+
+        self.processQueuedStep()
         self.sequencer.canAdvanceSignal.emit()
     #
 
@@ -136,7 +223,7 @@ class Process_Window(Process_Window_Base):
         '''
         Callback function for the abort button
         '''
-        self.append_ins_warning("Aborting Process...")
+        self.append_ins_warning("Aborting Process...IMPLEMENT")
         #self.ins_text("Got Here "+str(self.step_cnt))
     #
 #

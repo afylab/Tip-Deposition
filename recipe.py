@@ -20,7 +20,7 @@ class Step():
         self.processed = False # If a step has been processed by the sequencer
     #
 
-    def add_input_param(self, name, default=None, limits=None, options=None):
+    def add_input_param(self, name, default=None, limits=None, options=None, isInt=False):
         '''
         TO BE CALLED BEFORE THE STEP IS YIELDED TO THE SEQUENCER,
         calling this out of order will result in an exception.
@@ -33,16 +33,17 @@ class Step():
             prompt (string) : The user-facing label for the parameter.
             default (string or value) : The default value to display. If None the
                 field will be empty.
-            limits (tuple) : If the value is a float
+            limits (tuple) : If the value is a float, defined as (minimum, maximum)
             options : A list of strings, for discrete options the user can choose between. If None
                 a arbitrary value is allowed (within limits).
+            isInt (bool) : If True numerical input (i.e. where limits are specified) is treated as an integer
 
         '''
         if self.processed:
             raise ValueError("Attempted to add a parameter to a Step that has already been processed.")
         else:
             self.get_params = True
-            self.input_spec[name] = [default, limits, options]
+            self.input_spec[name] = [default, limits, options, isInt]
             self.input_param_values[name] = None
     #
 
@@ -125,12 +126,21 @@ class Recipe():
     def setup(self, defaults):
         setupstep = Step(instructions="Enter Tip and Deposition parameters")
 
-        # ADD YOUR PARAMETERS HERE, FOR EXAMPLE
-        setupstep.add_input_param("Example1", default=1.0, limits=(0,5))
-        # They can be strings instead of number, for example
+        # Add Parameters, by default parameters are strings
+        setupstep.add_input_param("SQUID Name")
+
+        # Add a default value, which may be loaded from previous
         setupstep.add_input_param("TuningFork", default="green")
+
+        # Define numerical input using limits on the values for safety, even if it is a wide range
+        # if there are limits the GUI will automatically treat it as a number instead of a string.
+        setupstep.add_input_param("Diameter", default=100.0, limits=(10.0,1000.0))
+
+        # Numerical inputs can be integers, using the isInt option
+        setupstep.add_input_param("Num. Depositions", default=3, limits=(1,10), isInt=True)
+
         # Can also have users select from a list of options using
-        setup.add_input_param("OptionExample", default="option1", options=["option1", "option2", "option3"])
+        setupstep.add_input_param("Superconductor", default="Lead", options=["Lead", "Indium"])
 
         return setupstep
     #
@@ -169,7 +179,9 @@ class Recipe():
         """
         Loads the startup parameters into Recipe.parameters
         """
-        pass
+        self.parameters = dict()
+        for k in startupstep.input_param_values.keys():
+            self.parameters[k] = startupstep.input_param_values[k]
     #
 #
 

@@ -4,7 +4,7 @@ which handles the backend of executing a recipe.
 
 '''
 
-import threading
+#import threading
 from traceback import format_exc
 from time import sleep
 from os.path import exists
@@ -27,6 +27,7 @@ class Sequencer(QThread):
     userStepSignal = pyqtSignal(Step)
     startupSignal = pyqtSignal(Step)
     canAdvanceSignal = pyqtSignal()
+    errorSignal = pyqtSignal()
 
     def __init__(self, recipe, servers):
         '''
@@ -92,6 +93,7 @@ class Sequencer(QThread):
                 self.logger.log(step) # Log information
             #
         except Exception as ex:
+            print(ex)
             # Handle specific errors and attempt to recover
             # if ex is ...
                 # some error raised by aborting the process?
@@ -122,7 +124,14 @@ class Sequencer(QThread):
         self.advance = True
     #
 
-    def record_error(self, flname='errorlog.txt'):
+    def slient_error(self):
+        '''
+        Slot for recording a silent error to the errorlog, called by the GUI using errorSignal
+        '''
+        self.record_error(display=False)
+    #
+
+    def record_error(self, flname='errorlog.txt', display=True):
         err = format_exc()
         print(err) # Print it to the terminal if there is one running
         if exists(flname):
@@ -132,5 +141,7 @@ class Sequencer(QThread):
         with open(flname, file_mode) as errorlog:
             errorlog.write(err)
             errorlog.flush()
-        self.warnSignal.emit("See errorlog.txt for full details")
+        if display:
+            self.warnSignal.emit("See " + flname + " for full details")
+    #
 #
