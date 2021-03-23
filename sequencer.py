@@ -26,6 +26,7 @@ class Sequencer(QThread):
     startupSignal = pyqtSignal(Step)
     canAdvanceSignal = pyqtSignal()
     errorSignal = pyqtSignal()
+    finishedSignal = pyqtSignal()
 
     def __init__(self, recipe, servers):
         '''
@@ -37,11 +38,8 @@ class Sequencer(QThread):
                 key will be used as a generic key to lookup the hardware from Sequencer.servers[key]
             gui : the process window that controlls the sequence moving foreward
         '''
-        self.active = False # Parameter is active when a tip is being deposited
-
-        # FOR DEVELOPMENT, Implement better recipe loading
-        self.recipe = recipe()
-
+        self.active = False # Parameter is active when a tip is being deposited ????
+        self.recipe = recipe(servers)
         self.servers = servers
 
         # Setup the equipment
@@ -64,7 +62,12 @@ class Sequencer(QThread):
         self.logger = recipe_logger(self.recipe)
 
         try: # Setup the process
-            startupstep = self.recipe.setup()
+            '''
+            !!!!!!!!!!!!!!
+            Load previous parameters somehow
+            !!!!!!!!!!!!!!
+            '''
+            startupstep = self.recipe.setup(None)
             self.startupSignal.emit(startupstep)
             self.wait_for_gui() # Wait for the user to enter the starting parameters and press start
             startupstep.processed = True # Flag the step as processed
@@ -103,6 +106,8 @@ class Sequencer(QThread):
             self.recipe.shutdown()
         except:
             pass
+        self.instructSignal.emit("Process ended sucessfully.")
+        self.finishedSignal.emit()
     #
 
     def wait_for_gui(self):

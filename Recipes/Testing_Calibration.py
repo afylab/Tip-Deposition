@@ -7,12 +7,12 @@ from recipe import Recipe, Step
 from time import sleep
 
 class Sequencer_Unit_Test(Recipe):
-    def __init__(self):
-        super().__init__([], [])
+    def __init__(self, servers):
+        super().__init__(servers)
     #
 
-    def setup(self):
-        return super().setup(None)
+    def setup(self, defaults):
+        return super().setup(defaults)
     #
 
     def proceed(self):

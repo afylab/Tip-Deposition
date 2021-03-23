@@ -82,7 +82,7 @@ class Recipe():
     how to use the Step objects before attempting to make a Recipe.
     '''
 
-    def __init__(self, servers, required_servers, version="1.0.0"):
+    def __init__(self, servers, required_servers=None, version="1.0.0"):
         '''
         Class initilizer, inhert and extend with any needed features then call the superclass initilizer
         i.e. super().__init__(servers, required, version_number)
@@ -101,13 +101,14 @@ class Recipe():
         self.defaults = dict()
 
         # Checks that all the equipment needed to carry out the recipe is in servers
-        missing = False
-        for equip in required_servers:
-            if not equip in servers:
-                print("Server " + str(equip) + "not found")
-                missing = True
-        if missing:
-            raise ValueError("Required LabRAD server not found")
+        if required_servers is not None:
+            missing = False
+            for equip in required_servers:
+                if not equip in servers:
+                    print("Server " + str(equip) + "not found")
+                    missing = True
+            if missing:
+                raise ValueError("Required LabRAD server not found")
         self.servers = servers
 
     #
@@ -129,17 +130,17 @@ class Recipe():
         setupstep = Step(instructions="Enter Tip and Deposition parameters")
 
         # Add Parameters, by default parameters are strings
-        setupstep.add_input_param("SQUID Name")
+        setupstep.add_input_param("SQUID Num.")
 
         # Add a default value, which may be loaded from previous
-        setupstep.add_input_param("TuningFork", default="green")
+        setupstep.add_input_param("Person Evaporating")
 
-        # Define numerical input using limits on the values for safety, even if it is a wide range
-        # if there are limits the GUI will automatically treat it as a number instead of a string.
-        setupstep.add_input_param("Diameter", default=100.0, limits=(10.0,1000.0))
+        # # Define numerical input using limits on the values for safety, even if it is a wide range
+        # # if there are limits the GUI will automatically treat it as a number instead of a string.
+        # setupstep.add_input_param("Diameter", default=100.0, limits=(10.0,1000.0))
 
-        # Numerical inputs can be integers, using the isInt option
-        setupstep.add_input_param("Num. Depositions", default=3, limits=(1,10), isInt=True)
+        # # Numerical inputs can be integers, using the isInt option
+        # setupstep.add_input_param("Num. Depositions", default=3, limits=(1,10), isInt=True)
 
         # Can also have users select from a list of options using
         setupstep.add_input_param("Superconductor", default="Lead", options=["Lead", "Indium"])

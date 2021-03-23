@@ -4,17 +4,54 @@ Guides the user through the deposition process, running a recipe
 Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox
+from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QListWidgetItem
 
-from Interfaces.Base_Process_Window import Ui_mainWindow as Process_Window_Base
+from Interfaces.Base_Process_Window import Ui_mainWindow
+from Interfaces.Base_Recipe_Dialog import Ui_RecipeDialog
 from sequencer import Sequencer
 
+import recipe
 from Recipes.Testing_Calibration import Sequencer_Unit_Test
 
 import sys
+import os
+from os.path import join
 from queue import Queue
+from inspect import getmembers, isclass
+from importlib.util import spec_from_file_location #, module_from_spec
 
-class Process_Window(Process_Window_Base):
+class RecipeDialog(Ui_RecipeDialog):
+    def loadRecipes(self, directory):
+        recipe_members = dict(getmembers(recipe, isclass))
+        self.items = dict()
+        for filename in os.listdir(directory):
+            if filename.endswith('.py') and filename != "__init__.py":
+                spec = spec_from_file_location(filename,join(directory, filename))
+                module = spec.loader.load_module()
+                for name, obj in getmembers(module, isclass):
+                    if name not in recipe_members:
+                        key = name.replace('_', ' ')
+                        self.items[key] = obj
+                        self.recipeListWidget.addItem(QListWidgetItem(key))
+    #
+
+    def setupUi(self, parent):
+        super().setupUi(parent)
+        self.loadButton.clicked.connect(parent.close)
+        self.cancelButton.clicked.connect(parent.close)
+    #
+
+    def getRecipe(self):
+        key = self.recipeListWidget.currentItem().text()
+        return self.items[key]
+    #
+
+    def loadCallback(self):
+        pass
+    #
+#
+
+class Process_Window(Ui_mainWindow):
     '''
     The window used to execute a recipe. Adds functionality to the base class made in
     Qt Designer.
@@ -27,10 +64,22 @@ class Process_Window(Process_Window_Base):
         self.ins_text = ""
         self.stepQueue = Queue(1000)
 
-        # IMPLEMENT More advanced loading of recipe
-        recipe = Sequencer_Unit_Test
+        recipe = self.getRecipe()
         self.setupSequencer(recipe)
+    #
 
+    def getRecipe(self):
+        '''
+        Open a dialog box to load a recipe
+
+        WHEN ADDED TO MENUBAR, make sure to confirm if you want to load a new one.
+        '''
+        recipeDialogBox = QtWidgets.QDialog()
+        dialog = RecipeDialog()
+        dialog.setupUi(recipeDialogBox)
+        dialog.loadRecipes('Recipes')
+        recipeDialogBox.exec()
+        return dialog.getRecipe()
     #
 
     def setupSequencer(self, recipe):
@@ -46,6 +95,7 @@ class Process_Window(Process_Window_Base):
         self.sequencer.startupSignal.connect(self.setup_step)
         self.sequencer.autoStepSignal.connect(self.auto_step)
         self.sequencer.userStepSignal.connect(self.user_step)
+        self.sequencer.finishedSignal.connect(self.finished)
 
         # Connect singals back to the sequencer
         self.sequencer.canAdvanceSignal.connect(self.sequencer.advance)
@@ -208,6 +258,44 @@ class Process_Window(Process_Window_Base):
         #
     #
 
+    def finished(self):
+        '''
+        When the sequencer is finished it signals this slot.
+        '''
+        self.proceedButton.setEnabled(True)
+        self.proceedButton.setText("Load")
+        self.proceedButton.clicked.disconnect()
+        self.proceedButton.clicked.connect(self.reload)
+    #
+
+
+    def reload(self):
+        '''
+        When a deposition ends allow the user to choose another recipe
+        '''
+        self.clear()
+        recipe = self.getRecipe()
+        self.setupSequencer(recipe)
+
+        self.proceedButton.setEnabled(True)
+        self.proceedButton.setText("Start")
+        self.proceedButton.clicked.disconnect()
+        self.proceedButton.clicked.connect(self.startCallback)
+    #
+
+    def clear(self):
+        """
+        Removes all entries from all FormLayouts and clear the instructions
+        """
+        for layout in [self.paramCol1Layout, self.paramCol2Layout, self.paramCol3Layout, self.coreParamsLayout]:
+            while layout.rowCount() > 0:
+                layout.removeRow(0)
+        self.ins_text = ""
+        self.insDisplay.setHtml(self.ins_text)
+        self.step_cnt = 0
+        self.stepLabel.setText(str(self.step_cnt))
+    #
+
     '''
     TEXT PROCESSING
     '''
@@ -252,6 +340,7 @@ class Process_Window(Process_Window_Base):
         self.processQueuedStep()
         self.sequencer.canAdvanceSignal.emit()
     #
+
 
     def abortCallback(self):
         '''
