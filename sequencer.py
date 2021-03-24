@@ -9,6 +9,7 @@ from os.path import exists
 
 from data_logging import recipe_logger
 from recipe import Step
+from exceptions import ProcessInterruptionError
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -27,6 +28,7 @@ class Sequencer(QThread):
     canAdvanceSignal = pyqtSignal()
     errorSignal = pyqtSignal()
     finishedSignal = pyqtSignal()
+    abortSignal = pyqtSignal()
 
     def __init__(self, recipe, servers):
         '''
@@ -38,7 +40,8 @@ class Sequencer(QThread):
                 key will be used as a generic key to lookup the hardware from Sequencer.servers[key]
             gui : the process window that controlls the sequence moving foreward
         '''
-        self.active = False # Parameter is active when a tip is being deposited ????
+        self.active = False # Parameter is active the process is running, will not load a new process
+        self.abort = False # Calling self.abortSlot will set false and stop current process
         self.recipe = recipe(servers)
         self.servers = servers
 
@@ -65,6 +68,8 @@ class Sequencer(QThread):
             '''
             !!!!!!!!!!!!!!
             Load previous parameters somehow
+
+            Check LabRAD servers?
             !!!!!!!!!!!!!!
             '''
             startupstep = self.recipe.setup(None)
@@ -73,16 +78,23 @@ class Sequencer(QThread):
             startupstep.processed = True # Flag the step as processed
             self.logger.log(startupstep) # Log information
             self.recipe._process_startup(startupstep) # laod the startup paramters into the recipe
+        except ProcessInterruptionError:
+            self.warnSignal.emit("Process Aborted before it began. Reload process to continue.")
+            return
         except:
             self.warnSignal.emit("Error starting up, process canceled.")
             self.record_error()
+            self.active = False
             return
         #
 
+        self.active = True
         try: # Begin the main loop
             steps = self.recipe.proceed() # Generator for controlling steps
             for step in steps: # Proceed through steps, process feedback as it arises.
-                print(step.instructions, step.user_input)
+                if not self.active:
+                    raise ProcessInterruptionError
+                print(step.instructions, step.user_input) # FOR DEBUGGING
                 if step.user_input: # If user action is needed, ask for it and wait
                     self.userStepSignal.emit(step)
                     self.wait_for_gui()
@@ -92,36 +104,44 @@ class Sequencer(QThread):
                 step.processed = True # Flag the step as processed
                 self.logger.log(step) # Log information
             #
+        # Handle specific errors and attempt to recover
+        except ProcessInterruptionError:
+            self.warnSignal.emit("Attempting to return equipment to standby.")
         except:
-            # Handle specific errors and attempt to recover
-            # if ex is ...
-                # some error raised by aborting the process?
-
-            # else
             self.warnSignal.emit("Unexpected Error, process canceled. Attempting to shutdown equipment safely.")
             self.record_error()
 
         # Safely shutdown the thread, put all equipment on standby
         try:
             self.recipe.shutdown()
+            self.instructSignal.emit("Process ended sucessfully.")
         except:
-            pass
-        self.instructSignal.emit("Process ended sucessfully.")
+            self.warnSignal.emit("Error encountered while attempting to shutdown equipment safely. Equipment may be unstable, full shutdown of servers recommended.")
         self.finishedSignal.emit()
+        self.active = False
     #
 
     def wait_for_gui(self):
         self.advance = False
         while not self.advance:
             sleep(0.01)
+            if self.abort:
+                raise ProcessInterruptionError
     #
 
-    def advance(self):
+    def abortSlot(self):
         '''
-        Slot for signal (send from GUI thread using canAdvanceSignal) that the sequencer can stop waiiting for user input
+        Slot for signal (send from GUI thread using abortSignal) that the sequencer can stop waiiting for user input
+        '''
+        self.active = False
+        self.abort = True
+    #
+
+    def advanceSlot(self):
+        '''
+        Slot for signal (send from GUI thread using canAdvanceSignal) to abort the current process.
         '''
         self.advance = True
-    #
 
     def slient_error(self):
         '''

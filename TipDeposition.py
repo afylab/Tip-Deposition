@@ -4,14 +4,13 @@ Guides the user through the deposition process, running a recipe
 Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QListWidgetItem
+from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QListWidgetItem, QMessageBox
 
 from Interfaces.Base_Process_Window import Ui_mainWindow
 from Interfaces.Base_Recipe_Dialog import Ui_RecipeDialog
 from sequencer import Sequencer
 
 import recipe
-from Recipes.Testing_Calibration import Sequencer_Unit_Test
 
 import sys
 import os
@@ -37,17 +36,22 @@ class RecipeDialog(Ui_RecipeDialog):
 
     def setupUi(self, parent):
         super().setupUi(parent)
-        self.loadButton.clicked.connect(parent.close)
-        self.cancelButton.clicked.connect(parent.close)
+        self.cancelled = False
+        self.parent = parent
+        self.loadButton.clicked.connect(self.parent.close)
+        self.cancelButton.clicked.connect(self.cancelCallback)
     #
 
     def getRecipe(self):
+        if self.cancelled:
+            return None
         key = self.recipeListWidget.currentItem().text()
         return self.items[key]
     #
 
-    def loadCallback(self):
-        pass
+    def cancelCallback(self):
+        self.cancelled = True
+        self.parent.close()
     #
 #
 
@@ -57,35 +61,64 @@ class Process_Window(Ui_mainWindow):
     Qt Designer.
     '''
 
-    def __init__(self):
+    def __init__(self, parent):
         super(Process_Window, self).__init__()
 
         self.step_cnt = 0
         self.ins_text = ""
         self.stepQueue = Queue(1000)
 
-        recipe = self.getRecipe()
-        self.setupSequencer(recipe)
+        self.setupUi(parent)
+        self.loadRecipe()
     #
 
-    def getRecipe(self):
-        '''
-        Open a dialog box to load a recipe
+    def setupUi(self, mainWindow):
+        super(Process_Window, self).setupUi(mainWindow)
 
-        WHEN ADDED TO MENUBAR, make sure to confirm if you want to load a new one.
+        # Read only text
+        self.insDisplay.setReadOnly(True)
+
+        # Bind Menu Items
+        self.loadRecipeAction.triggered.connect(self.loadRecipe)
+        self.abortAction.triggered.connect(self.abortCallback)
+        self.exitAction.triggered.connect(mainWindow.close)
+
+        # Bind Buttons
+        self.abortButton.clicked.connect(self.abortCallback)
+
+        self.stepLabel.setText(str(self.step_cnt))
+
+        self.params = dict()
+
+        self.set_status("standby")
+    #
+
+    def loadRecipe(self):
         '''
+        Open a dialog box to load a recipe and then setup the Sequencer thread
+        '''
+        try: # Make sure there isn't a process running
+            if self.sequencer.active:
+                self.append_ins_warning("Cannot load a new recipe while there is an active process. Abort process to load a new one.")
+                return
+        except:
+            pass
+
         recipeDialogBox = QtWidgets.QDialog()
         dialog = RecipeDialog()
         dialog.setupUi(recipeDialogBox)
         dialog.loadRecipes('Recipes')
         recipeDialogBox.exec()
-        return dialog.getRecipe()
-    #
+        recipe = dialog.getRecipe()
 
-    def setupSequencer(self, recipe):
-        '''
-        Setup the Sequencer thread
-        '''
+        if recipe is None:
+            return
+
+        try:
+            self.clear()
+        except:
+            pass
+
         # Setup the sequencer
         self.sequencer = Sequencer(recipe, None)
 
@@ -97,29 +130,21 @@ class Process_Window(Ui_mainWindow):
         self.sequencer.userStepSignal.connect(self.user_step)
         self.sequencer.finishedSignal.connect(self.finished)
 
-        # Connect singals back to the sequencer
-        self.sequencer.canAdvanceSignal.connect(self.sequencer.advance)
+        # Connect signals back to the sequencer
+        self.sequencer.canAdvanceSignal.connect(self.sequencer.advanceSlot)
         self.sequencer.errorSignal.connect(self.sequencer.slient_error)
+        self.sequencer.abortSignal.connect(self.sequencer.abortSlot)
+
+        # Prepare the Start Button
+        self.proceedButton.setEnabled(True)
+        self.proceedButton.setText("Start")
+        try:
+            self.proceedButton.clicked.disconnect()
+        except:
+            pass
+        self.proceedButton.clicked.connect(self.startCallback)
 
         self.sequencer.start()
-    #
-
-    def setupUi(self, mainWindow):
-        super(Process_Window, self).setupUi(mainWindow)
-
-        # Read only text
-        self.insDisplay.setReadOnly(True)
-
-        # Bind Buttons
-        self.proceedButton.clicked.connect(self.startCallback)
-        # self.proceedButton.setEnabled(True)
-        self.abortButton.clicked.connect(self.abortCallback)
-
-        self.stepLabel.setText(str(self.step_cnt))
-
-        self.params = dict()
-
-        self.set_status("standby")
     #
 
     def setup_step(self, step):
@@ -265,22 +290,7 @@ class Process_Window(Ui_mainWindow):
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Load")
         self.proceedButton.clicked.disconnect()
-        self.proceedButton.clicked.connect(self.reload)
-    #
-
-
-    def reload(self):
-        '''
-        When a deposition ends allow the user to choose another recipe
-        '''
-        self.clear()
-        recipe = self.getRecipe()
-        self.setupSequencer(recipe)
-
-        self.proceedButton.setEnabled(True)
-        self.proceedButton.setText("Start")
-        self.proceedButton.clicked.disconnect()
-        self.proceedButton.clicked.connect(self.startCallback)
+        self.proceedButton.clicked.connect(self.loadRecipe)
     #
 
     def clear(self):
@@ -294,6 +304,28 @@ class Process_Window(Ui_mainWindow):
         self.insDisplay.setHtml(self.ins_text)
         self.step_cnt = 0
         self.stepLabel.setText(str(self.step_cnt))
+    #
+
+    def warn(self, warning):
+        '''
+        Opens a dialog to print a warning to the user
+
+        Args:
+            warning (str) : The warning to display
+
+        Returns:
+            True if Ok button was press,ed False if cancel button
+        '''
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setText(str(warning))
+        msgBox.setWindowTitle("Warning")
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        ret = msgBox.exec()
+        if ret == QMessageBox.Ok:
+            return True
+        else:
+            return False
     #
 
     '''
@@ -341,14 +373,20 @@ class Process_Window(Ui_mainWindow):
         self.sequencer.canAdvanceSignal.emit()
     #
 
-
     def abortCallback(self):
         '''
         Callback function for the abort button
         '''
-        self.proceedButton.setEnabled(False)
-        self.append_ins_warning("Aborting Process...IMPLEMENT")
-        #self.ins_text("Got Here "+str(self.step_cnt))
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Critical)
+        msgBox.setText("Are you sure you want to abort the current process?")
+        msgBox.setWindowTitle("Abort Process Warning")
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        ret = msgBox.exec()
+        if ret == QMessageBox.Ok:
+            self.proceedButton.setEnabled(False)
+            self.append_ins_warning("Aborting Process")
+            self.sequencer.abortSignal.emit()
     #
 #
 
@@ -359,9 +397,7 @@ if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = QtWidgets.QMainWindow()
-    ui = Process_Window()
-    ui.setupUi(mainWindow)
+    ui = Process_Window(mainWindow)
 
     mainWindow.show()
-
     sys.exit(app.exec_())

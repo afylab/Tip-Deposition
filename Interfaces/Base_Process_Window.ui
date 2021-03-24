@@ -279,8 +279,44 @@
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="fileMenu">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="loadRecipeAction"/>
+    <addaction name="abortAction"/>
+    <addaction name="exitAction"/>
+   </widget>
+   <widget class="QMenu" name="labRADMenu">
+    <property name="title">
+     <string>LabRAD</string>
+    </property>
+    <addaction name="openServerAction"/>
+   </widget>
+   <addaction name="fileMenu"/>
+   <addaction name="labRADMenu"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <action name="loadRecipeAction">
+   <property name="text">
+    <string>Load Recipe</string>
+   </property>
+  </action>
+  <action name="abortAction">
+   <property name="text">
+    <string>Abort Process</string>
+   </property>
+  </action>
+  <action name="exitAction">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="openServerAction">
+   <property name="text">
+    <string>Open Server</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
