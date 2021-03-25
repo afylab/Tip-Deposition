@@ -158,13 +158,13 @@ class recipe_logger():
         Destructor, to make sure the file object is closed properly. I.e. by filling unused fields with
         empty spaces, adding the top row if it doesn't exist.
         '''
+        print("Got Here")
         try: # If the object is closed before startlog is called this will cause exceptions
             if self.filemode == 'w': # If it was a new file, write the buffered paramters
                 self.writer.write('\n')
                 self.writer.write(self.buffer)
             else: # If you are editing an existing file, and the number of columns doesn't match, fill remaining space with blanks
                 while self.col < len(self.firstline):
-                    print(self.col, len(self.firstline))
                     self.writer.write(',')
                     self.col += 1
                 #

@@ -26,6 +26,7 @@ class Sequencer(QThread):
     userStepSignal = pyqtSignal(Step)
     startupSignal = pyqtSignal(Step)
     canAdvanceSignal = pyqtSignal()
+    activeSignal = pyqtSignal()
     errorSignal = pyqtSignal()
     finishedSignal = pyqtSignal()
     abortSignal = pyqtSignal()
@@ -81,7 +82,7 @@ class Sequencer(QThread):
             return
 
         try: # Setup the process
-            startupstep = self.recipe.setup(None)
+            startupstep = self.recipe.setup(loaded)
             self.startupSignal.emit(startupstep)
             self.wait_for_gui() # Wait for the user to enter the starting parameters and press start
             startupstep.processed = True # Flag the step as processed
@@ -98,6 +99,7 @@ class Sequencer(QThread):
         #
 
         self.active = True
+        self.activeSignal.emit()
         try: # Begin the main loop
             steps = self.recipe.proceed() # Generator for controlling steps
             for step in steps: # Proceed through steps, process feedback as it arises.

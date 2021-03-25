@@ -112,9 +112,6 @@ class Recipe():
         self.name = type(self).__name__.replace("_"," ")
         self.version = version
 
-        # LOAD THE DEFAULTS FROM A RECORD WITH THE SAME VERSION NUMBER
-        self.defaults = dict()
-
         # Checks that all the equipment needed to carry out the recipe is in servers
         if required_servers is not None:
             missing = False
@@ -129,19 +126,27 @@ class Recipe():
     #
 
     '''
-    Setup the recipe by loading defaults or information from previous depositions and getting user input.
+    Setup the recipe by loading defaults or information from previous depositions and getting user
+    input. This function returns a Step object which is used to get the initial parameters in the
+    user interface. Add parameter to it using Step.add_input_param then at startup the sequencer
+    will automatically pass this step to the user interface and subsequently load the values into
+    Recipe.parameters, a dictionary containg the parameters as {name:value}.  Use limits on
+    numerical values to make sure no equipment breaking values are entered.
 
-    Overload to extend for a particular recipe, this function returns a Step object which is used to
-    get the initial parameters in the user interface. Add parameter to it using Step.add_input_param
-    then at startup the sequencer will automatically pass this step to the user interface and
-    subsequently load the values into Recipe.parameters, a dictionary containg the parameters as {name:value}.
+    To preserve insertion order and load in defaults when overloading, always call the superclass
+    constructor before adding any parameters, i.e. the first line should be super().__init__(step, defaults)
 
-    For reference the values from the last run of the recipe are loaded to Recipe.previous, a dictionary
-    containg the previous parameters as {name:value}. Normally, use these values for the defaults. Use
-    limits on numerical values to make sure no equipment breaking values are entered.
-
+    Args:
+        defaults (dict) : a dictionary containg the previous parameters as {name:value}, to use as
+            defaults. This dictionary is loaded and default values can be accessed using
+            Recipe.default("Param Name") which will return the default or None if there is no such
+            default parameter.
     '''
     def setup(self, defaults):
+        if defaults is None:
+            self.defaultParams = {}
+        else:
+            self.defaultParams = defaults
         setupstep = Step(instructions="Enter Tip and Deposition parameters")
 
         # Add Parameters, by default parameters are strings
@@ -150,6 +155,29 @@ class Recipe():
         # Add a default value, which may be loaded from previous
         setupstep.add_input_param("Person Evaporating")
 
+        # Can also have users select from a list of options using
+        setupstep.add_input_param("Superconductor", default=self.default("Superconductor") )#, options=["Lead", "Indium"])
+
+        return setupstep
+    #
+
+
+    def proceed(self):
+        '''
+        Run the recipe, overload to create a particular recipe.
+
+        Overload to extend for a particular recipe, follow the prototype shown in this function.
+
+        Basic Workflow:
+        - define a new step object with a message to the user
+        - add input parameters if appropriate
+        - yield the step back to the sequencer
+        - access the parameters in the step (if needed)
+        - perform some action using the labRAD servers
+
+        For reference Recipe.parameters is a dictionary containg the parameters defined at startup
+        as {name:value}.
+        '''
         # # Define numerical input using limits on the values for safety, even if it is a wide range
         # # if there are limits the GUI will automatically treat it as a number instead of a string.
         # setupstep.add_input_param("Diameter", default=100.0, limits=(10.0,1000.0))
@@ -158,31 +186,9 @@ class Recipe():
         # setupstep.add_input_param("Num. Depositions", default=3, limits=(1,10), isInt=True)
 
         # Can also have users select from a list of options using
-        setupstep.add_input_param("Superconductor", default="Lead", options=["Lead", "Indium"])
-
-        return setupstep
-    #
-
-    '''
-    Run the recipe, overload to create a particular recipe.
-
-    Overload to extend for a particular recipe, follow the prototype shown in this function.
-
-    Basic Workflow:
-    - define a new step object with a message to the user
-    - add input parameters if appropriate
-    - yield the step back to the sequencer
-    - access the parameters in the step (if needed)
-    - perform some action using the labRAD servers
-
-    For reference Recipe.parameters is a dictionary containg the parameters defined at startup
-    as {name:value}.
-
-    '''
-    def proceed(self):
+        # setupstep.add_input_param("Superconductor", default=self.default("Superconductor") )#, options=["Lead", "Indium"])
         yield "Your Steps go here"
     #
-
 
     def shutdown(self):
         '''
@@ -190,6 +196,19 @@ class Recipe():
         normal shutdown or in the event of an unexpected error.
         '''
         pass
+    #
+
+    def default(self, name):
+        '''
+        Attempts to return the default value of the parameter corresponding to name, will return
+        None if no parameter exists. Do not attempt to call the default parameter dictionary directly
+        as there may be missing parameters that will result in a KeyError.
+        '''
+        if name in self.defaultParams:
+            return self.defaultParams[name]
+        else:
+            return None
+        #
     #
 
 

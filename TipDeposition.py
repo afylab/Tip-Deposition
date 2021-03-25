@@ -39,9 +39,9 @@ class RecipeDialog(Ui_RecipeDialog):
 
     def setupUi(self, parent):
         super().setupUi(parent)
-        self.cancelled = False
+        self.cancelled = True
         self.parent = parent
-        self.loadButton.clicked.connect(self.parent.close)
+        self.loadButton.clicked.connect(self.loadCallback)
         self.cancelButton.clicked.connect(self.cancelCallback)
 
         self.loadLastCheckBox.toggled.connect(self.loadLastCallback)
@@ -70,6 +70,11 @@ class RecipeDialog(Ui_RecipeDialog):
             return None
         else:
             return str(self.loadSpecificLineEdit.text())
+    #
+
+    def loadCallback(self):
+        self.cancelled = False
+        self.parent.close()
     #
 
     def cancelCallback(self):
@@ -109,6 +114,7 @@ class Process_Window(Ui_mainWindow):
 
     def setupUi(self, mainWindow):
         super(Process_Window, self).setupUi(mainWindow)
+        mainWindow.setSubRef(self) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
 
         # Read only text
         self.insDisplay.setReadOnly(True)
@@ -166,6 +172,7 @@ class Process_Window(Ui_mainWindow):
         self.sequencer.autoStepSignal.connect(self.auto_step)
         self.sequencer.userStepSignal.connect(self.user_step)
         self.sequencer.finishedSignal.connect(self.finished)
+        self.sequencer.activeSignal.connect(self.active_process)
 
         # Connect signals back to the sequencer
         self.sequencer.canAdvanceSignal.connect(self.sequencer.advanceSlot)
@@ -190,7 +197,6 @@ class Process_Window(Ui_mainWindow):
         '''
         self.add_user_inputs(step, self.coreParamsLayout, max=12, overflow=False)
     #
-
 
     def user_step(self, step):
         '''
@@ -224,7 +230,7 @@ class Process_Window(Ui_mainWindow):
     #
 
     '''
-    Functions to Handel User Inputs
+    Status Functions
     '''
 
     def set_status(self, status):
@@ -241,6 +247,28 @@ class Process_Window(Ui_mainWindow):
             print("Warning Status not recognized in set_status, no change")
         self.status = status
     #
+
+    def active_process(self):
+        '''
+        Wrapper to set status to active, called by activeSignal when the sequencer starts
+        '''
+        self.set_status('active')
+    #
+
+    def finished(self):
+        '''
+        When the sequencer is finished it signals this slot.
+        '''
+        self.proceedButton.setEnabled(True)
+        self.proceedButton.setText("Load")
+        self.proceedButton.clicked.disconnect()
+        self.proceedButton.clicked.connect(self.loadRecipe)
+        self.set_status('standby')
+    #
+
+    '''
+    Functions to Handel User Inputs
+    '''
 
     def add_user_inputs(self, step, layout, max=8, overflow=True):
         '''
@@ -317,17 +345,6 @@ class Process_Window(Ui_mainWindow):
                     val = widget.text()
                 step.input_param_values[k] = val
                 widget.setEnabled(False)
-        #
-    #
-
-    def finished(self):
-        '''
-        When the sequencer is finished it signals this slot.
-        '''
-        self.proceedButton.setEnabled(True)
-        self.proceedButton.setText("Load")
-        self.proceedButton.clicked.disconnect()
-        self.proceedButton.clicked.connect(self.loadRecipe)
     #
 
     def clear(self):
@@ -423,7 +440,37 @@ class Process_Window(Ui_mainWindow):
         if ret == QMessageBox.Ok:
             self.proceedButton.setEnabled(False)
             self.append_ins_warning("Aborting Process")
-            self.sequencer.abortSignal.emit()
+            if hasattr(self, 'sequencer'):
+                self.sequencer.abortSignal.emit()
+            self.set_status('error')
+    #
+
+    def closeEvent(self, event):
+        print("Closing Ho! Implement warning, proper deleting of logger")
+        event.accept()
+    #
+
+#
+
+class BaseMainWindow(QtWidgets.QMainWindow):
+    '''
+    Need this stupid wrapper because Qt Designer does not inhert from QMainWindow so the references
+    get convoluted. Call thisInstance.setSubRef(self) from the class inheriting from QtDesigner and
+    then this base can pass events to that instance, such as the closeEvent.
+    '''
+    def setSubRef(self, ref):
+        '''
+        Call this when setting up the subclass (inherited from the Qt Designer code) in order to
+        reference it from the main Window itself.
+        '''
+        self.UIsubclass = ref
+    #
+
+    def closeEvent(self, event):
+        if hasattr(self, 'UIsubclass'):
+            self.UIsubclass.closeEvent(event)
+        else:
+            event.accept()
     #
 #
 
@@ -433,7 +480,7 @@ if __name__ == '__main__':
     # rand = cxn.random_server
 
     app = QtWidgets.QApplication(sys.argv)
-    mainWindow = QtWidgets.QMainWindow()
+    mainWindow = BaseMainWindow()
     ui = Process_Window(mainWindow)
 
     mainWindow.show()
