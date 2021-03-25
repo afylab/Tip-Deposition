@@ -1,2 +1,3 @@
 *.pyc
 errorlog.txt
+logs/

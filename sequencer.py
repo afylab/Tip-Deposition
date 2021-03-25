@@ -9,7 +9,7 @@ from os.path import exists
 
 from data_logging import recipe_logger
 from recipe import Step
-from exceptions import ProcessInterruptionError
+from exceptions import ProcessInterruptionError, LogFileFormatError
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -30,7 +30,7 @@ class Sequencer(QThread):
     finishedSignal = pyqtSignal()
     abortSignal = pyqtSignal()
 
-    def __init__(self, recipe, servers):
+    def __init__(self, recipe, servers, loadsquid=None):
         '''
         Setup the recipe.
 
@@ -44,6 +44,7 @@ class Sequencer(QThread):
         self.abort = False # Calling self.abortSlot will set false and stop current process
         self.recipe = recipe(servers)
         self.servers = servers
+        self.loadsquid = loadsquid
 
         # Setup the equipment
 
@@ -64,19 +65,27 @@ class Sequencer(QThread):
 
         self.logger = recipe_logger(self.recipe)
 
-        try: # Setup the process
-            '''
-            !!!!!!!!!!!!!!
-            Load previous parameters somehow
+        '''
+        !!!!!!!!!!!!!!
+        Check LabRAD servers?
+        !!!!!!!!!!!!!!
+        '''
 
-            Check LabRAD servers?
-            !!!!!!!!!!!!!!
-            '''
+        try:
+            loaded = self.logger.load(self.loadsquid)
+            print(loaded) # For Debugging
+        except LogFileFormatError:
+            self.warnSignal.emit("Tried to load improperly formatted log file, process canceled.")
+            self.record_error()
+            self.active = False
+            return
+
+        try: # Setup the process
             startupstep = self.recipe.setup(None)
             self.startupSignal.emit(startupstep)
             self.wait_for_gui() # Wait for the user to enter the starting parameters and press start
             startupstep.processed = True # Flag the step as processed
-            self.logger.log(startupstep) # Log information
+            self.logger.startlog(startupstep) # Start logging, will not start writing to the file untill this is called
             self.recipe._process_startup(startupstep) # laod the startup paramters into the recipe
         except ProcessInterruptionError:
             self.warnSignal.emit("Process Aborted before it began. Reload process to continue.")
@@ -94,7 +103,7 @@ class Sequencer(QThread):
             for step in steps: # Proceed through steps, process feedback as it arises.
                 if not self.active:
                     raise ProcessInterruptionError
-                print(step.instructions, step.user_input) # FOR DEBUGGING
+                #print(step.instructions, step.user_input) # FOR DEBUGGING
                 if step.user_input: # If user action is needed, ask for it and wait
                     self.userStepSignal.emit(step)
                     self.wait_for_gui()
@@ -103,7 +112,7 @@ class Sequencer(QThread):
                 #
                 step.processed = True # Flag the step as processed
                 self.logger.log(step) # Log information
-            #
+            self.instructSignal.emit("Process ended sucessfully.")
         # Handle specific errors and attempt to recover
         except ProcessInterruptionError:
             self.warnSignal.emit("Attempting to return equipment to standby.")
@@ -114,10 +123,10 @@ class Sequencer(QThread):
         # Safely shutdown the thread, put all equipment on standby
         try:
             self.recipe.shutdown()
-            self.instructSignal.emit("Process ended sucessfully.")
         except:
             self.warnSignal.emit("Error encountered while attempting to shutdown equipment safely. Equipment may be unstable, full shutdown of servers recommended.")
         self.finishedSignal.emit()
+        del self.logger
         self.active = False
     #
 

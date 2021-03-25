@@ -20,6 +20,9 @@ from inspect import getmembers, isclass
 from importlib.util import spec_from_file_location #, module_from_spec
 
 class RecipeDialog(Ui_RecipeDialog):
+    '''
+    A Dialog box to select the Recipe to load.
+    '''
     def loadRecipes(self, directory):
         recipe_members = dict(getmembers(recipe, isclass))
         self.items = dict()
@@ -40,18 +43,50 @@ class RecipeDialog(Ui_RecipeDialog):
         self.parent = parent
         self.loadButton.clicked.connect(self.parent.close)
         self.cancelButton.clicked.connect(self.cancelCallback)
+
+        self.loadLastCheckBox.toggled.connect(self.loadLastCallback)
+        self.loadSpecificCheckBox.toggled.connect(self.loadSpecificCallback)
+        self.load_last = True
     #
 
     def getRecipe(self):
+        '''
+        Return the recipe class, returns None if cancelled.
+        '''
         if self.cancelled:
             return None
         key = self.recipeListWidget.currentItem().text()
         return self.items[key]
     #
 
+    def getLoadState(self):
+        '''
+        Get the options for loading the previous parameters.
+
+        Returns None is the parameters of the last run are to be used. Returns the SQUID name
+        for loading a specific SQUID.
+        '''
+        if self.load_last:
+            return None
+        else:
+            return str(self.loadSpecificLineEdit.text())
+    #
+
     def cancelCallback(self):
         self.cancelled = True
         self.parent.close()
+    #
+
+    def loadLastCallback(self):
+        if self.loadLastCheckBox.isChecked():
+            self.loadSpecificCheckBox.setChecked(False)
+            self.load_last = True
+    #
+
+    def loadSpecificCallback(self):
+        if self.loadSpecificCheckBox.isChecked():
+            self.loadLastCheckBox.setChecked(False)
+            self.load_last = False
     #
 #
 
@@ -114,13 +149,15 @@ class Process_Window(Ui_mainWindow):
         if recipe is None:
             return
 
+        loadsquid = dialog.getLoadState()
+
         try:
             self.clear()
         except:
             pass
 
         # Setup the sequencer
-        self.sequencer = Sequencer(recipe, None)
+        self.sequencer = Sequencer(recipe, None, loadsquid=loadsquid)
 
         # Connect Signals from Sequencer
         self.sequencer.instructSignal.connect(self.append_ins_text)
@@ -157,7 +194,7 @@ class Process_Window(Ui_mainWindow):
 
     def user_step(self, step):
         '''
-        Display a step requiring user input. If step.get_params is false the user simply
+        Display a step requiring user input. If step.params_needed is false the user simply
         needs to click the proceed button after performing an action, otherwise
         the user is prompted for some input.
 
@@ -168,7 +205,7 @@ class Process_Window(Ui_mainWindow):
         self.stepLabel.setText(str(self.step_cnt))
         self.append_ins_text(step.instructions)
         self.proceedButton.setEnabled(True)
-        if step.get_params:
+        if step.params_needed:
             self.add_user_inputs(step, self.paramCol1Layout)
     #
 

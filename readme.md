@@ -6,6 +6,12 @@ This program is a re-design based on earlier versions of the Evaporator software
 version incorporates the sputtering system and effusion cell in addition to the thermal
 evaporator.
 
+
+Requirements:
+Python 3.7+
+(Python 3.7 or higher is required to maintain insertion order of keys in dictionaries. This program
+is unstable without that.)
+
 ***
 
 This program is free software: you can redistribute it and/or modify

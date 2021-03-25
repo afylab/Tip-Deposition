@@ -13,7 +13,7 @@ class Step():
     '''
     def __init__(self, user_input=False, instructions=None):
         self.user_input = user_input
-        self.get_params = False
+        self.params_needed = False
         self.instructions = instructions
         self.input_spec = dict()
         self.input_param_values = dict()
@@ -27,7 +27,9 @@ class Step():
 
         Add a parameter that the user will be asked for. Parameters will always
         be displayed on the GUI alphabetically sorted by their name, and their
-        name is used to access them
+        name is used to access them.
+
+        Note: Python 3.7+ is needed to maintain insertion order of parameters in dictionaries.
 
         Args:
             prompt (string) : The user-facing label for the parameter.
@@ -44,7 +46,7 @@ class Step():
         else:
             if not self.user_input:
                 self.user_input = True
-            self.get_params = True
+            self.params_needed = True
             self.input_spec[name] = [default, limits, options, isInt]
             self.input_param_values[name] = None
     #
@@ -60,6 +62,19 @@ class Step():
             raise ValueError("Attempted to read the outcome of a Step that hasn't been processed.")
         else:
             return self.input_param_values[name]
+    #
+
+    def get_all_params(self):
+        '''
+        TO BE CALLED AFTER THE STEP IS YIELDED TO THE SEQUENCER,
+        calling this out of order will result in an exception.
+
+        Returns the parameters dictionary, protects from early access.
+        '''
+        if not self.processed:
+            raise ValueError("Attempted to read the outcome of a Step that hasn't been processed.")
+        else:
+            return self.input_param_values
     #
 #
 
