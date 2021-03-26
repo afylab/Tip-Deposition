@@ -59,7 +59,6 @@ class recipe_logger():
             self.writer.write(self.firstline[self.col])
             self.buffer = s
         else:
-            print(self.firstline)
             if self.firstline[self.col] != 'Date':
                 raise LogFileFormatError("First column of log file must be Date")
             self.writer.write('\n'+s)
@@ -89,7 +88,7 @@ class recipe_logger():
                 self.writer.write(',' + self.firstline[self.col])
                 self.buffer += ',' + s
             else:
-                print(self.col, name, self.firstline[self.col])
+                #print(self.col, name, self.firstline[self.col]) # For Debugging
                 if self.col + 1 > len(self.firstline):
                     errmsg = "Attempting to write parameters past the last column of the log file."
                     errmsg = errmsg + " Usually this means the Recipe was changed without incrementing the version number."
@@ -158,7 +157,6 @@ class recipe_logger():
         Destructor, to make sure the file object is closed properly. I.e. by filling unused fields with
         empty spaces, adding the top row if it doesn't exist.
         '''
-        print("Got Here")
         try: # If the object is closed before startlog is called this will cause exceptions
             if self.filemode == 'w': # If it was a new file, write the buffered paramters
                 self.writer.write('\n')

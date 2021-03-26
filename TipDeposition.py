@@ -4,96 +4,17 @@ Guides the user through the deposition process, running a recipe
 Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QListWidgetItem, QMessageBox
+from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QMessageBox
 
 from Interfaces.Base_Process_Window import Ui_mainWindow
-from Interfaces.Base_Recipe_Dialog import Ui_RecipeDialog
+
 from sequencer import Sequencer
 
-import recipe
+from customwidgets import BaseMainWindow, RecipeDialog, CustomSpinBox
 
 import sys
-import os
-from os.path import join
+
 from queue import Queue
-from inspect import getmembers, isclass
-from importlib.util import spec_from_file_location #, module_from_spec
-
-class RecipeDialog(Ui_RecipeDialog):
-    '''
-    A Dialog box to select the Recipe to load.
-    '''
-    def loadRecipes(self, directory):
-        recipe_members = dict(getmembers(recipe, isclass))
-        self.items = dict()
-        for filename in os.listdir(directory):
-            if filename.endswith('.py') and filename != "__init__.py":
-                spec = spec_from_file_location(filename,join(directory, filename))
-                module = spec.loader.load_module()
-                for name, obj in getmembers(module, isclass):
-                    if name not in recipe_members:
-                        key = name.replace('_', ' ')
-                        self.items[key] = obj
-                        self.recipeListWidget.addItem(QListWidgetItem(key))
-    #
-
-    def setupUi(self, parent):
-        super().setupUi(parent)
-        self.cancelled = True
-        self.parent = parent
-        self.loadButton.clicked.connect(self.loadCallback)
-        self.cancelButton.clicked.connect(self.cancelCallback)
-
-        self.loadLastCheckBox.toggled.connect(self.loadLastCallback)
-        self.loadSpecificCheckBox.toggled.connect(self.loadSpecificCallback)
-        self.load_last = True
-    #
-
-    def getRecipe(self):
-        '''
-        Return the recipe class, returns None if cancelled.
-        '''
-        if self.cancelled:
-            return None
-        key = self.recipeListWidget.currentItem().text()
-        return self.items[key]
-    #
-
-    def getLoadState(self):
-        '''
-        Get the options for loading the previous parameters.
-
-        Returns None is the parameters of the last run are to be used. Returns the SQUID name
-        for loading a specific SQUID.
-        '''
-        if self.load_last:
-            return None
-        else:
-            return str(self.loadSpecificLineEdit.text())
-    #
-
-    def loadCallback(self):
-        self.cancelled = False
-        self.parent.close()
-    #
-
-    def cancelCallback(self):
-        self.cancelled = True
-        self.parent.close()
-    #
-
-    def loadLastCallback(self):
-        if self.loadLastCheckBox.isChecked():
-            self.loadSpecificCheckBox.setChecked(False)
-            self.load_last = True
-    #
-
-    def loadSpecificCallback(self):
-        if self.loadSpecificCheckBox.isChecked():
-            self.loadLastCheckBox.setChecked(False)
-            self.load_last = False
-    #
-#
 
 class Process_Window(Ui_mainWindow):
     '''
@@ -115,7 +36,7 @@ class Process_Window(Ui_mainWindow):
     def setupUi(self, mainWindow):
         super(Process_Window, self).setupUi(mainWindow)
         mainWindow.setSubRef(self) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
-
+        mainWindow.setWindowTitle("Tip Deposition Process Window")
         # Read only text
         self.insDisplay.setReadOnly(True)
 
@@ -303,20 +224,21 @@ class Process_Window(Ui_mainWindow):
                 elif spec[1] is not None and spec[3]: # If it has limits, integer
                     widget = QSpinBox()
                     widget.setRange(int(spec[1][0]), int(spec[1][1]))
-                    if spec[0] is not None:
+                    if spec[0] is not None and spec[0] != '':
                         widget.setValue(int(spec[0]))
                     else:
                         widget.setValue(0)
                 elif spec[1] is not None and not spec[3]: # If it has limits, floating point value
-                    widget = QDoubleSpinBox()
+                    widget = CustomSpinBox()
+                    widget.setDecimals(7) # Make sure there is enough percision to accomodate a small value
                     widget.setRange(spec[1][0], spec[1][1])
-                    if spec[0] is not None:
+                    if spec[0] is not None and spec[0] != '':
                         widget.setValue(float(spec[0]))
                     else:
                         widget.setValue(0.0)
                 else:
                     widget = QLineEdit()
-                    if spec[0] is not None:
+                    if spec[0] is not None and spec[0] != '':
                         widget.setText(str(spec[0]))
                 self.params[k] = widget
                 layout.addRow(QLabel(k), self.params[k])
@@ -339,7 +261,7 @@ class Process_Window(Ui_mainWindow):
                 widget = self.params[k]
                 if isinstance(widget, QComboBox): # if it is an option box
                     val = widget.currentText()
-                elif isinstance(widget, QSpinBox) or isinstance(widget, QDoubleSpinBox): # if it is a numerical entry
+                elif isinstance(widget, QSpinBox) or isinstance(widget, CustomSpinBox): # if it is a numerical entry
                     val = widget.value()
                 else: # if it is a simple label
                     val = widget.text()
@@ -383,14 +305,14 @@ class Process_Window(Ui_mainWindow):
     #
 
     '''
-    TEXT PROCESSING
+    Text Processing
     '''
 
     def append_ins_text(self, txt):
         '''
         Add text to the instructions browser
         '''
-        self.ins_text += txt+"<br>"
+        self.ins_text += txt.replace('\n', '<br>')+"<br>"
         self.insDisplay.setHtml(self.ins_text)
         self.insDisplay.moveCursor(QtGui.QTextCursor.End)
     #
@@ -405,7 +327,7 @@ class Process_Window(Ui_mainWindow):
     #
 
     '''
-    CALLBACK FUNCTIONS
+    Callback Functions
     '''
     def startCallback(self):
         self.processQueuedStep()
@@ -446,29 +368,19 @@ class Process_Window(Ui_mainWindow):
     #
 
     def closeEvent(self, event):
-        print("Closing Ho! Implement warning, proper deleting of logger")
-        event.accept()
-    #
-
-#
-
-class BaseMainWindow(QtWidgets.QMainWindow):
-    '''
-    Need this stupid wrapper because Qt Designer does not inhert from QMainWindow so the references
-    get convoluted. Call thisInstance.setSubRef(self) from the class inheriting from QtDesigner and
-    then this base can pass events to that instance, such as the closeEvent.
-    '''
-    def setSubRef(self, ref):
-        '''
-        Call this when setting up the subclass (inherited from the Qt Designer code) in order to
-        reference it from the main Window itself.
-        '''
-        self.UIsubclass = ref
-    #
-
-    def closeEvent(self, event):
-        if hasattr(self, 'UIsubclass'):
-            self.UIsubclass.closeEvent(event)
+        if self.status == 'active' or self.sequencer.active:
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Critical)
+            msgBox.setText("Process active! It is highly recommended you attempt to abort the process first. Are you sure you want to quit?")
+            msgBox.setWindowTitle("Active Process Warning")
+            msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            ret = msgBox.exec()
+            if ret == QMessageBox.Ok:
+                if hasattr(self.sequencer, 'logger'): # make sure the file saves correctly
+                    del self.sequencer.logger
+                event.accept()
+            else:
+                event.ignore()
         else:
             event.accept()
     #

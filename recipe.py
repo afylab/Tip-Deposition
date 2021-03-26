@@ -2,6 +2,11 @@
 A module for defining tip deposition recipes generically
 '''
 
+from exceptions import ProcessInterruptionError, ProcessTimeoutError
+from time import sleep
+
+from datetime import datetime, timedelta
+
 class Step():
     '''
     Feedback from the recipe to the user interface. Is set up in the recipie,
@@ -111,6 +116,7 @@ class Recipe():
         '''
         self.name = type(self).__name__.replace("_"," ")
         self.version = version
+        self.abort = False # Calling Sequencer.abortSlot will set this to false and stop current process
 
         # Checks that all the equipment needed to carry out the recipe is in servers
         if required_servers is not None:
@@ -209,6 +215,44 @@ class Recipe():
         else:
             return None
         #
+    #
+
+    def wait_for(self, minutes):
+        ''' Sleep the recipe for a specified number of minutes. Still check for aborts. '''
+        stoptime = datetime.now() + timedelta(minutes=minutes)
+        while stoptime > datetime.now():
+            sleep(0.05)
+            if self.abort:
+                raise ProcessInterruptionError
+    #
+
+    def wait_until(self, variable, state, conditional="less than", timeout=100):
+        '''
+        Sleep the recipe until a variable meets a ceratin condition or until it
+        times out.
+
+        Args:
+            variable : A reference to the variable to track.
+            state : The desired state of that variable
+            conditional : The conditional to compare varaible and state. "less than" for
+                variable < state, "greater than" for variable > state, "equal" for variable = state.
+            timeout : The number of minutes to wait, after which the condition will raise a
+                ProcessTimeoutError exception.
+        '''
+        stoptime = datetime.now() + timedelta(minutes=timeout)
+        if conditional == "less than":
+            comparitor = lambda x : x < state
+        elif conditional == "greater than":
+            comparitor = lambda x : x > state
+        elif conditional == "equal":
+            comparitor = lambda x : x == state
+
+        while comparitor(variable):
+            sleep(0.05)
+            if self.abort:
+                raise ProcessInterruptionError
+            if stoptime > datetime.now():
+                raise ProcessTimeoutError
     #
 
 

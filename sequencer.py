@@ -74,7 +74,7 @@ class Sequencer(QThread):
 
         try:
             loaded = self.logger.load(self.loadsquid)
-            print(loaded) # For Debugging
+            #print(loaded) # For Debugging
         except LogFileFormatError:
             self.warnSignal.emit("Tried to load improperly formatted log file, process canceled.")
             self.record_error()
@@ -146,6 +146,7 @@ class Sequencer(QThread):
         '''
         self.active = False
         self.abort = True
+        self.recipe.abort = True
     #
 
     def advanceSlot(self):
@@ -153,6 +154,7 @@ class Sequencer(QThread):
         Slot for signal (send from GUI thread using canAdvanceSignal) to abort the current process.
         '''
         self.advance = True
+    #
 
     def slient_error(self):
         '''
@@ -169,7 +171,7 @@ class Sequencer(QThread):
         else:
             file_mode = 'w' # create a new file if not
         with open(flname, file_mode) as errorlog:
-            errorlog.write(err)
+            errorlog.write(err+'\n')
             errorlog.flush()
         if display:
             self.warnSignal.emit("See " + flname + " for full details")
