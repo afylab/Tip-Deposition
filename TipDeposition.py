@@ -7,6 +7,8 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QMessageBox
 
 from Interfaces.Base_Process_Window import Ui_mainWindow
+from Status_Window import Status_Window
+from equipmenthandler import EquipmentHandler
 
 from sequencer import Sequencer
 
@@ -28,15 +30,28 @@ class Process_Window(Ui_mainWindow):
         self.step_cnt = 0
         self.ins_text = ""
         self.stepQueue = Queue(1000)
-
         self.setupUi(parent)
+
+        '''
+        Do we want some dialog to identify labRAD servers?
+        '''
+
+        self.equip = EquipmentHandler([]) # Empty list for now, pass in list of servers?
+        # self.equip.start() # need to implement main loop first
+
+        # Setup the Status Window
+        self.statusWindowWidget = QtWidgets.QWidget()
+        self.statusWindow = Status_Window(self.statusWindowWidget, self, self.equip)
+
         self.loadRecipe()
+
+        self.statusWindowWidget.show()
     #
 
     def setupUi(self, mainWindow):
         super(Process_Window, self).setupUi(mainWindow)
         mainWindow.setSubRef(self) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
-        mainWindow.setWindowTitle("Tip Deposition Process Window")
+        mainWindow.setWindowTitle("Tip Process Window")
         # Read only text
         self.insDisplay.setReadOnly(True)
 

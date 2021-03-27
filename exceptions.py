@@ -13,3 +13,7 @@ class LogFileFormatError(Exception):
 class ProcessTimeoutError(Exception):
     ''' Raised when a hardware condition is not met after a specified timeout period. '''
     pass
+
+class ImproperCommandError(Exception):
+    ''' Raised when an improper command is send to the Equipment Handler. '''
+    pass
