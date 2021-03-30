@@ -17,3 +17,6 @@ class ProcessTimeoutError(Exception):
 class ImproperCommandError(Exception):
     ''' Raised when an improper command is send to the Equipment Handler. '''
     pass
+
+class LabRADError(Exception):
+    ''' Raised when there is an issue with LabRAD '''

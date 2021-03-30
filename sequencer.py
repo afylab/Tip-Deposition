@@ -30,8 +30,9 @@ class Sequencer(QThread):
     errorSignal = pyqtSignal()
     finishedSignal = pyqtSignal()
     abortSignal = pyqtSignal()
+    pauseSignal = pyqtSignal(bool)
 
-    def __init__(self, recipe, servers, loadsquid=None):
+    def __init__(self, recipe, equip, loadsquid=None):
         '''
         Setup the recipe.
 
@@ -43,8 +44,9 @@ class Sequencer(QThread):
         '''
         self.active = False # Parameter is active the process is running, will not load a new process
         self.abort = False # Calling self.abortSlot will set false and stop current process
-        self.recipe = recipe(servers)
-        self.servers = servers
+        self.pause = False
+        self.recipe = recipe(equip)
+        self.equip = equip
         self.loadsquid = loadsquid
 
         # Setup the equipment
@@ -68,7 +70,8 @@ class Sequencer(QThread):
 
         '''
         !!!!!!!!!!!!!!
-        Check LabRAD servers?
+        Check that there are no errors raised by the equipment
+        such as missing servers, can't connect to labrad etc.
         !!!!!!!!!!!!!!
         '''
 
@@ -103,6 +106,9 @@ class Sequencer(QThread):
         try: # Begin the main loop
             steps = self.recipe.proceed() # Generator for controlling steps
             for step in steps: # Proceed through steps, process feedback as it arises.
+                if self.pause: # If paused, wait
+                    while self.pause:
+                        sleep(0.01)
                 if not self.active:
                     raise ProcessInterruptionError
                 #print(step.instructions, step.user_input) # FOR DEBUGGING
@@ -149,6 +155,22 @@ class Sequencer(QThread):
         self.recipe.abort = True
     #
 
+    def pauseSlot(self, val):
+        '''
+        Slot for the signal to Pause/Unpause the process.
+
+        Args:
+            val (bool) : The operation to perform, if True pause the process, if False unpause.
+        '''
+
+        if val:
+            self.pause = True
+            self.recipe.pause = True
+        else:
+            self.pause = False
+            self.recipe.pause = False
+    #
+
     def advanceSlot(self):
         '''
         Slot for signal (send from GUI thread using canAdvanceSignal) to abort the current process.
@@ -158,13 +180,16 @@ class Sequencer(QThread):
 
     def slient_error(self):
         '''
-        Slot for recording a silent error to the errorlog, called by the GUI using errorSignal
+        Slot for recording a silent error to the errorlog, called by the GUI using silentErrorSignal
         '''
         self.record_error(display=False)
     #
 
-    def record_error(self, flname='errorlog.txt', display=True):
-        err = format_exc()
+    def record_error(self, override=None, flname='errorlog.txt', display=True):
+        if override is None:
+            err = format_exc()
+        else:
+            err = override
         print(err) # Print it to the terminal if there is one running
         if exists(flname):
             file_mode = 'a' # append if already exists

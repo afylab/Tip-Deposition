@@ -12,7 +12,7 @@ from equipmenthandler import EquipmentHandler
 
 from sequencer import Sequencer
 
-from customwidgets import BaseMainWindow, RecipeDialog, CustomSpinBox
+from customwidgets import BaseMainWindow, BaseStatusWidget, RecipeDialog, CustomSpinBox
 
 import sys
 
@@ -30,6 +30,7 @@ class Process_Window(Ui_mainWindow):
         self.step_cnt = 0
         self.ins_text = ""
         self.stepQueue = Queue(1000)
+        self.paused = False
         self.setupUi(parent)
 
         '''
@@ -37,10 +38,11 @@ class Process_Window(Ui_mainWindow):
         '''
 
         self.equip = EquipmentHandler([]) # Empty list for now, pass in list of servers?
+        self.equip.errorSignal.connect(self.equipErrorCallback)
         # self.equip.start() # need to implement main loop first
 
         # Setup the Status Window
-        self.statusWindowWidget = QtWidgets.QWidget()
+        self.statusWindowWidget = BaseStatusWidget()
         self.statusWindow = Status_Window(self.statusWindowWidget, self, self.equip)
 
         self.loadRecipe()
@@ -50,8 +52,9 @@ class Process_Window(Ui_mainWindow):
 
     def setupUi(self, mainWindow):
         super(Process_Window, self).setupUi(mainWindow)
-        mainWindow.setSubRef(self) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
-        mainWindow.setWindowTitle("Tip Process Window")
+        self.mainWindow = mainWindow
+        self.mainWindow.setSubRef(self) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
+        self.mainWindow.setWindowTitle("Tip Process Window")
         # Read only text
         self.insDisplay.setReadOnly(True)
 
@@ -62,6 +65,7 @@ class Process_Window(Ui_mainWindow):
 
         # Bind Buttons
         self.abortButton.clicked.connect(self.abortCallback)
+        self.pauseButton.clicked.connect(self.pauseCallback)
 
         self.stepLabel.setText(str(self.step_cnt))
 
@@ -99,7 +103,7 @@ class Process_Window(Ui_mainWindow):
             pass
 
         # Setup the sequencer
-        self.sequencer = Sequencer(recipe, None, loadsquid=loadsquid)
+        self.sequencer = Sequencer(recipe, self.equip, loadsquid=loadsquid)
 
         # Connect Signals from Sequencer
         self.sequencer.instructSignal.connect(self.append_ins_text)
@@ -114,8 +118,10 @@ class Process_Window(Ui_mainWindow):
         self.sequencer.canAdvanceSignal.connect(self.sequencer.advanceSlot)
         self.sequencer.errorSignal.connect(self.sequencer.slient_error)
         self.sequencer.abortSignal.connect(self.sequencer.abortSlot)
+        self.sequencer.pauseSignal.connect(self.sequencer.pauseSlot)
 
         # Prepare the Start Button
+        self.pauseButton.setEnabled(False)
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Start")
         try:
@@ -176,6 +182,9 @@ class Process_Window(Ui_mainWindow):
         elif status == "active":
             self.statusLabel.setText("Active")
             self.statusLabel.setStyleSheet("color:green")
+        elif status == "pause":
+            self.statusLabel.setText("Paused")
+            self.statusLabel.setStyleSheet("color:blue")
         elif status == "error":
             self.statusLabel.setText("Error")
             self.statusLabel.setStyleSheet("color:red")
@@ -197,6 +206,7 @@ class Process_Window(Ui_mainWindow):
         '''
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Load")
+        self.pauseButton.setEnabled(False)
         self.proceedButton.clicked.disconnect()
         self.proceedButton.clicked.connect(self.loadRecipe)
         self.set_status('standby')
@@ -348,6 +358,7 @@ class Process_Window(Ui_mainWindow):
         self.processQueuedStep()
         self.proceedButton.setEnabled(False)
         self.proceedButton.setText("Proceed")
+        self.pauseButton.setEnabled(True)
         self.proceedButton.clicked.disconnect()
         self.proceedButton.clicked.connect(self.proceedCallback)
         self.sequencer.canAdvanceSignal.emit()
@@ -362,6 +373,30 @@ class Process_Window(Ui_mainWindow):
         self.stepLabel.setText(str(self.step_cnt))
         self.processQueuedStep()
         self.sequencer.canAdvanceSignal.emit()
+    #
+
+    def pauseCallback(self):
+        '''
+        DEV Note: Need to call the equipment handler somewhere to make sure the equipment is in a good state?
+        '''
+        print("Maybe we need to pause the equipment handler too?")
+        if self.paused: # un-pause
+            self.set_status("active")
+            self.pauseButton.setText("Pause")
+            if self.proceed_was_enabled:
+                self.proceedButton.setEnabled(True)
+            self.sequencer.pauseSignal.emit(False)
+            self.paused = False
+        else:
+            self.set_status("pause")
+            self.pauseButton.setText("Unpause")
+            if self.proceedButton.isEnabled():
+                self.proceed_was_enabled = True
+            else:
+                self.proceed_was_enabled = False
+            self.proceedButton.setEnabled(False)
+            self.sequencer.pauseSignal.emit(True)
+            self.paused = True
     #
 
     def abortCallback(self):
@@ -380,6 +415,14 @@ class Process_Window(Ui_mainWindow):
             if hasattr(self, 'sequencer'):
                 self.sequencer.abortSignal.emit()
             self.set_status('error')
+            self.pauseButton.setEanbled(False)
+    #
+
+    def close(self):
+        '''
+        I need to define this to make the Status window able to close it?
+        '''
+        self.mainWindow.close()
     #
 
     def closeEvent(self, event):
@@ -393,19 +436,28 @@ class Process_Window(Ui_mainWindow):
             if ret == QMessageBox.Ok:
                 if hasattr(self.sequencer, 'logger'): # make sure the file saves correctly
                     del self.sequencer.logger
+                if hasattr(self, 'statusWindowWidget'):
+                    self.statusWindowWidget.closeNow()
                 event.accept()
             else:
                 event.ignore()
         else:
             event.accept()
+            if hasattr(self, 'statusWindowWidget'):
+                self.statusWindowWidget.closeNow()
+    #
+
+    def equipErrorCallback(self):
+        self.append_ins_warning("Equipment Error")
+        if hasattr(self, 'sequencer'):
+            self.sequencer.abortSignal.emit()
+            self.sequencer.record_error()
+        self.set_status('error')
     #
 #
 
 # Start the Program
 if __name__ == '__main__':
-    # cxn = labrad.connect('localhost', password='pass')
-    # rand = cxn.random_server
-
     app = QtWidgets.QApplication(sys.argv)
     mainWindow = BaseMainWindow()
     ui = Process_Window(mainWindow)

@@ -17,12 +17,14 @@ class Status_Window(Ui_StatusWindow):
         super(Status_Window, self).__init__()
         self.equip = equipment
         self.widget = widget
+        self.gui = gui
         self.setupUi(self.widget)
     #
 
     def setupUi(self, widget):
         super(Status_Window, self).setupUi(widget)
         widget.setWindowTitle("Tip Status Window")
+        widget.setGUIRef(self.gui) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
         # Setup additional stuff here
     #
 #

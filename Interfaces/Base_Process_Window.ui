@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>966</width>
-    <height>812</height>
+    <width>1025</width>
+    <height>821</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -220,7 +220,7 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>164</x>
+      <x>114</x>
       <y>355</y>
       <width>181</width>
       <height>41</height>
@@ -238,7 +238,7 @@
    <widget class="QPushButton" name="abortButton">
     <property name="geometry">
      <rect>
-      <x>600</x>
+      <x>650</x>
       <y>355</y>
       <width>181</width>
       <height>41</height>
@@ -256,7 +256,7 @@
    <widget class="QFrame" name="recipeFrame">
     <property name="geometry">
      <rect>
-      <x>-1</x>
+      <x>0</x>
       <y>629</y>
       <width>951</width>
       <height>131</height>
@@ -269,13 +269,34 @@
      <enum>QFrame::Raised</enum>
     </property>
    </widget>
+   <widget class="QPushButton" name="pauseButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>382</x>
+      <y>355</y>
+      <width>181</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>16</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Pause</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>966</width>
+     <width>1025</width>
      <height>21</height>
     </rect>
    </property>

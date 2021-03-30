@@ -102,12 +102,12 @@ class Recipe():
     how to use the Step objects before attempting to make a Recipe.
     '''
 
-    def __init__(self, servers, required_servers=None, version="1.0.0"):
+    def __init__(self, equip, required_servers=None, version="1.0.0"):
         '''
         Class initilizer, inhert and extend with any needed features then call the superclass initilizer
-        i.e. super().__init__(servers, required, version_number)
+        i.e. super().__init__(equip, required, version_number)
         where:
-        - servers is a list of availible LabRAD servers and should be the first argument of your initilizer.
+        - equip is the equipment handler object and should be the first argument of your initilizer.
         - required is a list of the server names (keys to the servers dictionary) that your recipe needs.
           be sure to add all relevant equipment to this.
         - version is the version number of the recipe, if major changes are made to a recipe increment
@@ -117,17 +117,16 @@ class Recipe():
         self.name = type(self).__name__.replace("_"," ")
         self.version = version
         self.abort = False # Calling Sequencer.abortSlot will set this to false and stop current process
+        self.pause = False
 
         # Checks that all the equipment needed to carry out the recipe is in servers
+        '''
+        Validate in the Equipment Handler
+        '''
+        self.equip = equip
         if required_servers is not None:
-            missing = False
-            for equip in required_servers:
-                if not equip in servers:
-                    print("Server " + str(equip) + "not found")
-                    missing = True
-            if missing:
-                raise ValueError("Required LabRAD server not found")
-        self.servers = servers
+            self.equip.verifySlot.emit(required_servers)
+        #
 
     #
 
@@ -224,6 +223,9 @@ class Recipe():
             sleep(0.05)
             if self.abort:
                 raise ProcessInterruptionError
+            elif self.pause: # If paused, wait
+                while self.pause:
+                    sleep(0.01)
     #
 
     def wait_until(self, variable, state, conditional="less than", timeout=100):
@@ -251,6 +253,9 @@ class Recipe():
             sleep(0.05)
             if self.abort:
                 raise ProcessInterruptionError
+            elif self.pause: # If paused, wait
+                while self.pause:
+                    sleep(0.01)
             if stoptime > datetime.now():
                 raise ProcessTimeoutError
     #

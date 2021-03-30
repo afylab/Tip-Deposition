@@ -7,7 +7,8 @@ from os.path import join
 from inspect import getmembers, isclass
 from importlib.util import spec_from_file_location #, module_from_spec
 
-from PyQt5.QtWidgets import QMainWindow, QListWidgetItem, QDoubleSpinBox
+from  PyQt5 import QtCore
+from PyQt5.QtWidgets import QMainWindow, QListWidgetItem, QDoubleSpinBox, QWidget
 
 from Interfaces.Base_Recipe_Dialog import Ui_RecipeDialog
 import recipe
@@ -32,6 +33,35 @@ class BaseMainWindow(QMainWindow):
         else:
             event.accept()
     #
+#
+
+class BaseStatusWidget(QWidget):
+    '''
+    Need this stupid wrapper because Qt Designer does not inhert from QWidget so the references
+    get convoluted. Call thisInstance.setGUIRef(self) from the class inheriting from QtDesigner and
+    then this base can pass events to the mainWindow
+    '''
+
+    def setGUIRef(self, ref):
+        '''
+        Call this when setting up the subclass (inherited from the Qt Designer code) in order to
+        reference it from the main Window itself.
+        '''
+        self.GUIref = ref
+    #
+
+    def closeEvent(self, event):
+        print("Got Here")
+        if hasattr(self, 'GUIref'):
+            self.GUIref.close()
+            # event.ignore()
+        else:
+            event.accept()
+    #
+
+    def closeNow(self):
+        del self.GUIref
+        self.close()
 #
 
 class RecipeDialog(Ui_RecipeDialog):

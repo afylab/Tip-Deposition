@@ -5,6 +5,7 @@ thread.
 '''
 import labrad
 from PyQt5.QtCore import QThread, pyqtSignal
+# from exceptions import LabRADError
 
 class EquipmentHandler(QThread):
     '''
@@ -13,7 +14,7 @@ class EquipmentHandler(QThread):
     independant of whatever is happening with the recipe
     '''
     # Signals for GUI
-    errorSignal = pyqtSignal(str) # Indicates an equipment error that is fatal to the process
+    errorSignal = pyqtSignal() # Indicates an equipment error that is fatal to the process
 
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)
@@ -29,7 +30,10 @@ class EquipmentHandler(QThread):
         '''
         super().__init__()
 
+        self.active = False
+
         self.cxn = labrad.connect('localhost', password='pass')
+
         self.servers = dict()
         for name in servers:
             if hasattr(self.cxn, name):
@@ -38,6 +42,9 @@ class EquipmentHandler(QThread):
                 print("Warning server " + name + " not found.")
             #
         #
+
+        self.trackedVars = dict() # Dictionary of the tracked varaibles, same keys as self.info
+        self.info = dict() # Dictionary of the values of the tracked variables
 
         # Connect all the signals and slots
         # errorSignal is connected to main interface
@@ -53,7 +60,16 @@ class EquipmentHandler(QThread):
         The main loop of the equipment thread. Updates tracked variables and feedback loops
         and logs data as appropriate. Handels errors if any come up.
         '''
-        pass
+        self.active = True
+
+        while self.active:
+            for k in self.trackedVars.keys(): # Update the tracked varaibles
+                self.info[k] = float(self.trackedVars[k])
+                # Send updates to GUI? Or can it read on it's own?
+
+            # Update any feedback loops
+            # Record any data that needs to be recorded.
+            # Send other signals to GUI? Status of the valves?
     #
 
     def commandSlot(self, server, command, args_kwargs):
@@ -77,7 +93,7 @@ class EquipmentHandler(QThread):
         Creates a tracked variable, after creation the tracked variable is continuously
         updated and the value is accessable at self.info[name]. After creating a tracked
         variable it is wise to wait a short amount of time for the handler to catch up
-        before attempting to access it.
+        before attempting to access it. Tracked variables will be displayed on the interface.
 
         If a variable already exists this command is ignored. If a varaible does not exist
         on a server it generates an errorSignal.
