@@ -121,11 +121,11 @@ class Recipe():
 
         # Checks that all the equipment needed to carry out the recipe is in servers
         '''
-        Validate in the Equipment Handler
+        Connect to the equipment handler and validate all the servers
         '''
         self.equip = equip
         if required_servers is not None:
-            self.equip.verifySlot.emit(required_servers)
+            self.equip.verifySignal.emit(required_servers)
         #
 
     #
@@ -197,8 +197,9 @@ class Recipe():
 
     def shutdown(self):
         '''
-        Attempts to shutdown any relevant equipment and put the system on standby. Either part of
-        normal shutdown or in the event of an unexpected error.
+        Attempts to shutdown any relevant equipment and put the system on standby. Either
+        part of normal shutdown or in the event of an unexpected error. Overload to protect
+        critical equipment.
         '''
         pass
     #
@@ -213,7 +214,6 @@ class Recipe():
             return self.defaultParams[name]
         else:
             return None
-        #
     #
 
     def wait_for(self, minutes):
@@ -234,13 +234,19 @@ class Recipe():
         times out.
 
         Args:
-            variable : A reference to the variable to track.
-            state : The desired state of that variable
+            variable (str) : The name of the tracked variable to follow, i.e. the key in
+                self.equip.info[varaible]
+            state : The desired state of that variable.
             conditional : The conditional to compare varaible and state. "less than" for
                 variable < state, "greater than" for variable > state, "equal" for variable = state.
+                Alternatively conditional can be a function that accepts a floating point value
+                and returns a boolean when a certain condition is met.
             timeout : The number of minutes to wait, after which the condition will raise a
                 ProcessTimeoutError exception.
         '''
+        if variable not in self.equip.info:
+            raise ValueError("Varaible " + str(variable) + " not a tracked variable.")
+
         stoptime = datetime.now() + timedelta(minutes=timeout)
         if conditional == "less than":
             comparitor = lambda x : x < state
@@ -248,16 +254,60 @@ class Recipe():
             comparitor = lambda x : x > state
         elif conditional == "equal":
             comparitor = lambda x : x == state
+        elif callable(conditional): # the conditional is a function
+            comparitor = conditional
+        else:
+            raise ValueError("Conditional not recognized.")
 
-        while comparitor(variable):
+        while not comparitor(self.equip.info[variable]):
             sleep(0.05)
             if self.abort:
                 raise ProcessInterruptionError
             elif self.pause: # If paused, wait
                 while self.pause:
                     sleep(0.01)
-            if stoptime > datetime.now():
+            if datetime.now() > stoptime:
                 raise ProcessTimeoutError
+    #
+
+    def command(self, server, command, args=None, wait=True):
+        '''
+        Send a command to a LabRAD server through the equipment handler.
+
+        Args:
+            server (str) : The name of the LabRAD server to get the value from
+            command (str): The name function (in the namespace of that server, i.e.
+                getattr(server, accessor) gives the function)
+            args (list) : A list containing the arguments of the command and the
+                keyword arguments, which will be used to call the server using
+                server.command(*args). If None, no arguments will be sent
+            wait (bool) : If True will wait 0.1 seconds after sending the signal to allow
+                the equipment handler and servers to catch up.
+        '''
+        if args is None:
+            self.equip.commandSignal.emit(server, command, [])
+        else:
+            self.equip.commandSignal.emit(server, command, args)
+        if wait:
+            sleep(0.1) # give the program a little time to catch up
+    #
+
+    def trackVariable(self, name, server, accessor, wait=True):
+        '''
+        Send a signal to the equipment handler to track a varaible.
+
+        Args:
+            name (str) : The name of the variable, which will function as the key to access it.
+            server (str) : The name of the LabRAD server to get the value from
+            accessor (str): The accessor function (in the namespace of that server, i.e.
+                getattr(server, accessor) gives the function) to get the value must return
+                one floating point number.
+            wait (bool) : If True will wait a 0.1 seconds after sending the signal
+                to allow the equipment handler and servers to catch up.
+        '''
+        self.equip.trackSignal.emit(name, server, accessor)
+        if wait:
+            sleep(0.1) # give the program a little time to catch up
     #
 
 

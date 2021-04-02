@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1025</width>
-    <height>821</height>
+    <width>966</width>
+    <height>678</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -253,25 +253,9 @@
      <string>Abort</string>
     </property>
    </widget>
-   <widget class="QFrame" name="recipeFrame">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>629</y>
-      <width>951</width>
-      <height>131</height>
-     </rect>
-    </property>
-    <property name="frameShape">
-     <enum>QFrame::StyledPanel</enum>
-    </property>
-    <property name="frameShadow">
-     <enum>QFrame::Raised</enum>
-    </property>
-   </widget>
    <widget class="QPushButton" name="pauseButton">
     <property name="enabled">
-     <bool>false</bool>
+     <bool>true</bool>
     </property>
     <property name="geometry">
      <rect>
@@ -296,7 +280,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1025</width>
+     <width>966</width>
      <height>21</height>
     </rect>
    </property>

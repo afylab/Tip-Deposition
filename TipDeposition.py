@@ -4,7 +4,7 @@ Guides the user through the deposition process, running a recipe
 Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QMessageBox
+from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QMessageBox, qApp
 
 from Interfaces.Base_Process_Window import Ui_mainWindow
 from Status_Window import Status_Window
@@ -15,7 +15,7 @@ from sequencer import Sequencer
 from customwidgets import BaseMainWindow, BaseStatusWidget, RecipeDialog, CustomSpinBox
 
 import sys
-
+from traceback import format_exc
 from queue import Queue
 
 class Process_Window(Ui_mainWindow):
@@ -34,12 +34,15 @@ class Process_Window(Ui_mainWindow):
         self.setupUi(parent)
 
         '''
+        DEV NOTE
         Do we want some dialog to identify labRAD servers?
+
+        or just have the equipment handler load any that it can find
         '''
 
-        self.equip = EquipmentHandler([]) # Empty list for now, pass in list of servers?
+        self.equip = EquipmentHandler() # Empty list for now, gets everything, pass in list of servers?
         self.equip.errorSignal.connect(self.equipErrorCallback)
-        # self.equip.start() # need to implement main loop first
+        self.equip.start()
 
         # Setup the Status Window
         self.statusWindowWidget = BaseStatusWidget()
@@ -315,7 +318,7 @@ class Process_Window(Ui_mainWindow):
             warning (str) : The warning to display
 
         Returns:
-            True if Ok button was press,ed False if cancel button
+            True if Ok button was pressed False if cancel button
         '''
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Warning)
@@ -415,7 +418,7 @@ class Process_Window(Ui_mainWindow):
             if hasattr(self, 'sequencer'):
                 self.sequencer.abortSignal.emit()
             self.set_status('error')
-            self.pauseButton.setEanbled(False)
+            self.pauseButton.setEnabled(False)
     #
 
     def close(self):
@@ -436,15 +439,13 @@ class Process_Window(Ui_mainWindow):
             if ret == QMessageBox.Ok:
                 if hasattr(self.sequencer, 'logger'): # make sure the file saves correctly
                     del self.sequencer.logger
-                if hasattr(self, 'statusWindowWidget'):
-                    self.statusWindowWidget.closeNow()
-                event.accept()
+                qApp.quit()
+                #event.accept()
             else:
                 event.ignore()
         else:
             event.accept()
-            if hasattr(self, 'statusWindowWidget'):
-                self.statusWindowWidget.closeNow()
+            qApp.quit()
     #
 
     def equipErrorCallback(self):
@@ -452,6 +453,8 @@ class Process_Window(Ui_mainWindow):
         if hasattr(self, 'sequencer'):
             self.sequencer.abortSignal.emit()
             self.sequencer.record_error()
+        else:
+            print(format_exc())
         self.set_status('error')
     #
 #

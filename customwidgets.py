@@ -7,8 +7,10 @@ from os.path import join
 from inspect import getmembers, isclass
 from importlib.util import spec_from_file_location #, module_from_spec
 
-from  PyQt5 import QtCore
-from PyQt5.QtWidgets import QMainWindow, QListWidgetItem, QDoubleSpinBox, QWidget
+from PyQt5 import QtCore
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QLabel, QMainWindow, QListWidgetItem, QDoubleSpinBox, QWidget
+#from PyQt5.QtWidgets import QFrame, QSizePolicy, QGridLayout
 
 from Interfaces.Base_Recipe_Dialog import Ui_RecipeDialog
 import recipe
@@ -51,17 +53,12 @@ class BaseStatusWidget(QWidget):
     #
 
     def closeEvent(self, event):
-        print("Got Here")
         if hasattr(self, 'GUIref'):
             self.GUIref.close()
-            # event.ignore()
+            event.ignore()
         else:
             event.accept()
     #
-
-    def closeNow(self):
-        del self.GUIref
-        self.close()
 #
 
 class RecipeDialog(Ui_RecipeDialog):
@@ -143,5 +140,52 @@ class RecipeDialog(Ui_RecipeDialog):
 class CustomSpinBox(QDoubleSpinBox):
     def textFromValue(self, value):
         return str(value)
+    #
+#
+
+class VarEntry(QWidget):
+    '''
+    A simple widget to display a value with a label
+    '''
+    def __init__(self, parent, label, width=300, height=35):
+        super().__init__(parent)
+        self.setMaximumSize(width, height)
+        self.value = 0.0
+        self.staticLabel = QLabel(self)
+        self.staticLabel.setGeometry(QtCore.QRect(0, 5, width/2, height-10))
+        font = QFont()
+        font.setPointSize(14)
+        self.staticLabel.setFont(font)
+        self.dynamicLabel = QLabel(self)
+        self.dynamicLabel.setGeometry(QtCore.QRect(150, 5, width/2, height-10))
+        self.dynamicLabel.setFont(font)
+        self.setLabel(label)
+        self.show()
+
+        # self.layout = QGridLayout()
+        # self.layout.addWidget(self.staticLabel, 0,0)
+        # self.layout.addWidget(self.dynamicLabel, 0,1)
+        # self.setLayout(self.layout)
+    #
+
+    def setLabel(self, lbl):
+        '''
+        Set the text of the label.
+
+        Args:
+            lbl (str) : The Label
+        '''
+        self.label = lbl
+        self.staticLabel.setText(str(lbl))
+
+    def setValue(self, val):
+        '''
+        Set the numeric value of the label.
+
+        Args:
+            val : The value
+        '''
+        self.value = val
+        self.dynamicLabel.setText(str(self.value))
     #
 #

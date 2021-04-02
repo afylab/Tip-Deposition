@@ -96,8 +96,19 @@
    <property name="frameShadow">
     <enum>QFrame::Raised</enum>
    </property>
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>210</y>
+      <width>201</width>
+      <height>231</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="variablesLayout"/>
+   </widget>
   </widget>
-  <widget class="QFrame" name="variablesFrame_2">
+  <widget class="QFrame" name="serversFrame">
    <property name="geometry">
     <rect>
      <x>765</x>
