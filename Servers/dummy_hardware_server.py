@@ -29,11 +29,11 @@ class DummyHardware(LabradServer):
 		self.output = 0
 		self.C = uniform(1,2)
 		self.alpha = 0.05
-		self.std = 1
+		self.std = 0.5
 	#
 
 	@setting(10)
-	def set_output(self, val):
+	def set_output(self, c, val):
 		try:
 			self.output = float(val)
 		except:
@@ -85,6 +85,7 @@ class DummyHardware(LabradServer):
 	@setting(16)
 	def reset(self, c):
 		self.signal = 0
+		self.output = 0
 	#
 #
 

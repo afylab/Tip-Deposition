@@ -37,17 +37,14 @@ class Ui_StatusWindow(object):
         self.plotFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.plotFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.plotFrame.setObjectName("plotFrame")
+        self.plot1 = PlotWidget(self.plotFrame)
+        self.plot1.setGeometry(QtCore.QRect(0, 0, 450, 450))
+        self.plot1.setObjectName("plot1")
         self.variablesFrame = QtWidgets.QFrame(StatusWindow)
         self.variablesFrame.setGeometry(QtCore.QRect(460, 5, 300, 700))
         self.variablesFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.variablesFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.variablesFrame.setObjectName("variablesFrame")
-        self.verticalLayoutWidget = QtWidgets.QWidget(self.variablesFrame)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 210, 201, 231))
-        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
-        self.variablesLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
-        self.variablesLayout.setContentsMargins(0, 0, 0, 0)
-        self.variablesLayout.setObjectName("variablesLayout")
         self.serversFrame = QtWidgets.QFrame(StatusWindow)
         self.serversFrame.setGeometry(QtCore.QRect(765, 5, 400, 700))
         self.serversFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -62,6 +59,7 @@ class Ui_StatusWindow(object):
         StatusWindow.setWindowTitle(_translate("StatusWindow", "Form"))
         self.pressureStaticLabel.setText(_translate("StatusWindow", "Pressure (mbar):"))
         self.pressureStaticLabel_2.setText(_translate("StatusWindow", "####"))
+from pyqtgraph import PlotWidget
 
 
 if __name__ == "__main__":

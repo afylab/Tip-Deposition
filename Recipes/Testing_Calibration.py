@@ -32,18 +32,27 @@ class Sequencer_Unit_Test(Recipe):
 
         self.command('dummy', 'reset', None)
         self.trackVariable('DummyOutput', 'dummy', 'query')
+        self.plotVariable("DummyOutput")
 
-        step4 = Step(True, "Testing out a dummy piece of hardware")
-        # step4.add_input_param("coefficient", default=self.default("coefficient"), limits=(0,10))
-        # step4.add_input_param("alpha", default=self.default("alpha"), limits=(0,1))
+        step4 = Step(True, "Confirm Parameters")
+        step4.add_input_param("coefficient", default=self.default("coefficient"), limits=(0,10))
+        step4.add_input_param("alpha", default=self.default("alpha"), limits=(0,1))
         yield step4
-        # params = step4.get_all_params()
-        # C = params['coefficient']
-        # alpha = params['alpha']
-        # self.command
+        params = step4.get_all_params()
+        self.command('dummy', 'set_coefficient', params['coefficient'])
+        self.command('dummy', 'set_alpha', params['alpha'])
+
+        step5 = Step(True, "Set Output")
+        step5.add_input_param("setpoint", default=self.default("setpoint"), limits=(0,100))
+        yield step5
+        setpoint = step5.get_param('setpoint')
+        self.command('dummy', 'set_output', setpoint)
+
+        yield Step(False, "Waiting until output reaches " + str(setpoint))
+        self.wait_until('DummyOutput', setpoint, conditional='greater than')
 
 
-        finalstep = Step(True, "All Done")
+        finalstep = Step(True, "All Done. Press proceed to end.")
         yield finalstep
 
     #

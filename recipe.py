@@ -278,14 +278,16 @@ class Recipe():
             server (str) : The name of the LabRAD server to get the value from
             command (str): The name function (in the namespace of that server, i.e.
                 getattr(server, accessor) gives the function)
-            args (list) : A list containing the arguments of the command and the
-                keyword arguments, which will be used to call the server using
-                server.command(*args). If None, no arguments will be sent
+            args : The arguments of the command and the keyword arguments, which will be
+                used to call the server using server.command(*args). Must be a sting, float,
+                list or None. If None, no arguments will be sent
             wait (bool) : If True will wait 0.1 seconds after sending the signal to allow
                 the equipment handler and servers to catch up.
         '''
         if args is None:
             self.equip.commandSignal.emit(server, command, [])
+        elif isinstance(args, float) or isinstance(args, str):
+            self.equip.commandSignal.emit(server, command, [args])
         else:
             self.equip.commandSignal.emit(server, command, args)
         if wait:
@@ -308,6 +310,16 @@ class Recipe():
         self.equip.trackSignal.emit(name, server, accessor)
         if wait:
             sleep(0.1) # give the program a little time to catch up
+    #
+
+    def plotVariable(self, variable):
+        '''
+        Begin plotting a tracked varaible.
+
+        Args:
+            variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
+        '''
+        self.equip.plotVariableSignal.emit(variable)
     #
 
 
