@@ -7,7 +7,128 @@ import labrad
 from PyQt5.QtCore import QThread, pyqtSignal
 # from exceptions import LabRADError
 
+from datetime import datetime
 from time import sleep
+
+class PIDFeedbackController():
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, minMaxIntegral=None):
+        '''
+        Controller to run a PID loop on the data.
+
+        Args:
+            info : A reference to EquipmentHandler.info, dictionary of tracked variables
+            trackedVar : Name of the variable to track, must be in info.
+            outputFunction : The function to call to change the output based on the loop.
+                Must accept one floating point varaible.
+            P (float) : The proportional term, must be positive
+            I (float) : The integral term, must be positive
+            D (float) : The derivative term, must be positive
+            setpoint (float) : The setpoint for calculating error signal.
+            minMaxOutput (tuple) : A tuple of (minimum_output, maximum_output)
+            minMaxIntegral : A tuple of (minimum_integral, maximum_integral), if None will be set
+                such that I*maximum_integral = maximum_output (similar for minimum), i.e.
+                values such that the integral term can drive to the maximum output by itself.
+        '''
+        self.varDict = info
+        self.variable = variable
+        self.function = outputFunction
+        self.P = float(P)
+        self.I = float(I)
+        self.D = float(D)
+        self.setpoint = float(setpoint)
+        self.offset = offset
+        self.t0 = datetime.now()
+        self.prev_time = 0
+        self.integral = 0
+        self.prev_error = 0
+        self.input = input
+        self.min = minMaxOutput[0]
+        self.max = minMaxOutput[1]
+
+        if minMaxIntegral is None:
+            if self.I != 0.0:
+                self.minIntegral = self.min/self.I
+                self.maxIntegral = self.max/self.I
+            else:
+                self.minIntegral = 0
+                self.maxIntegral = 0
+    #
+
+    def update(self):
+        '''
+        Update the output based on current values.
+        '''
+        time = (datetime.now()-self.t0).total_seconds()
+        error = self.setpoint - float(self.varDict[self.variable])
+
+        # Proportional term
+        P_value = self.P*error
+
+        # Integral term
+        self.integral = self.integral + error*(time - self.prev_time)
+        if self.integral > self.maxIntegral:
+            self.integral = self.maxIntegral
+        elif self.integral < self.minIntegral:
+            self.integral = self.minIntegral
+        #
+        I_value = self.I*self.integral
+
+        # Derivative term
+        D_value = self.D*(error - self.prev_error)/(time - self.prev_time)
+
+        output = P_value + I_value + D_value + self.offset
+        if output > self.max:
+            output = self.max
+        elif output < self.min:
+            output = self.min
+        #
+
+        self.function(output) # Set the output
+        self.prev_time = time
+        self.prev_error = error
+    #
+
+    def changeSetpoint(self, setpoint):
+        '''
+        Change the setpoint of the loop.
+
+        Args:
+            setpoint (float) : The setpoint for calculating error signal.
+        '''
+        self.setpoint = float(setpoint)
+    #
+
+    def changePID(self, P, I, D):
+        '''
+        Change the PID terms. Note, does not change the minimum or maximum integral.
+
+        Args:
+            P (float) : The proportional term
+            I (float) : The integral term
+            D (float) : The derivative term
+        '''
+        self.P = float(P)
+        self.I = float(I)
+        self.D = float(D)
+    #
+
+    def resetIntegral(self):
+        '''
+        Resets the integral used to calculate the I-term.
+        '''
+        self.integral = 0
+    #
+
+    def __del__(self):
+        '''
+        Sets the output to zero when closing
+        '''
+        try:
+            self.function(0.0)
+        except:
+            print("Error closing feedback loop, hardware maybe unstable.")
+#
+
 
 class EquipmentHandler(QThread):
     '''
@@ -27,7 +148,9 @@ class EquipmentHandler(QThread):
     recordSignal = pyqtSignal(str)
     stopRecordSignal = pyqtSignal(str)
     verifySignal = pyqtSignal(list)
-    feedbackPIDSignal = pyqtSignal(str, str, list, list)
+    feedbackPIDSignal = pyqtSignal(str, str, list)
+    stopFeedbackPIDSignal = pyqtSignal(str)
+    stopAllFeedbackSignal = pyqtSignal()
 
     def __init__(self, servers=None):
         '''
@@ -59,6 +182,7 @@ class EquipmentHandler(QThread):
         #
 
         self.trackedVarsAccess = dict() # Dictionary of the tracked varaibles, same keys as self.info
+        self.feedbackLoops = dict()
         self.info = dict() # Dictionary of the values of the tracked variables
 
         # Connect all the signals and slots
@@ -69,6 +193,10 @@ class EquipmentHandler(QThread):
         self.stopRecordSignal.connect(self.stopRecordSlot)
         self.verifySignal.connect(self.verifySlot)
         self.feedbackPIDSignal.connect(self.feedbackPIDSlot)
+        self.stopFeedbackPIDSignal.connect(self.stopFeedbackPIDSlot)
+        self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
+
+        self.updateFrequency = 10 # Hz
     #
 
     def run(self):
@@ -77,14 +205,17 @@ class EquipmentHandler(QThread):
         and logs data as appropriate. Handels errors if any come up.
         '''
         self.active = True
+        update_delay = 1.0/self.updateFrequency
         try:
             while self.active:
-                sleep(0.05) # FOR TESTING, REMOVE OR MODIFY
+                sleep(update_delay)
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
                     self.info[k] = self.trackedVarsAccess[k]()
                     self.updateTrackedVarSignal.emit(k)
 
                 # Update any feedback loops
+                for k in list(self.feedbackLoops.keys()):
+                    self.feedbackLoops[k].update()
 
                 # Record any data that needs to be recorded.
 
@@ -94,6 +225,7 @@ class EquipmentHandler(QThread):
             self.active = False
             from traceback import format_exc
             print(format_exc())
+        self.stopAllFeedback()
     #
 
     def trackSlot(self, name, server, accessor):
@@ -184,7 +316,7 @@ class EquipmentHandler(QThread):
         pass
     #
 
-    def feedbackPIDSlot(self, server, variable, outputParams, feedbackParams):
+    def feedbackPIDSlot(self, server, variable, feedbackParams):
         '''
         Starts a PID feedback loop on a piece of equipment.
 
@@ -192,10 +324,42 @@ class EquipmentHandler(QThread):
             server (str) : The name of the server
             variable (str) : The name of the variable to track for feedback. Will automatically
                 be added to tracked varaibles if it is not already tracked.
-            outputParams (list) : A list of parameters for the output DEV NOTE: SPECIFY
-            feedbackParams (list) : A list of parameters for the feedback loop DEV NOTE: SPECIFY
+            feedbackParams (list) : A list of parameters for the feedback loop to be passed.
+                First is the name of the command to set the output, (accessible by getattr).
+                Must accept one floating point argument. The subsequent parameters are
+                numerical positional arguments to the constructor the PIDFeedbackController
+                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput]
         '''
-        pass
+        try:
+            if server in self.servers:
+                if variable not in self.info:
+                    raise ValueError("Cannot feedback, variable " + str(variable) + " not tracked.")
+                outputFunc, P, I, D, setpoint, offset, minMaxOutput = feedbackParams
+                if hasattr(self.servers[server], outputFunc):
+                    command = getattr(self.servers[server], outputFunc)
+                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput)
+                else:
+                    raise ValueError("Server " + str(server) + " does not have function" + str(outputFunc))
+            else:
+                raise ValueError("Server " + str(server) + " not found")
+        except:
+            self.errorSignal.emit()
+    #
+
+    def stopFeedbackPIDSlot(self, variable):
+        '''
+        Stop a PID feedback loop on a given variable, setting the output equal to zero.
+        '''
+        if variable in self.feedbackLoops:
+            del self.feedbackLoops[variable]
+    #
+
+    def stopAllFeedback(self):
+        '''
+        Immediatly stop all feedback loops
+        '''
+        for variable in self.feedbackLoops:
+            del self.feedbackLoops[variable]
     #
 
     def verifySlot(self, servers):
@@ -215,5 +379,12 @@ class EquipmentHandler(QThread):
                     raise ValueError(err)
         except:
             self.errorSignal.emit()
+    #
+
+    def __del__(self):
+        '''
+        Handel the program closing
+        '''
+        self.stopAllFeedback()
     #
 #

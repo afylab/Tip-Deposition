@@ -42,8 +42,12 @@ class Status_Window(Ui_StatusWindow):
         self.floatpercision = 3
 
         # Setup plots
+        self.plots = [self.plot1] # Add more plots later maybe
         self.plottedVars = dict()
         self.setupPlot(self.plot1)
+
+        # Equipment Widgets
+        self.serverWidgets = dict()
     #
 
     def setupUi(self, widget):
@@ -60,6 +64,25 @@ class Status_Window(Ui_StatusWindow):
         widget.setXRange(0,1)
         widget.setYRange(0,1)
         self.pgPen = pg.mkPen(41, 128, 185)
+        print("Got Here")
+    #
+
+    def reset(self):
+        '''
+        Restart the status window, normally used when re-loading a recipe
+        '''
+        if self.trackedVarsWidgets: # Dicitonaries evaluate to False if they are empty, True otherwise
+            for widget in self.trackedVarsWidgets: # Delete elements to avoid screwing up updating
+                del widget
+            self.trackedrow = 0
+        if self.plottedVars:
+            for k in self.plottedVars.keys():
+                plot = self.plottedVars.pop(k)
+                plot[1].clear()
+                self.setupPlot(plot[0])
+        if self.serverWidgets:
+            del self.serverWidgets
+            self.serverWidgets = dict()
     #
 
     def startPlottingSlot(self, variable):

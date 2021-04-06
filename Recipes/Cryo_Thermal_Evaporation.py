@@ -25,7 +25,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         step1.add_input_param("D", default=self.default("D"), limits=(0,1))
 
         step1.add_input_param("Vmax", default=self.default("Vmax"), limits=(0,10))
-        step1.add_input_param("Vmin", default=self.default("Vmin"), limits=(0,10))
+        step1.add_input_param("Voffset", default=self.default("Voffset"), limits=(0,10))
         yield step1
 
         #params = step1.get_all_params()

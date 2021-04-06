@@ -31,8 +31,9 @@ class Sequencer_Unit_Test(Recipe):
         #
 
         self.command('dummy', 'reset', None)
-        self.trackVariable('DummyOutput', 'dummy', 'query')
-        self.plotVariable("DummyOutput")
+        self.trackVariable('DummyVar', 'dummy', 'query')
+        self.trackVariable('DummyOutput', 'dummy', 'get_output')
+        self.plotVariable("DummyVar")
 
         step4 = Step(True, "Confirm Parameters")
         step4.add_input_param("coefficient", default=self.default("coefficient"), limits=(0,10))
@@ -42,18 +43,35 @@ class Sequencer_Unit_Test(Recipe):
         self.command('dummy', 'set_coefficient', params['coefficient'])
         self.command('dummy', 'set_alpha', params['alpha'])
 
-        step5 = Step(True, "Set Output")
+        step5 = Step(True, "Setup Feedback")
         step5.add_input_param("setpoint", default=self.default("setpoint"), limits=(0,100))
+        step5.add_input_param("P", default=self.default("P"), limits=(0,100))
+        step5.add_input_param("I", default=self.default("I"), limits=(0,100))
+        step5.add_input_param("D", default=self.default("D"), limits=(0,100))
         yield step5
         setpoint = step5.get_param('setpoint')
-        self.command('dummy', 'set_output', setpoint)
 
-        yield Step(False, "Waiting until output reaches " + str(setpoint))
-        self.wait_until('DummyOutput', setpoint, conditional='greater than')
+
+        self.PIDLoop('DummyVar', 'dummy', 'set_output', step5.get_param('P'), step5.get_param('I'), step5.get_param('D'), setpoint, 0.0, (0,100))
+
+        yield Step(False, "Testing feedback, wait 1 min")
+        self.wait_for(1)
+
+        yield Step(False, "Stopping Feedback")
+        self.stopPIDLoop('DummyVar')
+
+        # self.command('dummy', 'set_output', setpoint)
+        # yield Step(False, "Waiting until output reaches " + str(setpoint))
+        # self.wait_until('DummyVar', setpoint, conditional='greater than')
 
 
         finalstep = Step(True, "All Done. Press proceed to end.")
         yield finalstep
 
+    #
+
+    def shutdown(self):
+        self.command('dummy', 'reset', None)
+        super().shutdown()
     #
 #

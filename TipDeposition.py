@@ -102,6 +102,7 @@ class Process_Window(Ui_mainWindow):
 
         try:
             self.clear()
+            self.statusWindow.reset()
         except:
             pass
 
@@ -442,6 +443,8 @@ class Process_Window(Ui_mainWindow):
             if ret == QMessageBox.Ok:
                 if hasattr(self.sequencer, 'logger'): # make sure the file saves correctly
                     del self.sequencer.logger
+                if hasattr(self, 'equip'): # Clean up the equipment monitor explicitly to makes sure it closes out correctly.
+                    del self.equip
                 qApp.quit()
                 #event.accept()
             else:

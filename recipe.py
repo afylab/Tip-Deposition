@@ -201,7 +201,7 @@ class Recipe():
         part of normal shutdown or in the event of an unexpected error. Overload to protect
         critical equipment.
         '''
-        pass
+        self.stopAllFeedback()
     #
 
     def default(self, name):
@@ -291,7 +291,7 @@ class Recipe():
         else:
             self.equip.commandSignal.emit(server, command, args)
         if wait:
-            sleep(0.1) # give the program a little time to catch up
+            sleep(0.11) # give the program a little time to catch up
     #
 
     def trackVariable(self, name, server, accessor, wait=True):
@@ -304,12 +304,12 @@ class Recipe():
             accessor (str): The accessor function (in the namespace of that server, i.e.
                 getattr(server, accessor) gives the function) to get the value must return
                 one floating point number.
-            wait (bool) : If True will wait a 0.1 seconds after sending the signal
+            wait (bool) : If True will wait short while after sending the signal
                 to allow the equipment handler and servers to catch up.
         '''
         self.equip.trackSignal.emit(name, server, accessor)
         if wait:
-            sleep(0.1) # give the program a little time to catch up
+            sleep(0.11) # give the program a little time to catch up
     #
 
     def plotVariable(self, variable):
@@ -320,6 +320,33 @@ class Recipe():
             variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
         '''
         self.equip.plotVariableSignal.emit(variable)
+    #
+
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput):
+        '''
+        Begin plotting a tracked varaible.
+
+        Args:
+            trackedVar (str) : The tracked variable to feedback on, must be a tracked variable in self.equip.info
+            server (str) : The server that the output function outputs to.
+            P (float) : The P-coefficient, following standard conventions.
+            I (float) : The I-coefficient, following standard conventions.
+            D (float) : The D-coefficient, following standard conventions.
+            setpoint (float) : The initial setpoint of the loop
+            offset (float) : The offset for the output.
+            minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
+        '''
+        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1]))]
+        self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
+    #
+
+    def stopPIDLoop(self, trackedVar):
+        self.equip.stopFeedbackPIDSignal.emit(trackedVar)
+    #
+
+    def stopAllFeedback(self):
+        ''' Signals the equipment handler to stop and feedback '''
+        self.equip.stopAllFeedbackSignal.emit()
     #
 
 
