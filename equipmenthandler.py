@@ -140,7 +140,7 @@ class EquipmentHandler(QThread):
     errorSignal = pyqtSignal() # Indicates an equipment error that is fatal to the process
     guiTrackedVarSignal = pyqtSignal(str, bool) # Add/Remove a tracked variable entry on status window
     updateTrackedVarSignal = pyqtSignal(str)
-    plotVariableSignal = pyqtSignal(str)
+    plotVariableSignal = pyqtSignal(str, bool)
 
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)

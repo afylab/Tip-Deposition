@@ -25,7 +25,7 @@ class Status_Window(Ui_StatusWindow):
         self.equip = equipment
         self.equip.guiTrackedVarSignal.connect(self.trackedVariableSlot)
         self.equip.updateTrackedVarSignal.connect(self.updateTrackedVarSlot)
-        self.equip.plotVariableSignal.connect(self.startPlottingSlot)
+        self.equip.plotVariableSignal.connect(self.plottingSlot)
 
         self.widget = widget
         self.gui = gui
@@ -64,7 +64,6 @@ class Status_Window(Ui_StatusWindow):
         widget.setXRange(0,1)
         widget.setYRange(0,1)
         self.pgPen = pg.mkPen(41, 128, 185)
-        print("Got Here")
     #
 
     def reset(self):
@@ -85,12 +84,24 @@ class Status_Window(Ui_StatusWindow):
             self.serverWidgets = dict()
     #
 
-    def startPlottingSlot(self, variable):
+    def plottingSlot(self, variable, start):
         '''
         FOR NOW: Wrapper for starting the main plot,
         LATER add the ability to watch multiple plots.
         '''
-        self.startPlotting(self.plot1, variable)
+        if start:
+            for plot in self.plots:
+                inuse = False
+                for k in list(self.plottedVars.keys()):
+                    if self.plottedVars[k][0] == plot:
+                        inuse = True
+                if not inuse:
+                    self.startPlotting(plot, variable)
+                    return
+            # If there is not availible plot, make one
+            print("DEV NOTE: Make another plot widget and load it!")
+        else:
+            self.stopPlotting(variable)
     #
 
     def startPlotting(self, plotWidget, variable):
@@ -118,8 +129,8 @@ class Status_Window(Ui_StatusWindow):
             if self.plottedVars[k][0] == plotWidget:
                 inuse = k
         if inuse is not None:
-            del self.plottedVars[inuse]
-            plotWidget.clear()
+            self.stopPlotting(inuse)
+        plotWidget.clear()
         #
         '''
         DEV NOTE: For now making axes time since the plot was started, may need to do some
@@ -133,6 +144,14 @@ class Status_Window(Ui_StatusWindow):
         plotWidget.setTitle(variable)
         self.plottedVars[variable] = [plotWidget, curve, data, t0]
     #
+
+    def stopPlotting(self, variable):
+        '''
+        Stops plotting a variable, does not clear the plot. If a variable is not being
+        plotted nothing happens.
+        '''
+        if variable in self.plottedVars:
+            self.plottedVars.pop(variable)
 
     def updatePlot(self, variable):
         '''

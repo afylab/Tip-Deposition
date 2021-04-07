@@ -433,6 +433,7 @@ class Process_Window(Ui_mainWindow):
         if not hasattr(self, 'sequencer'): # In the event the window is closed before sequencer is initialized
             event.accept()
             qApp.quit()
+            return
         if self.status == 'active' or self.sequencer.active:
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Critical)

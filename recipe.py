@@ -319,8 +319,19 @@ class Recipe():
         Args:
             variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
         '''
-        self.equip.plotVariableSignal.emit(variable)
+        self.equip.plotVariableSignal.emit(variable, True)
     #
+
+    def stopPlotting(self, variable):
+        '''
+        Stop plotting a tracked varaible.
+
+        Args:
+            variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
+        '''
+        self.equip.plotVariableSignal.emit(variable, False)
+    #
+
 
     def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput):
         '''

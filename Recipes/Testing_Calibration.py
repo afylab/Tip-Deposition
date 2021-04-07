@@ -60,10 +60,14 @@ class Sequencer_Unit_Test(Recipe):
         yield Step(False, "Stopping Feedback")
         self.stopPIDLoop('DummyVar')
 
+        self.wait_for(0.25) # See the feedback go down
+
         # self.command('dummy', 'set_output', setpoint)
         # yield Step(False, "Waiting until output reaches " + str(setpoint))
         # self.wait_until('DummyVar', setpoint, conditional='greater than')
 
+
+        self.stopPlotting("DummyVar")
 
         finalstep = Step(True, "All Done. Press proceed to end.")
         yield finalstep
