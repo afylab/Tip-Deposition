@@ -9,6 +9,8 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from datetime import datetime
 from time import sleep
+from os.path import join, exists
+from os import makedirs
 
 class PIDFeedbackController():
     def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, minMaxIntegral=None):
@@ -145,6 +147,7 @@ class EquipmentHandler(QThread):
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)
     trackSignal = pyqtSignal(str, str, str)
+    initRecordSignal = pyqtSignal(str, str, str)
     recordSignal = pyqtSignal(str)
     stopRecordSignal = pyqtSignal(str)
     verifySignal = pyqtSignal(list)
@@ -181,14 +184,17 @@ class EquipmentHandler(QThread):
                     self.servers[name] = getattr(self.cxn, name)
         #
 
+        # Initilize various dictionaries
         self.trackedVarsAccess = dict() # Dictionary of the tracked varaibles, same keys as self.info
         self.feedbackLoops = dict()
+        self.recordedVars = dict()
         self.info = dict() # Dictionary of the values of the tracked variables
 
         # Connect all the signals and slots
         # signals to GUI are connected in the relevant GUI code
         self.commandSignal.connect(self.commandSlot)
         self.trackSignal.connect(self.trackSlot)
+        self.initRecordSignal.connect(self.initRecording)
         self.recordSignal.connect(self.recordVariableSlot)
         self.stopRecordSignal.connect(self.stopRecordSlot)
         self.verifySignal.connect(self.verifySlot)
@@ -212,12 +218,16 @@ class EquipmentHandler(QThread):
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
                     self.info[k] = self.trackedVarsAccess[k]()
                     self.updateTrackedVarSignal.emit(k)
+                tnow = datetime.now()
 
                 # Update any feedback loops
                 for k in list(self.feedbackLoops.keys()):
                     self.feedbackLoops[k].update()
 
                 # Record any data that needs to be recorded.
+                for k in list(self.recordedVars.keys()):
+                    if self.recordedVars[k][0]:
+                        self.recordedVars[k][1].add((tnow-self.recordedVars[k][2]).total_seconds(), self.info[k])
 
                 # Special GUI tasks, such as the status of the valves or GUI interfaces
         except:
@@ -287,33 +297,64 @@ class EquipmentHandler(QThread):
             self.errorSignal.emit()
     #
 
-    def recordVariableSlot(self, name):
+    def initRecording(self, database, version, squidname):
         '''
-        Record a tracked variable to datavault
+        Initilize the recording of data through the datavault server. If was recording previously will
+        stop recording to previous files and setup to make new files. The location of the saves will
+        be based on the type of recipe and version.
+
+        File structure is as follows, files will be saved to database/version/data and the file
+        names will be given as "00000 - squidname - varname.hdf5" where 00000 is the automatic datavault
+        file number.
 
         Args:
-            name (str) : The name of the tracked varirable, i.e. self.info[name]
+            database (str) - Path like string to the root squid database.
+            version (str) - The formatted name and version of the recipe, which is a subfolder in database
+            squidname (str) - The unique name of the SQUID.
+        '''
+        self.savedir = join(database, version, 'data')
+        self.recordedVars = dict()
+        self.squidname = squidname.replace('.','-').replace(' ','_')
+    #
+
+    def recordVariableSlot(self, variable):
+        '''
+        Record a tracked variable to datavault. If the variable is already being recorded nthing
+        happens.
+
+        Args:
+            variable (str) : The name of the tracked varirable, i.e. self.info[name]
 
         Raises:
             UntrackedVaraibleError : When the varaible is not being tracked.
         DEV NOTE: Should we raise or should emit an errorSignal?
         '''
-        pass
+        try:
+            if variable not in self.recordedVars:
+                if variable not in self.info:
+                    raise ValueError("Cannot record, variable " + str(variable) + " not tracked.")
+                dv = labrad.connect('localhost', password='pass').data_vault
+                print(self.savedir.split('\\'))
+                for dir in self.savedir.split('\\'):
+                    dv.cd(dir, True)
+                varname = variable.replace('.','-').replace(' ','_')
+                print(self.savedir)
+                dv.new(self.squidname+" - "+varname, 'x', 'y')
+                self.recordedVars[variable] = [True, dv, datetime.now()]
+        except:
+            self.errorSignal.emit()
     #
 
-    def stopRecordSlot(self, name):
+    def stopRecordSlot(self, variable):
         '''
         Stop recording a tracked variable. If the variable is not currently being recorded
         this is ignored.
 
         Args:
-            name (str) : The name of the tracked varirable, i.e. self.info[name]
-
-        Raises:
-            UntrackedVaraibleError : When the varaible is not being tracked.
-        DEV NOTE: Should we raise or should emit an errorSignal?
+            variable (str) : The name of the tracked varirable, i.e. self.info[name]
         '''
-        pass
+        if variable in self.recordedVars:
+            self.recordedVars[variable][0] = False
     #
 
     def feedbackPIDSlot(self, server, variable, feedbackParams):

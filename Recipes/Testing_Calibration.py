@@ -34,6 +34,7 @@ class Sequencer_Unit_Test(Recipe):
         self.trackVariable('DummyVar', 'dummy', 'query')
         self.trackVariable('DummyOutput', 'dummy', 'get_output')
         self.plotVariable("DummyVar")
+        self.recordVariable("DummyVar")
 
         step4 = Step(True, "Confirm Parameters")
         step4.add_input_param("coefficient", default=self.default("coefficient"), limits=(0,10))
@@ -59,6 +60,7 @@ class Sequencer_Unit_Test(Recipe):
 
         yield Step(False, "Stopping Feedback")
         self.stopPIDLoop('DummyVar')
+        self.stopRecordingVariable("DummyVar")
 
         self.wait_for(0.25) # See the feedback go down
 

@@ -29,7 +29,7 @@ class DummyHardware(LabradServer):
 		self.output = 0
 		self.C = uniform(1,2)
 		self.alpha = 0.05
-		self.std = 0.05
+		self.std = 0.025
 	#
 
 	@setting(10)

@@ -6,6 +6,7 @@ from exceptions import ProcessInterruptionError, ProcessTimeoutError
 from time import sleep
 
 from datetime import datetime, timedelta
+from os.path import abspath
 
 class Step():
     '''
@@ -102,7 +103,7 @@ class Recipe():
     how to use the Step objects before attempting to make a Recipe.
     '''
 
-    def __init__(self, equip, required_servers=None, version="1.0.0"):
+    def __init__(self, equip, required_servers=None, version="1.0.0", savedir=None):
         '''
         Class initilizer, inhert and extend with any needed features then call the superclass initilizer
         i.e. super().__init__(equip, required, version_number)
@@ -113,11 +114,17 @@ class Recipe():
         - version is the version number of the recipe, if major changes are made to a recipe increment
           the version number and a new record of parameters will automatically be logged seperatly from
           any previous runs, elimiating potential compatability issues.
+         -savedir is the root file location where deposition data is saved.
         '''
         self.name = type(self).__name__.replace("_"," ")
         self.version = version
         self.abort = False # Calling Sequencer.abortSlot will set this to false and stop current process
         self.pause = False
+
+        if savedir is None:
+            self.savedir = 'Tip Deposition Database'
+        else:
+            self.savedir = savedir
 
         # Checks that all the equipment needed to carry out the recipe is in servers
         '''
@@ -127,45 +134,45 @@ class Recipe():
         if required_servers is not None:
             self.equip.verifySignal.emit(required_servers)
         #
-
     #
 
-    '''
-    Setup the recipe by loading defaults or information from previous depositions and getting user
-    input. This function returns a Step object which is used to get the initial parameters in the
-    user interface. Add parameter to it using Step.add_input_param then at startup the sequencer
-    will automatically pass this step to the user interface and subsequently load the values into
-    Recipe.parameters, a dictionary containg the parameters as {name:value}.  Use limits on
-    numerical values to make sure no equipment breaking values are entered.
+    def get_name(self):
+        '''
+        Returns the unique name of this recipie and version in a file-saveable format.
+        '''
+        return type(self).__name__ + '_v' + self.version.replace('.','-')
+    #
 
-    To preserve insertion order and load in defaults when overloading, always call the superclass
-    constructor before adding any parameters, i.e. the first line should be super().__init__(step, defaults)
-
-    Args:
-        defaults (dict) : a dictionary containg the previous parameters as {name:value}, to use as
-            defaults. This dictionary is loaded and default values can be accessed using
-            Recipe.default("Param Name") which will return the default or None if there is no such
-            default parameter.
-    '''
     def setup(self, defaults):
+        '''
+        Setup the recipe by loading defaults or information from previous depositions and getting user
+        input. This function returns a Step object which is used to get the initial parameters in the
+        user interface. Add parameter to it using Step.add_input_param then at startup the sequencer
+        will automatically pass this step to the user interface and subsequently load the values into
+        Recipe.parameters, a dictionary containg the parameters as {name:value}.  Use limits on
+        numerical values to make sure no equipment breaking values are entered.
+
+        To preserve insertion order and load in defaults when overloading, always call the superclass
+        constructor before adding any parameters, i.e. the first line should be super().__init__(step, defaults)
+
+        Args:
+            defaults (dict) : a dictionary containg the previous parameters as {name:value}, to use as
+                defaults. This dictionary is loaded and default values can be accessed using
+                Recipe.default("Param Name") which will return the default or None if there is no such
+                default parameter.
+        '''
         if defaults is None:
             self.defaultParams = {}
         else:
             self.defaultParams = defaults
         setupstep = Step(instructions="Enter Tip and Deposition parameters")
 
-        # Add Parameters, by default parameters are strings
+        # Basic paramters that should be included for all recipies
         setupstep.add_input_param("SQUID Num.")
-
-        # Add a default value, which may be loaded from previous
         setupstep.add_input_param("Person Evaporating")
-
-        # Can also have users select from a list of options using
-        setupstep.add_input_param("Superconductor", default=self.default("Superconductor") )#, options=["Lead", "Indium"])
-
+        setupstep.add_input_param("Superconductor", default=self.default("Superconductor") )
         return setupstep
     #
-
 
     def proceed(self):
         '''
@@ -332,6 +339,25 @@ class Recipe():
         self.equip.plotVariableSignal.emit(variable, False)
     #
 
+    def recordVariable(self, variable):
+        '''
+        Begin recording a tracked varaible to data vault
+
+        Args:
+            variable (str) : The tracked variable to record, must be a tracked variable in self.equip.info
+        '''
+        self.equip.recordSignal.emit(variable)
+    #
+
+    def stopRecordingVariable(self, variable):
+        '''
+        Stop recording a tracked varaible to data vault
+
+        Args:
+            variable (str) : The tracked variable to stop record, must be a tracked variable in self.equip.info
+        '''
+        self.equip.stopRecordSignal.emit(variable)
+    #
 
     def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput):
         '''
@@ -360,14 +386,21 @@ class Recipe():
         self.equip.stopAllFeedbackSignal.emit()
     #
 
-
     def _process_startup(self, startupstep):
         """
-        Loads the startup parameters into Recipe.parameters
+        Loads the startup parameters into Recipe.parameters and initilizes recording in the equipment
+        handeler.
         """
         self.parameters = dict()
         for k in startupstep.input_param_values.keys():
             self.parameters[k] = startupstep.input_param_values[k]
+
+        try:
+            self.equip.initRecordSignal.emit(self.savedir, self.get_name(), self.parameters['SQUID Num.'])
+        except:
+            err = "Cannot initilize files for recording variables. "
+            err += "Likely the starting parameters were not setup correctly."
+            raise ValueError(err)
     #
 #
 

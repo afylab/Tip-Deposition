@@ -20,11 +20,11 @@ class recipe_logger():
     '''
     def __init__(self, recipe, savedir=None):
         if savedir is None:
-            savedir = 'logs'
-            if not exists(savedir):
-                makedirs(savedir)
+            savedir = 'database'
+        if not exists(savedir):
+            makedirs(savedir)
         #
-        filename = type(recipe).__name__ + '_v' + recipe.version.replace('.','-')+'_params'+'.csv'
+        filename = recipe.get_name()+'_params'+'.csv'
         self.flpath = join(savedir, filename)
         self.col = 0 # The column index
 
