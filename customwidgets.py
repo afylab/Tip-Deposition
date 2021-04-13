@@ -161,11 +161,6 @@ class VarEntry(QWidget):
         self.dynamicLabel.setFont(font)
         self.setLabel(label)
         self.show()
-
-        # self.layout = QGridLayout()
-        # self.layout.addWidget(self.staticLabel, 0,0)
-        # self.layout.addWidget(self.dynamicLabel, 0,1)
-        # self.setLayout(self.layout)
     #
 
     def setLabel(self, lbl):

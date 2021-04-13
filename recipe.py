@@ -4,9 +4,7 @@ A module for defining tip deposition recipes generically
 
 from exceptions import ProcessInterruptionError, ProcessTimeoutError
 from time import sleep
-
 from datetime import datetime, timedelta
-from os.path import abspath
 
 class Step():
     '''
@@ -209,6 +207,7 @@ class Recipe():
         critical equipment.
         '''
         self.stopAllFeedback()
+        self.equip.stopRecordSignal.emit("ALL")
     #
 
     def default(self, name):
@@ -224,7 +223,12 @@ class Recipe():
     #
 
     def wait_for(self, minutes):
-        ''' Sleep the recipe for a specified number of minutes. Still check for aborts. '''
+        '''
+        Sleep the recipe for a specified number of minutes. Still check for aborts.
+
+        Args:
+            minutes (float) : Number of minutes to wait for, can be a fraction of a minute.
+        '''
         stoptime = datetime.now() + timedelta(minutes=minutes)
         while stoptime > datetime.now():
             sleep(0.05)
@@ -354,7 +358,8 @@ class Recipe():
         Stop recording a tracked varaible to data vault
 
         Args:
-            variable (str) : The tracked variable to stop record, must be a tracked variable in self.equip.info
+            variable (str) : The tracked variable to stop record, must be a tracked variable in
+                self.equip.info or "ALL" in which case it will stop recording everything.
         '''
         self.equip.stopRecordSignal.emit(variable)
     #
@@ -403,6 +408,3 @@ class Recipe():
             raise ValueError(err)
     #
 #
-
-if __name__ == '__main__':
-    pass

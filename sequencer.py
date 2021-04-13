@@ -7,7 +7,7 @@ from traceback import format_exc
 from time import sleep
 from os.path import exists
 
-from data_logging import recipe_logger
+from recipe_logging import recipe_logger
 from recipe import Step
 from exceptions import ProcessInterruptionError, LogFileFormatError
 
@@ -68,16 +68,8 @@ class Sequencer(QThread):
 
         self.logger = recipe_logger(self.recipe)
 
-        '''
-        !!!!!!!!!!!!!!
-        Check that there are no errors raised by the equipment
-        such as missing servers, can't connect to labrad etc.
-        !!!!!!!!!!!!!!
-        '''
-
         try:
             loaded = self.logger.load(self.loadsquid)
-            #print(loaded) # For Debugging
         except LogFileFormatError:
             self.warnSignal.emit("Tried to load improperly formatted log file, process canceled.")
             self.record_error()
@@ -111,7 +103,6 @@ class Sequencer(QThread):
                         sleep(0.01)
                 if not self.active:
                     raise ProcessInterruptionError
-                #print(step.instructions, step.user_input) # FOR DEBUGGING
                 if step.user_input: # If user action is needed, ask for it and wait
                     self.userStepSignal.emit(step)
                     self.wait_for_gui()
@@ -121,15 +112,13 @@ class Sequencer(QThread):
                 step.processed = True # Flag the step as processed
                 self.logger.log(step) # Log information
             self.instructSignal.emit("Process ended sucessfully.")
-        # Handle specific errors and attempt to recover
         except ProcessInterruptionError:
             self.warnSignal.emit("Attempting to return equipment to standby.")
         except:
             self.warnSignal.emit("Unexpected Error, process canceled. Attempting to shutdown equipment safely.")
             self.record_error()
 
-        # Safely shutdown the thread, put all equipment on standby
-        try:
+        try: # Safely shutdown the thread, put all equipment on standby
             self.recipe.shutdown()
         except:
             self.warnSignal.emit("Error encountered while attempting to shutdown equipment safely. Equipment may be unstable, full shutdown of servers recommended.")
@@ -162,7 +151,6 @@ class Sequencer(QThread):
         Args:
             val (bool) : The operation to perform, if True pause the process, if False unpause.
         '''
-
         if val:
             self.pause = True
             self.recipe.pause = True
@@ -196,7 +184,7 @@ class Sequencer(QThread):
         else:
             file_mode = 'w' # create a new file if not
         with open(flname, file_mode) as errorlog:
-            errorlog.write(err+'\n')
+            errorlog.write('\n'+err+'\n')
             errorlog.flush()
         if display:
             self.warnSignal.emit("See " + flname + " for full details")

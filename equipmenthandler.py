@@ -5,12 +5,10 @@ thread.
 '''
 import labrad
 from PyQt5.QtCore import QThread, pyqtSignal
-# from exceptions import LabRADError
 
 from datetime import datetime
 from time import sleep
-from os.path import join, exists
-from os import makedirs
+from os.path import join
 
 class PIDFeedbackController():
     def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, minMaxIntegral=None):
@@ -257,7 +255,7 @@ class EquipmentHandler(QThread):
         '''
         try:
             if server in self.servers:
-                if name in self.trackedVarsAccess: # If it already exists, ignore this.
+                if name in self.trackedVarsAccess: # If it already exists, ignore this signal
                     return
                 if hasattr(self.servers[server], accessor):
                     self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
@@ -324,21 +322,15 @@ class EquipmentHandler(QThread):
 
         Args:
             variable (str) : The name of the tracked varirable, i.e. self.info[name]
-
-        Raises:
-            UntrackedVaraibleError : When the varaible is not being tracked.
-        DEV NOTE: Should we raise or should emit an errorSignal?
         '''
         try:
             if variable not in self.recordedVars:
                 if variable not in self.info:
                     raise ValueError("Cannot record, variable " + str(variable) + " not tracked.")
                 dv = labrad.connect('localhost', password='pass').data_vault
-                print(self.savedir.split('\\'))
                 for dir in self.savedir.split('\\'):
                     dv.cd(dir, True)
                 varname = variable.replace('.','-').replace(' ','_')
-                print(self.savedir)
                 dv.new(self.squidname+" - "+varname, 'x', 'y')
                 self.recordedVars[variable] = [True, dv, datetime.now()]
         except:
@@ -351,10 +343,14 @@ class EquipmentHandler(QThread):
         this is ignored.
 
         Args:
-            variable (str) : The name of the tracked varirable, i.e. self.info[name]
+            variable (str) : The name of the tracked varirable, i.e. self.info[name] or if varaible
+                is "ALL" will stop recording all current tracked varaibles
         '''
         if variable in self.recordedVars:
             self.recordedVars[variable][0] = False
+        if variable == "ALL":
+            for k in self.recordedVars:
+                self.recordedVars[k][0] = False
     #
 
     def feedbackPIDSlot(self, server, variable, feedbackParams):

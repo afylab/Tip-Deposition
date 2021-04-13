@@ -13,7 +13,6 @@ Used for basic testing of equipment handler and process.
 '''
 
 from labrad.server import LabradServer, setting
-#from twisted.internet.defer import inlineCallbacks
 
 from numpy.random import normal, uniform
 from traceback import format_exc

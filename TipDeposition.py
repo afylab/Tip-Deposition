@@ -41,7 +41,7 @@ class Process_Window(Ui_mainWindow):
         '''
 
         self.equip = EquipmentHandler() # Empty list for now, gets everything, pass in list of servers?
-        self.equip.errorSignal.connect(self.equipErrorCallback)
+        self.equip.errorSignal.connect(self.equipErrorSlot)
         self.equip.start()
 
         # Setup the Status Window
@@ -447,7 +447,6 @@ class Process_Window(Ui_mainWindow):
                 if hasattr(self, 'equip'): # Clean up the equipment monitor explicitly to makes sure it closes out correctly.
                     del self.equip
                 qApp.quit()
-                #event.accept()
             else:
                 event.ignore()
         else:
@@ -455,8 +454,8 @@ class Process_Window(Ui_mainWindow):
             qApp.quit()
     #
 
-    def equipErrorCallback(self):
-        self.append_ins_warning("Equipment Error")
+    def equipErrorSlot(self):
+        self.append_ins_warning("Equipment Error: required server not found")
         if hasattr(self, 'sequencer'):
             self.sequencer.abortSignal.emit()
             self.sequencer.record_error()

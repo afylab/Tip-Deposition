@@ -172,12 +172,3 @@ class recipe_logger():
             pass
     #
 #
-
-class data_logger():
-    '''
-    Wrapper for data vault to record any status data if needed.
-    '''
-    def __init__(self, servers):
-        pass
-    #
-#

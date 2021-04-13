@@ -54,7 +54,6 @@ class Status_Window(Ui_StatusWindow):
         super(Status_Window, self).setupUi(widget)
         widget.setWindowTitle("Tip Status Window")
         widget.setGUIRef(self.gui) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
-        # Setup additional stuff here
     #
 
     def setupPlot(self, widget):
@@ -152,6 +151,7 @@ class Status_Window(Ui_StatusWindow):
         '''
         if variable in self.plottedVars:
             self.plottedVars.pop(variable)
+    #
 
     def updatePlot(self, variable):
         '''
@@ -172,7 +172,6 @@ class Status_Window(Ui_StatusWindow):
         curve.setData(x=data[:,0], y=data[:,1]) # Update the plot
         self.plottedVars[variable][2] = data # Save the data
     #
-
 
     def trackedVariableSlot(self, name, create):
         '''
