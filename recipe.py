@@ -91,14 +91,14 @@ class Recipe():
     which are called by the sequencer.
     - __init__() add anything else needed them call the superclass initializer to check that the recipe
       has all the equipment it needs to the
-    - setup() defines the initial parameters of the recipe.
     - proceed() which is a generator that yields each step, defined by a Step object to the sequencer
       and receives input back from the user interface when appropriate. This is the main process by
       which recipes are executed.
     - shutdown() attempts to shutdown the process, either at the end or early if there is a problem
       use it to make sure the equipment returns to a normal state.
-    Each function has comments and shows an example, familiarize yourself with the prototypes and
-    how to use the Step objects before attempting to make a Recipe.
+    Each function has comments and a full worked example is given in, the Recipe_test class of the
+    Testing_Calibration module. Familiarize yourself with the prototypes and how to use the Step
+    objects before attempting to make a Recipe.
     '''
 
     def __init__(self, equip, required_servers=None, version="1.0.0", savedir=None):
@@ -112,7 +112,7 @@ class Recipe():
         - version is the version number of the recipe, if major changes are made to a recipe increment
           the version number and a new record of parameters will automatically be logged seperatly from
           any previous runs, elimiating potential compatability issues.
-         -savedir is the root file location where deposition data is saved.
+         -savedir is the root Vault file where deposition data is saved.
         '''
         self.name = type(self).__name__.replace("_"," ")
         self.version = version
@@ -124,10 +124,7 @@ class Recipe():
         else:
             self.savedir = savedir
 
-        # Checks that all the equipment needed to carry out the recipe is in servers
-        '''
-        Connect to the equipment handler and validate all the servers
-        '''
+        # Connect to the equipment handler and validate all the servers
         self.equip = equip
         if required_servers is not None:
             self.equip.verifySignal.emit(required_servers)
@@ -185,19 +182,10 @@ class Recipe():
         - access the parameters in the step (if needed)
         - perform some action using the labRAD servers
 
-        For reference Recipe.parameters is a dictionary containg the parameters defined at startup
-        as {name:value}.
+        For reference parameters from previous runs are loaded at startup and accessible using the
+        deafult function.
         '''
-        # # Define numerical input using limits on the values for safety, even if it is a wide range
-        # # if there are limits the GUI will automatically treat it as a number instead of a string.
-        # setupstep.add_input_param("Diameter", default=100.0, limits=(10.0,1000.0))
-
-        # # Numerical inputs can be integers, using the isInt option
-        # setupstep.add_input_param("Num. Depositions", default=3, limits=(1,10), isInt=True)
-
-        # Can also have users select from a list of options using
-        # setupstep.add_input_param("Superconductor", default=self.default("Superconductor") )#, options=["Lead", "Indium"])
-        yield "Your Steps go here"
+        yield Step(False, "Add steps to your recipe.")
     #
 
     def shutdown(self):
@@ -224,7 +212,7 @@ class Recipe():
 
     def wait_for(self, minutes):
         '''
-        Sleep the recipe for a specified number of minutes. Still check for aborts.
+        Sleep the recipe for a specified number of minutes. Still check for abort signals.
 
         Args:
             minutes (float) : Number of minutes to wait for, can be a fraction of a minute.
@@ -242,7 +230,7 @@ class Recipe():
     def wait_until(self, variable, state, conditional="less than", timeout=100):
         '''
         Sleep the recipe until a variable meets a ceratin condition or until it
-        times out.
+        times out. Still checks for abort signals.
 
         Args:
             variable (str) : The name of the tracked variable to follow, i.e. the key in
@@ -383,11 +371,16 @@ class Recipe():
     #
 
     def stopPIDLoop(self, trackedVar):
+        '''
+        Stops feedback on the given tracked variable.
+        '''
         self.equip.stopFeedbackPIDSignal.emit(trackedVar)
     #
 
     def stopAllFeedback(self):
-        ''' Signals the equipment handler to stop and feedback '''
+        '''
+        Signals the equipment handler to stop all feedback loops
+        '''
         self.equip.stopAllFeedbackSignal.emit()
     #
 

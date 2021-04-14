@@ -10,9 +10,8 @@ for fabricating a particular type of nanoSQUID tip in a simple sequence of reada
 and have the rest of the process handled behind the scenes.
 
 Requirements:
-Python 3.7+
-(Python 3.7 or higher is required to maintain insertion order of keys in dictionaries. This program
-is unstable without that.)
+Python 3.7+ (Python 3.7 or higher is required to maintain insertion order of keys in dictionaries.
+This program is unstable without lower versions.)
 pyqtgraph
 pylabrad
 

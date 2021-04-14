@@ -7,22 +7,19 @@ C : coefficient that relates output to sensor, randomly selected at start but ed
 alpha : averaging factor, number between 0 and 1
 noise : Gaussian noise with zero average and standard deviation, std.
 
-Also includes a clock, accessible with get_time
+Also includes a clock, accessible with get_time, and a random number generator
 
-Used for basic testing of equipment handler and process.
+Used for basic testing the program.
 '''
 
 from labrad.server import LabradServer, setting
-
-from numpy.random import normal, uniform
+from numpy.random import normal, uniform, rand
 from traceback import format_exc
 from datetime import datetime
 
-# For Testing Purposes
-class DummyHardware(LabradServer):
-	name = "Dummy"
+class TestServer(LabradServer):
+	name = "TestServer"
 
-	#@inlineCallbacks
 	def initServer(self):
 		self.sensor = 0
 		self.output = 0
@@ -86,9 +83,14 @@ class DummyHardware(LabradServer):
 		self.signal = 0
 		self.output = 0
 	#
+
+	@setting(17, returns='*v')
+	def get_random_number(self, c):
+		return rand(1)
+	#
 #
 
-__server__ = DummyHardware()
+__server__ = TestServer()
 if __name__ == '__main__':
 	from labrad import util
 	util.runServer(__server__)

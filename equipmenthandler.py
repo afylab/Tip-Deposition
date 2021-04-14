@@ -310,7 +310,7 @@ class EquipmentHandler(QThread):
             version (str) - The formatted name and version of the recipe, which is a subfolder in database
             squidname (str) - The unique name of the SQUID.
         '''
-        self.savedir = join(database, version, 'data')
+        self.savedir = join(database, version)
         self.recordedVars = dict()
         self.squidname = squidname.replace('.','-').replace(' ','_')
     #
