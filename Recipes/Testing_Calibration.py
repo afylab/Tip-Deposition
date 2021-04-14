@@ -12,7 +12,25 @@ class Sequencer_Unit_Test(Recipe):
         super().__init__(equip, required_servers=['dummy'])
 
     def proceed(self):
+        # --- Startup operations ---
+
+        # Pass commands to a server using the command functions
+        # command(server, function_name, function_arguments)
+        # function_arguments can be a string, float, list or None
+        self.command('dummy', 'reset', None)
+
+        # Track the variables that you want to track on the interface
+        # trackVariable(name, server, accessor_function)
+        # The accessor function takes no arguments and returns the given value
         self.trackVariable('Time', 'dummy', 'get_time')
+
+        self.trackVariable('DummyVar', 'dummy', 'query')
+        self.trackVariable('DummyOutput', 'dummy', 'get_output')
+
+        self.plotVariable("DummyVar")
+        self.plotVariable("DummyOutput")
+
+        self.recordVariable("DummyVar")
 
         # step1 = Step(False, "Testing the timing code. Waiting for 6 s.")
         # yield step1
@@ -30,12 +48,6 @@ class Sequencer_Unit_Test(Recipe):
         # self.wait_until('Stopwatch', 6, conditional='greater than')
         #
 
-        self.command('dummy', 'reset', None)
-        self.trackVariable('DummyVar', 'dummy', 'query')
-        self.trackVariable('DummyOutput', 'dummy', 'get_output')
-        self.plotVariable("DummyVar")
-        self.recordVariable("DummyVar")
-
         step4 = Step(True, "Confirm Parameters")
         step4.add_input_param("coefficient", default=self.default("coefficient"), limits=(0,10))
         step4.add_input_param("alpha", default=self.default("alpha"), limits=(0,1))
@@ -51,7 +63,6 @@ class Sequencer_Unit_Test(Recipe):
         step5.add_input_param("D", default=self.default("D"), limits=(0,100))
         yield step5
         setpoint = step5.get_param('setpoint')
-
 
         self.PIDLoop('DummyVar', 'dummy', 'set_output', step5.get_param('P'), step5.get_param('I'), step5.get_param('D'), setpoint, 0.0, (0,100))
 
@@ -70,6 +81,7 @@ class Sequencer_Unit_Test(Recipe):
 
 
         self.stopPlotting("DummyVar")
+        self.stopPlotting("DummyOutput")
 
         finalstep = Step(True, "All Done. Press proceed to end.")
         yield finalstep

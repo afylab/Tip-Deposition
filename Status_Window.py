@@ -3,11 +3,27 @@ Window to display the current status of the equipment
 '''
 
 from Interfaces.Base_Status_Window import Ui_StatusWindow
+from Interfaces.Base_LabRAD_Status import Ui_LabRAD_Status_Widget
 from customwidgets import VarEntry
 
 import numpy as np
 import pyqtgraph as pg
 from datetime import datetime
+
+from PyQt5.QtWidgets import QWidget
+
+class LabRAD_Server_Status(Ui_LabRAD_Status_Widget):
+    '''
+    Widget to display the status of the labRAD servers
+
+    Args:
+        parent : The parent object the widget is within.
+    '''
+    def __init__(self, parent):
+        self.widget = QWidget(parent)
+        self.setupUi(self.widget)
+
+#
 
 class Status_Window(Ui_StatusWindow):
     '''
@@ -42,12 +58,13 @@ class Status_Window(Ui_StatusWindow):
         self.floatpercision = 3
 
         # Setup plots
-        self.plots = [self.plot1] # Add more plots later maybe
+        self.plots = [self.plot1, self.plot2] # Add more plots later maybe
         self.plottedVars = dict()
-        self.setupPlot(self.plot1)
+        for plot in self.plots:
+            self.setupPlot(plot)
 
-        # Equipment Widgets
-        self.serverWidgets = dict()
+        # LabRAD Server Status Widget
+        self.labRADStatus = LabRAD_Server_Status(self.serverFrame)
     #
 
     def setupUi(self, widget):
