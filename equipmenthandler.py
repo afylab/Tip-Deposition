@@ -138,6 +138,7 @@ class EquipmentHandler(QThread):
     '''
     # Signals for GUI
     errorSignal = pyqtSignal() # Indicates an equipment error that is fatal to the process
+    serverNotFoundSignal = pyqtSignal(str) # Indicates an equipment error that is fatal to the process
     guiTrackedVarSignal = pyqtSignal(str, bool) # Add/Remove a tracked variable entry on status window
     updateTrackedVarSignal = pyqtSignal(str)
     plotVariableSignal = pyqtSignal(str, bool)
@@ -395,7 +396,7 @@ class EquipmentHandler(QThread):
         '''
         Immediatly stop all feedback loops
         '''
-        for variable in self.feedbackLoops:
+        for variable in list(self.feedbackLoops):
             del self.feedbackLoops[variable]
     #
 
@@ -408,14 +409,16 @@ class EquipmentHandler(QThread):
         Args:
             servers (list) : A list of servers to check.
         '''
-        try:
-            for server in servers:
-                if server not in self.servers:
-                    err = "Server not found. Either it does not exist or it was not added "
-                    err += "to the equipment handler."
-                    raise ValueError(err)
-        except:
-            self.errorSignal.emit()
+        err = ''
+        for server in servers:
+            if server not in self.servers:
+                if err != '':
+                    err += ','
+                err += str(server) + " "
+        if err != '':
+            err = "Server " + err
+            err += "not found."
+            self.serverNotFoundSignal.emit(err)
     #
 
     def __del__(self):

@@ -42,6 +42,7 @@ class Process_Window(Ui_mainWindow):
 
         self.equip = EquipmentHandler() # Empty list for now, gets everything, pass in list of servers?
         self.equip.errorSignal.connect(self.equipErrorSlot)
+        self.equip.serverNotFoundSignal.connect(self.serverErrorSlot)
         self.equip.start()
 
         # Setup the Status Window
@@ -211,7 +212,10 @@ class Process_Window(Ui_mainWindow):
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Load")
         self.pauseButton.setEnabled(False)
-        self.proceedButton.clicked.disconnect()
+        try:
+            self.proceedButton.clicked.disconnect()
+        except:
+            pass
         self.proceedButton.clicked.connect(self.loadRecipe)
         self.set_status('standby')
     #
@@ -455,13 +459,20 @@ class Process_Window(Ui_mainWindow):
     #
 
     def equipErrorSlot(self):
-        self.append_ins_warning("Equipment Error: required server not found")
+        self.append_ins_warning("Equipment Error, see errorlog for details.")
         if hasattr(self, 'sequencer'):
             self.sequencer.abortSignal.emit()
             self.sequencer.record_error()
         else:
             print(format_exc())
         self.set_status('error')
+    #
+
+    def serverErrorSlot(self, txt):
+        self.append_ins_warning("LabRAD Server Error: " + txt)
+        self.append_ins_warning("Fix the servers and restart the program.")
+        self.set_status('error')
+        self.proceedButton.setEnabled(False)
     #
 #
 

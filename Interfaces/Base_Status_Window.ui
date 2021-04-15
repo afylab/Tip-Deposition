@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1221</width>
-    <height>721</height>
+    <width>1015</width>
+    <height>808</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,10 +32,10 @@
   <widget class="QFrame" name="plotFrame">
    <property name="geometry">
     <rect>
-     <x>5</x>
-     <y>305</y>
+     <x>460</x>
+     <y>5</y>
      <width>905</width>
-     <height>405</height>
+     <height>831</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -44,50 +44,14 @@
    <property name="frameShadow">
     <enum>QFrame::Raised</enum>
    </property>
-   <widget class="PlotWidget" name="plot1">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>450</width>
-      <height>400</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="PlotWidget" name="plot2">
-    <property name="geometry">
-     <rect>
-      <x>455</x>
-      <y>0</y>
-      <width>450</width>
-      <height>400</height>
-     </rect>
-    </property>
-   </widget>
   </widget>
   <widget class="QFrame" name="variablesFrame">
    <property name="geometry">
     <rect>
-     <x>910</x>
-     <y>5</y>
-     <width>300</width>
-     <height>700</height>
-    </rect>
-   </property>
-   <property name="frameShape">
-    <enum>QFrame::StyledPanel</enum>
-   </property>
-   <property name="frameShadow">
-    <enum>QFrame::Raised</enum>
-   </property>
-  </widget>
-  <widget class="QFrame" name="serverFrame">
-   <property name="geometry">
-    <rect>
-     <x>460</x>
-     <y>5</y>
+     <x>5</x>
+     <y>310</y>
      <width>450</width>
-     <height>300</height>
+     <height>490</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -98,14 +62,6 @@
    </property>
   </widget>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>PlotWidget</class>
-   <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

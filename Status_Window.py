@@ -4,10 +4,12 @@ Window to display the current status of the equipment
 
 from Interfaces.Base_Status_Window import Ui_StatusWindow
 from Interfaces.Base_LabRAD_Status import Ui_LabRAD_Status_Widget
-from customwidgets import VarEntry
+from customwidgets import VarEntry, BaseStatusWidget
 
 import numpy as np
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore
+
 from datetime import datetime
 
 from PyQt5.QtWidgets import QWidget
@@ -22,7 +24,31 @@ class LabRAD_Server_Status(Ui_LabRAD_Status_Widget):
     def __init__(self, parent):
         self.widget = QWidget(parent)
         self.setupUi(self.widget)
+#
 
+class CustomViewBox(pg.ViewBox):
+    '''
+    Viewbox that allows for selecting range, taken from PyQtGraphs documented examples
+    '''
+    def __init__(self, *args, **kwds):
+        kwds['enableMenu'] = False
+        pg.ViewBox.__init__(self, *args, **kwds)
+        self.setMouseMode(self.RectMode)
+    #
+
+    ## reimplement right-click to zoom out
+    def mouseClickEvent(self, ev):
+        if ev.button() == QtCore.Qt.RightButton:
+            self.autoRange()
+    #
+
+    ## reimplement mouseDragEvent to disable continuous axis zoom
+    def mouseDragEvent(self, ev, axis=None):
+        if axis is not None and ev.button() == QtCore.Qt.RightButton:
+            ev.ignore()
+        else:
+            pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+    #
 #
 
 class Status_Window(Ui_StatusWindow):
@@ -58,19 +84,28 @@ class Status_Window(Ui_StatusWindow):
         self.floatpercision = 3
 
         # Setup plots
+        self.extraWindows = []
         self.plots = [self.plot1, self.plot2] # Add more plots later maybe
         self.plottedVars = dict()
         for plot in self.plots:
             self.setupPlot(plot)
 
         # LabRAD Server Status Widget
-        self.labRADStatus = LabRAD_Server_Status(self.serverFrame)
+        # self.labRADStatus = LabRAD_Server_Status()
     #
 
     def setupUi(self, widget):
         super(Status_Window, self).setupUi(widget)
         widget.setWindowTitle("Tip Status Window")
         widget.setGUIRef(self.gui) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
+
+        # Initlize the plotting widgets
+        self.plot1 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
+        self.plot1.setGeometry(QtCore.QRect(0, 0, 550, 400))
+        self.plot1.setObjectName("plot1")
+        self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
+        self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
+        self.plot2.setObjectName("plot2")
     #
 
     def setupPlot(self, widget):
@@ -91,10 +126,11 @@ class Status_Window(Ui_StatusWindow):
                 del widget
             self.trackedrow = 0
         if self.plottedVars:
-            for k in self.plottedVars.keys():
+            for k in list(self.plottedVars.keys()):
                 plot = self.plottedVars.pop(k)
                 plot[1].clear()
-                self.setupPlot(plot[0])
+        for plot in self.plots:
+            self.setupPlot(plot)
         if self.serverWidgets:
             del self.serverWidgets
             self.serverWidgets = dict()
@@ -115,7 +151,13 @@ class Status_Window(Ui_StatusWindow):
                     self.startPlotting(plot, variable)
                     return
             # If there is not availible plot, make one
-            print("DEV NOTE: Make another plot widget and load it!")
+            base = BaseStatusWidget()
+            self.extraWindows.append(base)
+            newplot = pg.PlotWidget(base, viewBox=CustomViewBox())
+            newplot.setGeometry(QtCore.QRect(0, 0, 550, 400))
+            self.plots.append(newplot)
+            self.startPlotting(newplot, variable)
+            base.show()
         else:
             self.stopPlotting(variable)
     #
@@ -148,10 +190,6 @@ class Status_Window(Ui_StatusWindow):
             self.stopPlotting(inuse)
         plotWidget.clear()
         #
-        '''
-        DEV NOTE: For now making axes time since the plot was started, may need to do some
-        more sophisticated timing later, especially when recording the data.
-        '''
         t0 = datetime.now()
         data = np.zeros((1,2))
         data[0,1] = val
@@ -200,10 +238,11 @@ class Status_Window(Ui_StatusWindow):
         '''
         if create:
             widget = VarEntry(self.variablesFrame, name)
-            widget.move(0, 35*self.trackedrow)
+            widget.move(10, 32*self.trackedrow)
             self.trackedVarsWidgets[name] = widget
             self.trackedrow += 1
         else:
+            # Do we need removal? Generally we define variables for the whole run?
             print("NEED TO IMPLEMENT REMOVAL")
     #
 

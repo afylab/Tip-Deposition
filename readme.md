@@ -9,14 +9,19 @@ Deposition Software. The idea is to create a Recipe object that contains the ins
 for fabricating a particular type of nanoSQUID tip in a simple sequence of readable steps
 and have the rest of the process handled behind the scenes.
 
+Generally when making a new type of
+  nanoSQUID tip the workflow is as follows:
+  - Make LabRAD servers for any new hardware
+  - Make a new Recipe class, inheriting from Recipe, to handle the deposition procedure
+  - Iterate on the process and parameters in order to find the optimum steps
+The code for the Recipe class and for the class Recipe_Test in Recipes/Testing_Calibration.py
+is commented in detail to give the new user the information they need to develop a new recipe.
+
 Requirements:
 Python 3.7+ (Python 3.7 or higher is required to maintain insertion order of keys in dictionaries.
 This program is unstable without lower versions.)
 pyqtgraph
 pylabrad
-
-***
-Instructions:
 
 
 ***

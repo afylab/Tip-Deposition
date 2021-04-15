@@ -84,9 +84,9 @@ class TestServer(LabradServer):
 		self.output = 0
 	#
 
-	@setting(17, returns='*v')
+	@setting(17, returns='v')
 	def get_random_number(self, c):
-		return rand(1)
+		return rand(1)[0]
 	#
 #
 

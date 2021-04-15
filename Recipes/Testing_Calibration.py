@@ -9,7 +9,7 @@ class Recipe_Test(Recipe):
     A simple recipe to test the core functions of the Recipe. Generally when making a new type of
     nanoSQUID tip the workflow is as follows:
     - Make LabRAD servers for any new hardware
-    - Make a new Recipe class, inheriting from Recipe, to handel the deposition procedure
+    - Make a new Recipe class, inheriting from Recipe, to handle the deposition procedure
     - Iterate on the process and parameters in order to find the optimum steps
 
     Comments are the code are very explicit to give a worked example of how to develop a new Recipe
@@ -27,7 +27,7 @@ class Recipe_Test(Recipe):
         is changed without changing the version number there may be issues loading and saving parameters
         to file.
         '''
-        super().__init__(equip, required_servers=['testserver'], version="1.0.1")
+        super().__init__(equip, required_servers=['data_vault','testserver'], version="1.0.1")
 
     def proceed(self):
         '''
