@@ -3,28 +3,16 @@ Window to display the current status of the equipment
 '''
 
 from Interfaces.Base_Status_Window import Ui_StatusWindow
-from Interfaces.Base_LabRAD_Status import Ui_LabRAD_Status_Widget
 from customwidgets import VarEntry, BaseStatusWidget
 
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
 
+from PyQt5.QtGui import QIcon
+
 from datetime import datetime
-
-from PyQt5.QtWidgets import QWidget
-
-class LabRAD_Server_Status(Ui_LabRAD_Status_Widget):
-    '''
-    Widget to display the status of the labRAD servers
-
-    Args:
-        parent : The parent object the widget is within.
-    '''
-    def __init__(self, parent):
-        self.widget = QWidget(parent)
-        self.setupUi(self.widget)
-#
+from os.path import join
 
 class CustomViewBox(pg.ViewBox):
     '''
@@ -106,6 +94,8 @@ class Status_Window(Ui_StatusWindow):
         self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
         self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
         self.plot2.setObjectName("plot2")
+
+        self.widget.setWindowIcon(QIcon(join('Interfaces','images','squid_tip.png')))
     #
 
     def setupPlot(self, widget):

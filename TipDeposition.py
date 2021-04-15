@@ -17,6 +17,7 @@ from customwidgets import BaseMainWindow, BaseStatusWidget, RecipeDialog, Custom
 import sys
 from traceback import format_exc
 from queue import Queue
+from os.path import join
 
 class Process_Window(Ui_mainWindow):
     '''
@@ -76,6 +77,8 @@ class Process_Window(Ui_mainWindow):
         self.params = dict()
 
         self.set_status("standby")
+
+        self.mainWindow.setWindowIcon(QtGui.QIcon(join('Interfaces','images','squid_tip.png')))
     #
 
     def loadRecipe(self):

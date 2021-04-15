@@ -8,7 +8,7 @@ from inspect import getmembers, isclass
 from importlib.util import spec_from_file_location #, module_from_spec
 
 from PyQt5 import QtCore
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import QLabel, QMainWindow, QListWidgetItem, QDoubleSpinBox, QWidget
 #from PyQt5.QtWidgets import QFrame, QSizePolicy, QGridLayout
 
@@ -89,6 +89,8 @@ class RecipeDialog(Ui_RecipeDialog):
         self.loadLastCheckBox.toggled.connect(self.loadLastCallback)
         self.loadSpecificCheckBox.toggled.connect(self.loadSpecificCallback)
         self.load_last = True
+
+        self.parent.setWindowIcon(QIcon(join('Interfaces','images','squid_tip.png')))
     #
 
     def getRecipe(self):
