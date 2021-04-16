@@ -5,14 +5,17 @@ Load the base with: "pyuic5 -x Base_Process_Window.ui -o Base_Process_Window.py"
 '''
 from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox, QSpinBox, QMessageBox, qApp
+from PyQt5.QtWidgets import QMainWindow
 
 from Interfaces.Base_Process_Window import Ui_mainWindow
 from Status_Window import Status_Window
+from Display_Window import Display_Window
 from equipmenthandler import EquipmentHandler
 
 from sequencer import Sequencer
 
-from customwidgets import BaseMainWindow, BaseStatusWidget, RecipeDialog, CustomSpinBox
+from customwidgets import BaseMainWindow, BaseStatusWidget, CustomSpinBox
+from customwidgets import RecipeDialog, TipSelectionDialog
 
 import sys
 from traceback import format_exc
@@ -34,13 +37,6 @@ class Process_Window(Ui_mainWindow):
         self.paused = False
         self.setupUi(parent)
 
-        '''
-        DEV NOTE
-        Do we want some dialog to identify labRAD servers?
-
-        or just have the equipment handler load any that it can find
-        '''
-
         self.equip = EquipmentHandler() # Empty list for now, gets everything, pass in list of servers?
         self.equip.errorSignal.connect(self.equipErrorSlot)
         self.equip.serverNotFoundSignal.connect(self.serverErrorSlot)
@@ -50,7 +46,11 @@ class Process_Window(Ui_mainWindow):
         self.statusWindowWidget = BaseStatusWidget()
         self.statusWindow = Status_Window(self.statusWindowWidget, self, self.equip)
 
-        self.loadRecipe()
+        self.proceedButton.setEnabled(True)
+        self.proceedButton.setText("Load")
+        self.pauseButton.setEnabled(False)
+        self.proceedButton.clicked.connect(self.loadRecipe)
+        self.set_status('standby')
 
         self.statusWindowWidget.show()
     #
@@ -67,6 +67,7 @@ class Process_Window(Ui_mainWindow):
         self.loadRecipeAction.triggered.connect(self.loadRecipe)
         self.abortAction.triggered.connect(self.abortCallback)
         self.exitAction.triggered.connect(mainWindow.close)
+        self.openTipAction.triggered.connect(self.openTipCallback)
 
         # Bind Buttons
         self.abortButton.clicked.connect(self.abortCallback)
@@ -75,6 +76,7 @@ class Process_Window(Ui_mainWindow):
         self.stepLabel.setText(str(self.step_cnt))
 
         self.params = dict()
+        self.otherDisplays = []
 
         self.set_status("standby")
 
@@ -96,6 +98,7 @@ class Process_Window(Ui_mainWindow):
         dialog = RecipeDialog()
         dialog.setupUi(recipeDialogBox)
         dialog.loadRecipes('Recipes')
+        # dialog.viewButton.clicked.connect(self.openTipCallback)
         recipeDialogBox.exec()
         recipe = dialog.getRecipe()
 
@@ -221,6 +224,7 @@ class Process_Window(Ui_mainWindow):
             pass
         self.proceedButton.clicked.connect(self.loadRecipe)
         self.set_status('standby')
+        self.openTipDisplay(False)
     #
 
     '''
@@ -476,6 +480,43 @@ class Process_Window(Ui_mainWindow):
         self.append_ins_warning("Fix the servers and restart the program.")
         self.set_status('error')
         self.proceedButton.setEnabled(False)
+    #
+
+    def openTipCallback(self):
+        '''
+        Open and display the data for a previous tip, for reference
+        '''
+        self.openTipDisplay(True)
+    #
+
+    def openTipDisplay(self, fromfile):
+        '''
+        Opens the data for a Tip Deposition, either opened at the end of a deposition or
+        loading a previous one from file
+        '''
+        if fromfile:
+            tipDialogBox = QtWidgets.QDialog()
+            dialog = TipSelectionDialog()
+            dialog.setupUi(tipDialogBox)
+            tipDialogBox.exec()
+            version, squidname = dialog.getTip()
+            if version is None:
+                return
+            autosave = False
+        else:
+            if hasattr(self, 'sequencer'):
+                version = self.sequencer.get_recipe_name()
+                squidname = self.sequencer.get_squid_name()
+            else:
+                version = ""
+                squidname = ""
+            autosave = True
+        try:
+            base = QMainWindow()
+            display = Display_Window(base, version, squidname, autosave=autosave)
+            self.otherDisplays.append(display)
+        except:
+            self.sequencer.errorSignal.emit()
     #
 #
 

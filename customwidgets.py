@@ -1,5 +1,5 @@
 '''
-A Modules for customized widgets
+A Modules for customized widgets that enable the actual displays
 '''
 import os
 from os.path import join
@@ -10,10 +10,38 @@ from importlib.util import spec_from_file_location #, module_from_spec
 from PyQt5 import QtCore
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import QLabel, QMainWindow, QListWidgetItem, QDoubleSpinBox, QWidget
-#from PyQt5.QtWidgets import QFrame, QSizePolicy, QGridLayout
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem
+
+import pyqtgraph as pg
 
 from Interfaces.Base_Recipe_Dialog import Ui_RecipeDialog
+from Interfaces.Base_Tip_Selection_Dialog import Ui_TipSelectionDialog
 import recipe
+
+class CustomViewBox(pg.ViewBox):
+    '''
+    Viewbox that allows for selecting range, taken from PyQtGraphs documented examples
+    '''
+    def __init__(self, *args, **kwds):
+        kwds['enableMenu'] = False
+        pg.ViewBox.__init__(self, *args, **kwds)
+        self.setMouseMode(self.RectMode)
+    #
+
+    ## reimplement right-click to zoom out
+    def mouseClickEvent(self, ev):
+        if ev.button() == QtCore.Qt.RightButton:
+            self.autoRange()
+    #
+
+    ## reimplement mouseDragEvent to disable continuous axis zoom
+    def mouseDragEvent(self, ev, axis=None):
+        if axis is not None and ev.button() == QtCore.Qt.RightButton:
+            ev.ignore()
+        else:
+            pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
+    #
+#
 
 class BaseMainWindow(QMainWindow):
     '''
@@ -139,6 +167,72 @@ class RecipeDialog(Ui_RecipeDialog):
     #
 #
 
+class TipSelectionDialog(Ui_TipSelectionDialog):
+    '''
+    A Dialog box to select a tip to load data from
+    '''
+    def setupUi(self, parent):
+        super().setupUi(parent)
+        self.cancelled = True
+        self.parent = parent
+        self.loadButton.clicked.connect(self.loadCallback)
+        self.cancelButton.clicked.connect(self.cancelCallback)
+
+        self.parent.setWindowIcon(QIcon(join('Interfaces','images','squid_tip.png')))
+        self.loadTips()
+    #
+
+    def loadTips(self, directory='database'):
+        self.treeWidget.setHeaderLabels(["Select a Deposition"])
+        for file in os.listdir(directory):
+            if file.endswith(".csv"):
+                name = file.replace('_params.csv','')
+                name = name.replace('_v', ' v')
+                name = name.replace('_', ' ')
+                name = name.replace('-', '.')
+                recipeItem = QTreeWidgetItem([name])
+
+                with open(join(directory, file), 'r') as reader:
+                    lines = reader.readlines()
+                    for i in range(1,len(lines)):
+                        ln = lines[i].split(',')
+                        tip = QTreeWidgetItem([ln[1]])
+                        recipeItem.addChild(tip)
+                self.treeWidget.addTopLevelItem(recipeItem)
+        #
+    #
+
+    def getTip(self):
+        '''
+        Return the recipe class, returns None if cancelled.
+        '''
+        if self.cancelled:
+            return None, None
+        else:
+            current = self.treeWidget.currentItem()
+            parent = current.parent()
+            if parent is None: # If you just selected a recipe, don't load
+                return None, None
+            else:
+                recipe = parent.text(0)
+                recipe = recipe.replace(' v', '_v')
+                recipe = recipe.replace(' ', '_')
+                recipe = recipe.replace('.', '-')
+                return recipe, current.text(0)
+    #
+
+    def loadCallback(self):
+        self.cancelled = False
+        self.parent.close()
+    #
+
+    def cancelCallback(self):
+        self.cancelled = True
+        self.parent.close()
+    #
+#
+
+
 class CustomSpinBox(QDoubleSpinBox):
     def textFromValue(self, value):
         return str(value)
@@ -149,17 +243,17 @@ class VarEntry(QWidget):
     '''
     A simple widget to display a value with a label
     '''
-    def __init__(self, parent, label, width=300, height=35):
+    def __init__(self, parent, label, width=300, height=35, labelwidth=150, valuewidth=150):
         super().__init__(parent)
-        self.setMaximumSize(width, height)
+        self.setMaximumSize(labelwidth+valuewidth, height)
         self.value = 0.0
         self.staticLabel = QLabel(self)
-        self.staticLabel.setGeometry(QtCore.QRect(0, 5, width/2, height-10))
+        self.staticLabel.setGeometry(QtCore.QRect(0, 5, labelwidth, height-10))
         font = QFont()
         font.setPointSize(14)
         self.staticLabel.setFont(font)
         self.dynamicLabel = QLabel(self)
-        self.dynamicLabel.setGeometry(QtCore.QRect(150, 5, width/2, height-10))
+        self.dynamicLabel.setGeometry(QtCore.QRect(labelwidth, 5, valuewidth, height-10))
         self.dynamicLabel.setFont(font)
         self.setLabel(label)
         self.show()

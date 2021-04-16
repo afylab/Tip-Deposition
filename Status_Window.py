@@ -3,7 +3,7 @@ Window to display the current status of the equipment
 '''
 
 from Interfaces.Base_Status_Window import Ui_StatusWindow
-from customwidgets import VarEntry, BaseStatusWidget
+from customwidgets import VarEntry, BaseStatusWidget, CustomViewBox
 
 import numpy as np
 import pyqtgraph as pg
@@ -13,31 +13,6 @@ from PyQt5.QtGui import QIcon
 
 from datetime import datetime
 from os.path import join
-
-class CustomViewBox(pg.ViewBox):
-    '''
-    Viewbox that allows for selecting range, taken from PyQtGraphs documented examples
-    '''
-    def __init__(self, *args, **kwds):
-        kwds['enableMenu'] = False
-        pg.ViewBox.__init__(self, *args, **kwds)
-        self.setMouseMode(self.RectMode)
-    #
-
-    ## reimplement right-click to zoom out
-    def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.RightButton:
-            self.autoRange()
-    #
-
-    ## reimplement mouseDragEvent to disable continuous axis zoom
-    def mouseDragEvent(self, ev, axis=None):
-        if axis is not None and ev.button() == QtCore.Qt.RightButton:
-            ev.ignore()
-        else:
-            pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
-    #
-#
 
 class Status_Window(Ui_StatusWindow):
     '''
@@ -75,6 +50,7 @@ class Status_Window(Ui_StatusWindow):
         self.extraWindows = []
         self.plots = [self.plot1, self.plot2] # Add more plots later maybe
         self.plottedVars = dict()
+        self.pgPen = pg.mkPen(41, 128, 185)
         for plot in self.plots:
             self.setupPlot(plot)
 
@@ -104,7 +80,6 @@ class Status_Window(Ui_StatusWindow):
         widget.setLabel('bottom',"time (s)")
         widget.setXRange(0,1)
         widget.setYRange(0,1)
-        self.pgPen = pg.mkPen(41, 128, 185)
     #
 
     def reset(self):

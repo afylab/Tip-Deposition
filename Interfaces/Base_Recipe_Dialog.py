@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_RecipeDialog(object):
     def setupUi(self, RecipeDialog):
         RecipeDialog.setObjectName("RecipeDialog")
-        RecipeDialog.resize(270, 429)
+        RecipeDialog.resize(270, 421)
         self.recipeListWidget = QtWidgets.QListWidget(RecipeDialog)
         self.recipeListWidget.setGeometry(QtCore.QRect(10, 5, 250, 301))
         self.recipeListWidget.setObjectName("recipeListWidget")

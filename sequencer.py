@@ -82,6 +82,7 @@ class Sequencer(QThread):
             self.wait_for_gui() # Wait for the user to enter the starting parameters and press start
             startupstep.processed = True # Flag the step as processed
             self.logger.startlog(startupstep) # Start logging, will not start writing to the file untill this is called
+            self.squidname = self.logger.squidname
             self.recipe._process_startup(startupstep) # laod the startup paramters into the recipe
         except ProcessInterruptionError:
             self.warnSignal.emit("Process Aborted before it began. Reload process to continue.")
@@ -188,5 +189,21 @@ class Sequencer(QThread):
             errorlog.flush()
         if display:
             self.warnSignal.emit("See " + flname + " for full details")
+    #
+
+    def get_recipe_name(self):
+        try:
+            return self.recipe.get_name()
+        except:
+            print("Error: no Recipe name")
+            return ""
+    #
+
+    def get_squid_name(self):
+        try:
+            return self.squidname
+        except:
+            print("Error: no SQUID name")
+            return ""
     #
 #

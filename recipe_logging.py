@@ -63,6 +63,10 @@ class recipe_logger():
                 raise LogFileFormatError("First column of log file must be Date")
             self.writer.write('\n'+s)
         self.col += 1
+        try:
+            self.squidname = startupstep.get_param("SQUID Num.")
+        except:
+            self.squidname = ''
         self.log(startupstep)
     #
 

@@ -292,14 +292,14 @@
     <addaction name="abortAction"/>
     <addaction name="exitAction"/>
    </widget>
-   <widget class="QMenu" name="labRADMenu">
+   <widget class="QMenu" name="displayMenu">
     <property name="title">
-     <string>LabRAD</string>
+     <string>Display</string>
     </property>
-    <addaction name="openServerAction"/>
+    <addaction name="openTipAction"/>
    </widget>
    <addaction name="fileMenu"/>
-   <addaction name="labRADMenu"/>
+   <addaction name="displayMenu"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="loadRecipeAction">
@@ -317,9 +317,9 @@
     <string>Exit</string>
    </property>
   </action>
-  <action name="openServerAction">
+  <action name="openTipAction">
    <property name="text">
-    <string>Open Server</string>
+    <string>Open Previous</string>
    </property>
   </action>
  </widget>
