@@ -35,7 +35,7 @@
      <x>5</x>
      <y>5</y>
      <width>450</width>
-     <height>700</height>
+     <height>600</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -49,7 +49,7 @@
    <property name="geometry">
     <rect>
      <x>155</x>
-     <y>730</y>
+     <y>750</y>
      <width>150</width>
      <height>50</height>
     </rect>
@@ -61,6 +61,21 @@
    </property>
    <property name="text">
     <string>Save</string>
+   </property>
+  </widget>
+  <widget class="QTextBrowser" name="notesBrowser">
+   <property name="geometry">
+    <rect>
+     <x>5</x>
+     <y>610</y>
+     <width>450</width>
+     <height>130</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>12</pointsize>
+    </font>
    </property>
   </widget>
  </widget>

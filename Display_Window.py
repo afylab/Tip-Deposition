@@ -8,6 +8,7 @@ from pyqtgraph.Qt import QtCore
 
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QFileDialog
+from PyQt5 import QtGui
 
 from os.path import join, exists
 from os import makedirs
@@ -82,6 +83,8 @@ class Display_Window(Ui_DisplayWindow):
         self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
         self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
 
+        self.notesBrowser.setReadOnly(False)
+
         # Bind Buttons
         self.saveButton.clicked.connect(self.saveCallback)
 
@@ -101,6 +104,12 @@ class Display_Window(Ui_DisplayWindow):
             ix += 1
         #
 
+        if exists(join(self.home_dir, self.squidname+' - Notes.txt')):
+            with open(join(self.home_dir, self.squidname+' - Notes.txt'),'r') as fl:
+                text = fl.read()
+            self.notesBrowser.setPlainText(text)
+            self.notesBrowser.moveCursor(QtGui.QTextCursor.End)
+
         params = self._loadparams()
         self.varsWidgets = dict()
         row = 0
@@ -119,13 +128,17 @@ class Display_Window(Ui_DisplayWindow):
                 screenshot.save(svfl)
     #
 
-
-
     def saveCallback(self):
         filename = QFileDialog.getSaveFileName(self.parent, 'Save', join(self.home_dir, self.squidname+'.png'), "Images (*.png *.jpg)")
         if filename[0]:
             screenshot = self.parent.grab()
             screenshot.save(filename[0])
+
+            text = self.notesBrowser.toPlainText()
+            with open(join(self.home_dir, self.squidname+' - Notes.txt'),'w') as fl:
+                fl.write(text)
+                fl.flush()
+            #
     #
 
     def _loadplot(self, plotWidget, variable, data):
