@@ -20,7 +20,7 @@ class recipe_logger():
     '''
     def __init__(self, recipe, savedir=None):
         if savedir is None:
-            savedir = 'database'
+            savedir = '..\database'
         if not exists(savedir):
             makedirs(savedir)
         #

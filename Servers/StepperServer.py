@@ -68,7 +68,7 @@ class StepperWrapper(DeviceWrapper):
         #p.timeout(None)
         print(" CONNECTED ")
         yield p.send()
-        
+
     def packet(self):
         """Create a packet in our private context"""
         return self.server.packet(context=self.ctx)
@@ -104,7 +104,7 @@ class StepperServer(DeviceServer):
     name             = 'Stepper_Server'
     deviceName       = 'Evaporator Stepper Motor Controller'
     deviceWrapper    = StepperWrapper
-    
+
     @inlineCallbacks
     def initServer(self):
         print('loading config info...', end=' ')
@@ -125,11 +125,11 @@ class StepperServer(DeviceServer):
         print("printing all the keys",keys)
         for k in keys:
             print("k=",k)
-            p.get(k, key=k)            
+            p.get(k, key=k)
         ans = yield p.send()
         print("ans=",ans)
         self.serialLinks = dict((k, ans[k]) for k in keys)
-    
+
     @inlineCallbacks
     def findDevices(self):
         devs = []
@@ -146,14 +146,14 @@ class StepperServer(DeviceServer):
             devs += [(devName, (server, port))]
         returnValue(devs)
 
-    @setting(505,stepper = 's',degrees = 's', direction = 's', returns='s')
+    @setting(505, stepper = 's', degrees = 's', direction = 's', returns='s')
     def rot(self,c,stepper, degrees, direction):
         """Rotates stepper motor by the number of degrees in the specified direction. The shutter blade
         stepper motor is motor 'A'. The cryostat stepper motor is motor 'B'. Use C to move clockwise and
-        A to move anti-clockwise. Example command: A150C. This will turn stepper motor A 150 degrees 
+        A to move anti-clockwise. Example command: A150C. This will turn stepper motor A 150 degrees
         clockwise."""
         stat = yield self.status(c)
-        command = stepper+degrees+direction+"r" 
+        command = stepper+degrees+direction+"r"
         if stat.startswith('stationary') and len(self.stack) == 0:
             dev=self.selectedDevice(c)
             yield dev.write(command)
@@ -172,7 +172,7 @@ class StepperServer(DeviceServer):
         yield dev.write("ir")
         ans = yield dev.read()
         returnValue(ans)
-        
+
     @setting(507,returns = 's')
     def status(self,c):
         """Returns the status (whether or not something is turning)."""
@@ -180,7 +180,7 @@ class StepperServer(DeviceServer):
         yield dev.write("sr")
         ans = yield dev.read()
         returnValue(ans)
-        
+
     @setting(508,returns = '')
     def empty_stack(self,c):
         """Works on emptying the stack. Should never need to be called manually."""
@@ -192,8 +192,8 @@ class StepperServer(DeviceServer):
                 yield dev.write(command)
                 ans = yield dev.read()
                 yield self.empty_stack(c)
-                
-        
+
+
 __server__ = StepperServer()
 if __name__ == '__main__':
     from labrad import util

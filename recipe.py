@@ -166,6 +166,10 @@ class Recipe():
         setupstep.add_input_param("SQUID Num.")
         setupstep.add_input_param("Person Evaporating")
         setupstep.add_input_param("Superconductor", default=self.default("Superconductor") )
+        setupstep.add_input_param("SEM Diameter")
+        setupstep.add_input_param("Tip to SHOVET Distance")
+        setupstep.add_input_param("Tip to Leads Distance")
+        setupstep.add_input_param("TF Aligned")
         return setupstep
     #
 

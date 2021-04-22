@@ -37,7 +37,7 @@ class Process_Window(Ui_mainWindow):
         self.paused = False
         self.setupUi(parent)
 
-        self.equip = EquipmentHandler() # Empty list for now, gets everything, pass in list of servers?
+        self.equip = EquipmentHandler()
         self.equip.errorSignal.connect(self.equipErrorSlot)
         self.equip.serverNotFoundSignal.connect(self.serverErrorSlot)
         self.equip.start()
@@ -516,7 +516,8 @@ class Process_Window(Ui_mainWindow):
             display = Display_Window(base, version, squidname, autosave=autosave)
             self.otherDisplays.append(display)
         except:
-            self.sequencer.errorSignal.emit()
+            pass
+            #self.sequencer.errorSignal.emit()
     #
 #
 

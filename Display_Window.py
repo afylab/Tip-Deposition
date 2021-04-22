@@ -54,7 +54,7 @@ class Display_Window(Ui_DisplayWindow):
         database (str) : The root tip database, same as location where parameters are saved
         autosave (bool) : If True will automatically save the screenshot when loaded
     '''
-    def __init__(self, parent, version, squidname, database='database', autosave=False):
+    def __init__(self, parent, version, squidname, database='..\database', autosave=False):
         super().__init__()
         self.parent = parent
         self.version = version

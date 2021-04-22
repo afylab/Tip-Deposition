@@ -5,6 +5,7 @@ thread.
 '''
 import labrad
 from PyQt5.QtCore import QThread, pyqtSignal
+from twisted.internet.defer import inlineCallbacks
 
 from datetime import datetime
 from time import sleep
@@ -178,7 +179,7 @@ class EquipmentHandler(QThread):
                 #
         else: # Load all the servers you can find
             for num, svrname in self.cxn['manager'].servers():
-                if svrname not in ['Manager', 'Registry', 'Auth']:
+                if svrname not in ['Manager', 'Registry', 'Auth'] and not 'Serial Server' in svrname:
                     name = svrname.replace(' ', '_').lower()
                     self.servers[name] = getattr(self.cxn, name)
         #
@@ -214,7 +215,17 @@ class EquipmentHandler(QThread):
         try:
             while self.active:
                 sleep(update_delay)
+
+                # DEBUG
+                l = list(self.trackedVarsAccess.keys())
+                if l != []:
+                    print(l)
+
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
+                    print("Got Here!")
+                    print(self.trackedVarsAccess[k])
+                    print(self.trackedVarsAccess[k]()) # DEBUG
+                    print("Now I'm Here")
                     self.info[k] = self.trackedVarsAccess[k]()
                     self.updateTrackedVarSignal.emit(k)
                 tnow = datetime.now()
@@ -259,7 +270,15 @@ class EquipmentHandler(QThread):
                 if name in self.trackedVarsAccess: # If it already exists, ignore this signal
                     return
                 if hasattr(self.servers[server], accessor):
-                    self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
+                    func = getattr(self.servers[server], accessor)
+                    @inlineCallbacks
+                    def update():
+                        ret = yield func()
+                        ret = str(ret)
+                        yield ret
+                    #
+                    self.trackedVarsAccess[name] = update
+                    #self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
                     self.guiTrackedVarSignal.emit(name, True)
                 else:
                     raise ValueError("Server " + str(server) + " does not have " + str(accessor))
@@ -414,10 +433,10 @@ class EquipmentHandler(QThread):
             if server not in self.servers:
                 if err != '':
                     err += ','
-                err += str(server) + " "
+                err += " " + str(server)
         if err != '':
             err = "Server " + err
-            err += "not found."
+            err += " not found."
             self.serverNotFoundSignal.emit(err)
     #
 

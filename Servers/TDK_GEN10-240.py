@@ -69,7 +69,7 @@ class PowerSupplyWrapper(DeviceWrapper):
         p.timeout(None)
         print(" CONNECTED ")
         yield p.send()
-        
+
     def packet(self):
         """Create a packet in our private context"""
         return self.server.packet(context=self.ctx)
@@ -105,7 +105,7 @@ class PowerSupplyServer(DeviceServer):
     name             = 'Power_supply_server'
     deviceName       = 'TDK Power Supply'
     deviceWrapper    = PowerSupplyWrapper
-    
+
     @inlineCallbacks
     def initServer(self):
         print('loading config info...', end=' ')
@@ -126,11 +126,11 @@ class PowerSupplyServer(DeviceServer):
         print("printing all the keys",keys)
         for k in keys:
             print("k=",k)
-            p.get(k, key=k)            
+            p.get(k, key=k)
         ans = yield p.send()
         print("ans=",ans)
         self.serialLinks = dict((k, ans[k]) for k in keys)
-    
+
     @inlineCallbacks
     def findDevices(self):
         devs = []
@@ -146,18 +146,18 @@ class PowerSupplyServer(DeviceServer):
             devName = '%s - %s' % (serServer, port)
             devs += [(devName, (server, port))]
         returnValue(devs)
-        
+
     @setting(100,input = 's',returns = 's')
     def read(self,c, input):
         """This piece of equipment doesn't use carriage returns, so the serial port cannot recognize
         the end of a message. The timeout parameter is set to be 0 and this function
         loops until the message from the Power Supply has completely arrived or two seconds
         have elapsed. Also ensures that only one message is sent / being received at a time."""
-        
-        tzero = time.clock()
+
+        tzero = time.perf_counter()
         input = input + '$' + self.checksum(input) + '\r'
         #print 'Attempting to write: ' + input
-        
+
         while True:
             if self.busy == False:
                 print('Initiating Query: ' + input)
@@ -166,7 +166,7 @@ class PowerSupplyServer(DeviceServer):
                 print('Writing: ' + input)
                 yield dev.write(input)
                 ans = ''
-                tzero = time.clock()
+                tzero = time.perf_counter()
                 while True:
                     temp_ans = yield dev.read()
                     ans = ans + temp_ans
@@ -175,7 +175,7 @@ class PowerSupplyServer(DeviceServer):
                     for char in ans:
                         if ord(char) > 31 and ord(char) < 128:
                             ans_final = ans_final + char
-                    
+
                     ans = ans_final
                     print(ans)
                     print(len(ans))
@@ -198,7 +198,7 @@ class PowerSupplyServer(DeviceServer):
                             print('Checksum error: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
                             self.busy = False
                             returnValue('ChecksumError')
-                    elif (time.clock() - tzero) > 5:
+                    elif (time.perf_counter() - tzero) > 5:
                         ans_num = ''
                         for char in ans:
                             ans_num = ans_num + str(ord(char)) + ','
@@ -206,7 +206,7 @@ class PowerSupplyServer(DeviceServer):
                         self.busy = False
                         returnValue('Timeout')
                     yield self.sleep(0.05)
-            elif (time.clock() - tzero) > 2:
+            elif (time.perf_counter() - tzero) > 2:
                 print('Connection timed out while writing')
                 self.busy = False
                 returnValue("Timeout")
@@ -216,14 +216,14 @@ class PowerSupplyServer(DeviceServer):
         d = defer.Deferred()
         reactor.callLater(secs,d.callback,'Sleeping')
         return d
-        
+
     def checksum(self,string):
         val = 0
         for sub in string:
             val = val + ord(sub)
         ans = str(hex(val%256)[-2:]).upper()
         return ans
-    
+
     @setting(304,out = 's',returns='s')
     def switch(self,c,out):
         """Switches the output on or off."""
@@ -385,7 +385,7 @@ class PowerSupplyServer(DeviceServer):
         """Returns the power supply operation mode. If the supply is ON it will reutrn either CV or CC (constant voltage/current). If the supply is OFF it will return OFF."""
         ans = yield self.read(c,"MODE?")
         returnValue(ans)
-        
+
 __server__ = PowerSupplyServer()
 if __name__ == '__main__':
     from labrad import util
