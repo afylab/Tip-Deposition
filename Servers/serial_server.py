@@ -343,7 +343,12 @@ class SerialServer(LabradServer):
             if r != skip:
                 recd += r
         if not isinstance(recd, str):
-            recd = recd.decode("utf-8")
+            try:
+                recd = recd.decode("utf-8")
+            except UnicodeDecodeError: # Sometimes there is a non unicode character
+                #recd = recd.decode("utf-8", 'ignore') # ignore the character, will cause problems if anything is caldulated from string length
+                recd = recd.decode("utf-8", 'replace') # Replace the problem character with an error character
+                #recd = recd.decode("cp1252") # Will decode non-unicode characters which may not interact well with other code.
         returnValue(recd)
 
 

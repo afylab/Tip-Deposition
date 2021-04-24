@@ -18,13 +18,14 @@ class Cryo_Thermal_Evaporation(Recipe):
 
     def proceed(self):
         '''
-        Initilize Servers with any setup needed.
+        Initilize Servers with any setup needed. Devices communicating over the
+        labRAD serial server need to be selected.
 
         Following the initilization from the old Evaporator software, with any comments
         '''
         self.command('rvc_server', 'select_device')
         # self.command('stepper_server', 'select_device')
-        # self.command('ftm_server', 'select_device')
+        self.command('ftm_server', 'select_device')
         # self.command('turbo450', 'select_device')
         #
         # # Setup the power supply server
@@ -40,9 +41,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         Track the variables
         '''
-        self.trackVariable('Pressure', 'rvc_server', 'get_nom_prs')
-        # self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
-        # self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
+        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar')
+        self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
+        self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
         # self.trackVariable('Voltage (V)', 'power_supply_server', 'volt_read')
         # self.trackVariable('Temperature (C)', 'turbo450', 'temperature')
         # self.trackVariable('Frequency (Hz)', 'turbo450', 'csfrequency')

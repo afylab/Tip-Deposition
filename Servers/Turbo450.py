@@ -21,7 +21,6 @@ class serverInfo(object):
         return "%s (%s)"%(self.serverName,comPort)
 
 class Turbo450deviceWrapper(DeviceWrapper):
-
     @inlineCallbacks
     def connect(self, server, port):
         """Connect to a device."""
@@ -61,11 +60,8 @@ class Turbo450deviceWrapper(DeviceWrapper):
         p.read_line()
         ans = yield p.send()
         returnValue(ans.read_line)
-
-           #shutdown?
-        #read?
-        #write?
-        #quary?
+    #
+#
 
 class Turbo450server(DeviceServer):
     name = 'Turbo450'

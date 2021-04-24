@@ -205,13 +205,21 @@ class FTMServer(DeviceServer):
 
         try:
             crc_val = self.calcCRC_in(c,ans[:-2])
-            if chr(self.crc1(c,crc_val)) + chr(self.crc2(c,crc_val))== ans[-2:]:
+            print(ans)
+            #print(ans[-2:-1], ans[-2:-1]==u"\uFFFD")
+
+            # Python 3 update, a unicode decoding error will mess this up thr original test
+            # added the elif statement as a hack-y solution, checks if it contains the error character
+            # as the second character and returns True if it does
+            crc = chr(self.crc1(c,crc_val)) + chr(self.crc2(c,crc_val))
+            if crc == ans[-2:]:
+                return True
+            elif ans[-2:-1]==u"\uFFFD":
                 return True
             else:
-                print('CRC did not match expected form. Error in data.')
+                print('CRC did not match expected form. Error in data: ' + str(ans))
                 return False
         except IndexError:
-            #print 'Entire string not yet arrived'
             return False
 
 
@@ -241,29 +249,28 @@ class FTMServer(DeviceServer):
         loops until the message from the Deposition Monitor has completely arrived or two seconds
         have elapsed. Also ensures that only one message is sent / being received at a time."""
         command = self.format_command(c,input)
-        tzero = time.clock()
+        tzero = time.perf_counter()
         #print 'Attempting to write: ' + command
         while True:
-            if self.busy == False:
+            if not self.busy:
                 self.busy = True
                 dev=self.selectedDevice(c)
                 #print 'Writing: ' + command
                 yield dev.write(command)
                 ans = ''
-                tzero = time.clock()
+                tzero = time.perf_counter()
                 while True:
                     temp_ans = yield dev.read()
                     ans = ans + temp_ans
-                    #print ans
                     if self.check_ans(c,ans):
                         #print 'Returning ans: ' + str(ans[3:-2])
                         self.busy = False
                         returnValue(ans[3:-2])
-                    elif (time.clock() - tzero) > 2:
+                    elif (time.perf_counter() - tzero) > 2:
                         print('Connection timed out while reading')
                         self.busy = False
                         returnValue('Timeout')
-            elif (time.clock() - tzero) > 2:
+            elif (time.perf_counter() - tzero) > 2:
                 print('Connection timed out while writing')
                 self.busy = False
                 returnValue("Timeout")
@@ -306,18 +313,6 @@ class FTMServer(DeviceServer):
         ans = yield self.read(c,'B?')
         returnValue(ans)
 
-    # Add set sys1 parameters if necessary eventually. Didn't seem necessary.
-    # @setting(204,returns='s')
-    # def set_sys1_parameters(self,c, film):
-        # """Queries the L command and returns the response. Usage is get_rate()"""
-        # dev=self.selectedDevice(c)
-        # command = self.format_command(c,'B')
-        # yield dev.write(command)
-        # ans = yield dev.read()
-
-        # if self.check_ans(c,ans):
-            # returnValue(ans[3:-2])
-
     @setting(205,returns='s')
     def get_sys2_parameters(self,c):
         """Queries the L command and returns the response. Usage is get_rate()"""
@@ -346,7 +341,6 @@ class FTMServer(DeviceServer):
         ans = yield self.read(c,'J')
         returnValue(ans)
 
-    #@setting(209,sensor = 'i',returns='s')
     @setting(209,returns='s')
     def get_sensor_rate(self,c,sensor=1):
         """Queries the L command and returns the response. Usage is get_rate()"""
@@ -362,7 +356,7 @@ class FTMServer(DeviceServer):
     #@setting(211,sensor = 'i',returns='s')
     @setting(211,returns='s')
     def get_sensor_thickness(self,c,sensor=1):
-        """Queries the L command and returns the response. Usage is get_rate()"""
+        """Queries the N command and returns the response. Usage is get_sensor_thickness()"""
         ans = yield self.read(c,'N'+str(sensor)+'?')
         returnValue(ans)
 

@@ -248,6 +248,18 @@ class RVCServer(DeviceServer):
         ans = yield dev.read()
         returnValue(ans)
 
+    @setting(316,returns='v')
+    def get_pressure_mbar(self,c):
+        """
+        Queries the PRI? command and returns the response. Gets current pressure
+        and returns a floating point value of the pressure in mbar.
+        """
+        dev=self.selectedDevice(c)
+        yield dev.write("PRI?\r\n")
+        ans = yield dev.read()
+        ans = ans.replace("PRI=","").replace("mbar","")
+        returnValue(float(ans))
+
     @setting(217,returns='s')
     def get_unit(self,c):
         """Queries the UNT? command and returns the response. Gets measurement unit. Usage get_unit()"""

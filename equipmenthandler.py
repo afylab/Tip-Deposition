@@ -130,7 +130,6 @@ class PIDFeedbackController():
             print("Error closing feedback loop, hardware maybe unstable.")
 #
 
-
 class EquipmentHandler(QThread):
     '''
     Handels communication with the labRAD servers that run the equipment in an intelligent
@@ -202,7 +201,7 @@ class EquipmentHandler(QThread):
         self.stopFeedbackPIDSignal.connect(self.stopFeedbackPIDSlot)
         self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
 
-        self.updateFrequency = 10 # Hz
+        self.updateFrequency = 5 # Hz
     #
 
     def run(self):
@@ -215,18 +214,8 @@ class EquipmentHandler(QThread):
         try:
             while self.active:
                 sleep(update_delay)
-
-                # DEBUG
-                l = list(self.trackedVarsAccess.keys())
-                if l != []:
-                    print(l)
-
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
-                    print("Got Here!")
-                    print(self.trackedVarsAccess[k])
-                    print(self.trackedVarsAccess[k]()) # DEBUG
-                    print("Now I'm Here")
-                    self.info[k] = self.trackedVarsAccess[k]()
+                    self.info[k] = float(self.trackedVarsAccess[k]())
                     self.updateTrackedVarSignal.emit(k)
                 tnow = datetime.now()
 
@@ -270,15 +259,7 @@ class EquipmentHandler(QThread):
                 if name in self.trackedVarsAccess: # If it already exists, ignore this signal
                     return
                 if hasattr(self.servers[server], accessor):
-                    func = getattr(self.servers[server], accessor)
-                    @inlineCallbacks
-                    def update():
-                        ret = yield func()
-                        ret = str(ret)
-                        yield ret
-                    #
-                    self.trackedVarsAccess[name] = update
-                    #self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
+                    self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
                     self.guiTrackedVarSignal.emit(name, True)
                 else:
                     raise ValueError("Server " + str(server) + " does not have " + str(accessor))
