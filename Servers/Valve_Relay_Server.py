@@ -41,6 +41,8 @@ import labrad.units as units
 from labrad.types import Value
 import time
 
+from traceback import format_exc
+
 TIMEOUT = Value(5,'s')
 BAUD    = 9600
 BYTESIZE = 8
@@ -66,10 +68,10 @@ class ValveRelayWrapper(DeviceWrapper):
         p.setParity = PARITY
         p.read()  # clear out the read buffer
         p.timeout(TIMEOUT)
-        p.timeout(None)
+        #p.timeout(None)
         print(" CONNECTED ")
         yield p.send()
-        
+
     def packet(self):
         """Create a packet in our private context"""
         return self.server.packet(context=self.ctx)
@@ -105,7 +107,7 @@ class ValveRelayServer(DeviceServer):
     name             = 'valve_relay_server'
     deviceName       = 'Valve and Relay Controller'
     deviceWrapper    = ValveRelayWrapper
-    
+
     @inlineCallbacks
     def initServer(self):
         print('loading config info...', end=' ')
@@ -113,12 +115,13 @@ class ValveRelayServer(DeviceServer):
         yield self.loadConfigInfo()
         print('done.')
         print(self.serialLinks)
+        print("Got Here")
         yield DeviceServer.initServer(self)
+        print("But Not Here")
 
     @inlineCallbacks
     def loadConfigInfo(self):
         reg = self.reg
-        #THIS STILL NEEDS TO BE ADDED TO THE REGISTRY
         yield reg.cd(['', 'Servers', 'Evaporator Valves/Relays', 'Links'], True)
         dirs, keys = yield reg.dir()
         p = reg.packet()
@@ -126,25 +129,29 @@ class ValveRelayServer(DeviceServer):
         print("printing all the keys",keys)
         for k in keys:
             print("k=",k)
-            p.get(k, key=k)            
+            p.get(k, key=k)
         ans = yield p.send()
         print("ans=",ans)
         self.serialLinks = dict((k, ans[k]) for k in keys)
-    
+
+
     @inlineCallbacks
     def findDevices(self):
-        devs = []
-        for name, (serServer, port) in list(self.serialLinks.items()):
-            if serServer not in self.client.servers:
-                print(serServer)
-                print(self.client.servers)
-                continue
-            server = self.client[serServer]
-            ports = yield server.list_serial_ports()
-            if port not in ports:
-                continue
-            devName = '%s - %s' % (serServer, port)
-            devs += [(devName, (server, port))]
+        try:
+            devs = []
+            for name, (serServer, port) in list(self.serialLinks.items()):
+                if serServer not in self.client.servers:
+                    print(serServer)
+                    print(self.client.servers)
+                    continue
+                server = self.client[serServer]
+                ports = yield server.list_serial_ports()
+                if port not in ports:
+                    continue
+                devName = '%s - %s' % (serServer, port)
+                devs += [(devName, (server, port))]
+        except:
+            print(format_exc())
         returnValue(devs)
 
     @setting(405,returns='s')
@@ -286,9 +293,8 @@ class ValveRelayServer(DeviceServer):
 
 
 
-        
+
 __server__ = ValveRelayServer()
 if __name__ == '__main__':
     from labrad import util
     util.runServer(__server__)
-

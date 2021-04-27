@@ -8,7 +8,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from twisted.internet.defer import inlineCallbacks
 
 from datetime import datetime
-from time import sleep
+from time import sleep, perf_counter
 from os.path import join
 
 class PIDFeedbackController():
@@ -178,9 +178,10 @@ class EquipmentHandler(QThread):
                 #
         else: # Load all the servers you can find
             for num, svrname in self.cxn['manager'].servers():
-                if svrname not in ['Manager', 'Registry', 'Auth'] and not 'Serial Server' in svrname:
+                if svrname not in ['Manager', 'Registry', 'Auth']: #and not 'Serial Server' in svrname:
                     name = svrname.replace(' ', '_').lower()
-                    self.servers[name] = getattr(self.cxn, name)
+                    if hasattr(self.cxn, name):
+                        self.servers[name] = getattr(self.cxn, name)
         #
 
         # Initilize various dictionaries
@@ -211,9 +212,11 @@ class EquipmentHandler(QThread):
         '''
         self.active = True
         update_delay = 1.0/self.updateFrequency
+        t0 = perf_counter()
         try:
             while self.active:
                 sleep(update_delay)
+                print(t0-perf_counter())
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
                     self.info[k] = float(self.trackedVarsAccess[k]())
                     self.updateTrackedVarSignal.emit(k)
@@ -411,10 +414,12 @@ class EquipmentHandler(QThread):
         '''
         err = ''
         for server in servers:
-            if server not in self.servers:
-                if err != '':
-                    err += ','
-                err += " " + str(server)
+            if server == 'serial_server': # Need the serial server for the other servers to work, but it's name varies
+                print("Warning, does not check for the serial server due to hostname ambiguity")
+            elif server not in self.servers:
+                    if err != '':
+                        err += ','
+                    err += " " + str(server)
         if err != '':
             err = "Server " + err
             err += " not found."

@@ -7,12 +7,14 @@ from recipe import Recipe, Step
 
 class Cryo_Thermal_Evaporation(Recipe):
     def __init__(self, equip):
-        # Add all the hardwave servers needed for evaporation, including 'data_vault'
-        # Starting iwth the servers you always need, including Data Vault
-        # servers = ['data_vault', 'serial_server', 'stepper_server', 'rvc_server', 'valve_relay_server', 'ftm_server', 'turbo450']
+        # Add all the hardwave servers needed for evaporation
+
+        # Starting iwth the servers you always need, including 'data_vault' and 'serial_server'
+        servers = ['data_vault', 'stepper_server', 'rvc_server', 'valve_relay_server', 'ftm_server']
+
         # Then evaporation specific servers
-        # servers.append(['power_supply_server'])
-        servers = ['data_vault', 'rvc_server']# FOR DEBUGGING
+        servers.append('power_supply_server')
+
         super().__init__(equip, required_servers=servers, version="1.0.0")
     #
 
@@ -24,19 +26,18 @@ class Cryo_Thermal_Evaporation(Recipe):
         Following the initilization from the old Evaporator software, with any comments
         '''
         self.command('rvc_server', 'select_device')
-        # self.command('stepper_server', 'select_device')
+        self.command('stepper_server', 'select_device')
         self.command('ftm_server', 'select_device')
-        # self.command('turbo450', 'select_device')
         #
         # # Setup the power supply server
-        # self.command('power_supply_server', 'select_device')
-        # self.command('power_supply_server', 'adr', '6')
-        # self.command('power_supply_server', 'rmt_set', 'REM')
+        self.command('power_supply_server', 'select_device')
+        self.command('power_supply_server', 'adr', '6')
+        self.command('power_supply_server', 'rmt_set', 'REM')
         #
-        # self.command('valve_relay_server', 'select_device')
+        self.command('valve_relay_server', 'select_device')
         # #Iden command added so that arduino will respond to first command given from GUI.
         # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
-        # self.command('valve_relay_server', 'iden')
+        self.command('valve_relay_server', 'iden')
 
         '''
         Track the variables
@@ -44,13 +45,10 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar')
         self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
-        # self.trackVariable('Voltage (V)', 'power_supply_server', 'volt_read')
-        # self.trackVariable('Temperature (C)', 'turbo450', 'temperature')
-        # self.trackVariable('Frequency (Hz)', 'turbo450', 'csfrequency')
-        # self.trackVariable('Current (0.1 A)', 'turbo450', 'mcurrent')
+        self.trackVariable('Voltage (V)', 'power_supply_server', 'volt_read')
 
-        # self.plotVariable("Pressure")
-        # self.plotVariable('Temperature (C)')
+        self.plotVariable("Pressure")
+        #self.plotVariable('Deposition Rate')
 
         '''
         !!!!!!!!!!!!!!
@@ -116,12 +114,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         #
         # yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
         #
-        # yield Step(False, "Waiting until stable temperature is reached.")
-        #
-        # # Wait until base temperature is reached.
-        # self.wait_until('Temperature (C)', 7, "less than")
-        #
-        # yield Step(True, "Adjust the helium flow to acheive desired stability.")
+        # yield Step(False, "Wait until stable cryostat temperature is reached. Adjust the helium flow to acheive desired stability.")
         #
         # # Calibrate the voltage needed to reach set deposition rate
         # yield Step(True, "Rotate Tip to 165&deg;.")
@@ -170,8 +163,8 @@ class Cryo_Thermal_Evaporation(Recipe):
         # yield Step(True, "Deposition Finished. Follow warm up procedure.")
 
         # Stop updating the plots of the tracked varaibles
-        # self.stopPlotting("Pressure")
-        # self.stopPlotting('Temperature (C)')
+        self.stopPlotting("Pressure")
+        self.stopPlotting('Temperature (C)')
 
         finalstep = Step(False, "All Done.")
         yield finalstep

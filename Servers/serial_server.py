@@ -101,9 +101,9 @@ class SerialServer(LabradServer):
 
     @setting(10, 'Open',
                  port=[': Open the first available port',
-                       's: Port to open, e.g. COM4'],
+                       's: Port to open, e.g. COM4'], DTR = 'b',
                  returns=['s: Opened port'])
-    def open(self, c, port=0):
+    def open(self, c, port=0, DTR=None):
         """Opens a serial port in the current context."""
         c['Timeout'] = 0
         if 'PortObject' in c:
@@ -112,7 +112,7 @@ class SerialServer(LabradServer):
         if port == 0:
             for i in range(len(self.SerialPorts)):
                 try:
-                    c['PortObject'] = Serial(self.SerialPorts[i], timeout=0) # Do not set dsrdtr=True, it will mess up the port
+                    c['PortObject'] = Serial(self.SerialPorts[i], timeout=0, dsrdtr=DTR) # Be careful setting dsrdtr=True
                     break
                 except SerialException:
                     pass
@@ -120,7 +120,7 @@ class SerialServer(LabradServer):
                 raise NoPortsAvailableError()
         else:
             try:
-                c['PortObject'] = Serial(port, timeout=0) # Do not set dsrdtr=True, it will mess up the port
+                c['PortObject'] = Serial(port, timeout=0, dsrdtr=DTR) # Be careful setting dsrdtr=True
             except SerialException as e:
                 if e.message.find('cannot find') >= 0:
                     raise Error(code=1, msg=e.message)

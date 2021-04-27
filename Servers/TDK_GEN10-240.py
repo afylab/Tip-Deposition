@@ -211,7 +211,7 @@ class PowerSupplyServer(DeviceServer):
                 self.busy = False
                 returnValue("Timeout")
             yield self.sleep(0.1)
-            
+
     def sleep(self,secs):
         d = defer.Deferred()
         reactor.callLater(secs,d.callback,'Sleeping')

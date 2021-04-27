@@ -118,6 +118,7 @@ class Turbo450server(DeviceServer):
     def connect(self,c,server,port):
         dev=self.selectedDevice(c)
         yield dev.connect(server,port)  #not certain
+
     def sleep(self,secs):
         d=defer.Deferred()
         reactor.callLater(secs,d.callback,'Sleeping')
@@ -129,6 +130,7 @@ class Turbo450server(DeviceServer):
         """
         Get Temperture in degree Celcius.
         """
+        print("Got Here")
         dev=self.selectedDevice(c)
         yield dev.write('\x02\x16\x00 %\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10')
     #Here, this code is a specific code that will give out all the parameter we want
@@ -215,20 +217,24 @@ class Turbo450server(DeviceServer):
     @setting(9001,v='v')
     def do_nothing(self,c,v):
         pass
+
     @setting(9002)
     def read(self,c):
         dev=self.selectedDevice(c)
         ret=yield dev.read()
         returnValue(ret)
+
     @setting(9012)
     def reac(self,c):
         dev=self.selectedDevice(c)
         ret=yield dev.read()
         returnValue(ret)
+
     @setting(9003)
     def write(self,c,phrase):
         dev=self.selectedDevice(c)
         yield dev.write(phrase)
+
     @setting(9004)
     def query(self,c,phrase):
         dev=self.selectedDevice(c)
