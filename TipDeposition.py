@@ -46,6 +46,11 @@ class Process_Window(Ui_mainWindow):
         self.statusWindowWidget = BaseStatusWidget()
         self.statusWindow = Status_Window(self.statusWindowWidget, self, self.equip)
 
+        # # Vacuum Manual Controller Pesudocode
+        # self.ManualController = Widget(superWindow=self)
+        # self.superWindow.status == "active"
+        # self.superwindow.sequencer.abortSlot
+
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Load")
         self.pauseButton.setEnabled(False)

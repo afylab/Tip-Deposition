@@ -33,53 +33,53 @@ void loop() {
 
 void valve(){
   if(m.startsWith("i")){
-    Serial.write("Valve and Relay Control\r\n");
+    Serial.print("Valve and Relay Control\r\n");
   }  
   else if (m.startsWith("o") && m.endsWith("t")){
     digitalWrite(14, HIGH);
     valvestat[0] = 1;
-    Serial.println("Turbo Valve Open\r\n");
+    Serial.print("Turbo Valve Open\r\n");
   }
   else if (m.startsWith("c") && m.endsWith("t")){
     digitalWrite(14, LOW);
     valvestat[0] = 0;
-    Serial.println("Turbo Valve Closed\r\n");
+    Serial.print("Turbo Valve Closed\r\n");
   }  
   else if (m.startsWith("o") && m.endsWith("c")){
     digitalWrite(16, HIGH);
     valvestat[1] = 1;
-    Serial.println("Chamber Valve Open\r\n");
+    Serial.print("Chamber Valve Open\r\n");
   }
   else if (m.startsWith("c") && m.endsWith("c")){
     digitalWrite(16, LOW);
     valvestat[1] = 0;
-    Serial.println("Chamber Valve Closed\r\n");
+    Serial.print("Chamber Valve Closed\r\n");
   }  
   else if (m.startsWith("o") && m.endsWith("g")){
     digitalWrite(15, HIGH);
     valvestat[2] = 1;
-    Serial.println("Gate Valve Open\r\n");
+    Serial.print("Gate Valve Open\r\n");
   }
   else if (m.startsWith("c") && m.endsWith("g")){
     digitalWrite(15, LOW);
     valvestat[2] = 0;
-    Serial.println("Gate Valve Closed\r\n");
+    Serial.print("Gate Valve Closed\r\n");
   }  
    else if (m.startsWith("t") && m.endsWith("p")){
     digitalWrite(3, HIGH);
-    Serial.println("Turbo Turned On\r\n");
+    Serial.print("Turbo Turned On\r\n");
   }
   else if (m.startsWith("t") && m.endsWith("s")){
     digitalWrite(3, LOW);
-    Serial.println("Turbo Turned Off\r\n");
+    Serial.print("Turbo Turned Off\r\n");
   }  
     else if (m.startsWith("s") && m.endsWith("p")){
     digitalWrite(4, HIGH);
-    Serial.println("Scroll Pump On\r\n");
+    Serial.print("Scroll Pump On\r\n");
   }
   else if (m.startsWith("s") && m.endsWith("s")){
     digitalWrite(4, LOW);
-    Serial.println("Scroll Pump Off\r\n");
+    Serial.print("Scroll Pump Off\r\n");
   } 
   m = "";
       

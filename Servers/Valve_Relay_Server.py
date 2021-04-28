@@ -115,9 +115,7 @@ class ValveRelayServer(DeviceServer):
         yield self.loadConfigInfo()
         print('done.')
         print(self.serialLinks)
-        print("Got Here")
         yield DeviceServer.initServer(self)
-        print("But Not Here")
 
     @inlineCallbacks
     def loadConfigInfo(self):
@@ -202,54 +200,53 @@ class ValveRelayServer(DeviceServer):
         ans = yield dev.read()
         returnValue(ans)
 
-
-    @setting(411,returns='s')
-    def valve_four_open(self,c):
-        """Opens valve 4."""
-        dev=self.selectedDevice(c)
-        yield dev.write("o4r")
-        ans = yield dev.read()
-        returnValue(ans)
-
-    @setting(412,returns='s')
-    def valve_four_close(self,c):
-        """Closes valve 4."""
-        dev=self.selectedDevice(c)
-        yield dev.write("c4r")
-        ans = yield dev.read()
-        returnValue(ans)
-
-    @setting(413,returns='s')
-    def valve_five_open(self,c):
-        """Opens valve 5."""
-        dev=self.selectedDevice(c)
-        yield dev.write("o5r")
-        ans = yield dev.read()
-        returnValue(ans)
-
-    @setting(414,returns='s')
-    def valve_five_close(self,c):
-        """Closes valve 5."""
-        dev=self.selectedDevice(c)
-        yield dev.write("c5r")
-        ans = yield dev.read()
-        returnValue(ans)
-
-    @setting(415,returns='s')
-    def valve_six_open(self,c):
-        """Opens valve 6."""
-        dev=self.selectedDevice(c)
-        yield dev.write("o6r")
-        ans = yield dev.read()
-        returnValue(ans)
-
-    @setting(416,returns='s')
-    def valve_six_close(self,c):
-        """Closes valve 6."""
-        dev=self.selectedDevice(c)
-        yield dev.write("c6r")
-        ans = yield dev.read()
-        returnValue(ans)
+    # @setting(411,returns='s')
+    # def valve_four_open(self,c):
+    #     """Opens valve 4."""
+    #     dev=self.selectedDevice(c)
+    #     yield dev.write("o4r")
+    #     ans = yield dev.read()
+    #     returnValue(ans)
+    #
+    # @setting(412,returns='s')
+    # def valve_four_close(self,c):
+    #     """Closes valve 4."""
+    #     dev=self.selectedDevice(c)
+    #     yield dev.write("c4r")
+    #     ans = yield dev.read()
+    #     returnValue(ans)
+    #
+    # @setting(413,returns='s')
+    # def valve_five_open(self,c):
+    #     """Opens valve 5."""
+    #     dev=self.selectedDevice(c)
+    #     yield dev.write("o5r")
+    #     ans = yield dev.read()
+    #     returnValue(ans)
+    #
+    # @setting(414,returns='s')
+    # def valve_five_close(self,c):
+    #     """Closes valve 5."""
+    #     dev=self.selectedDevice(c)
+    #     yield dev.write("c5r")
+    #     ans = yield dev.read()
+    #     returnValue(ans)
+    #
+    # @setting(415,returns='s')
+    # def valve_six_open(self,c):
+    #     """Opens valve 6."""
+    #     dev=self.selectedDevice(c)
+    #     yield dev.write("o6r")
+    #     ans = yield dev.read()
+    #     returnValue(ans)
+    #
+    # @setting(416,returns='s')
+    # def valve_six_close(self,c):
+    #     """Closes valve 6."""
+    #     dev=self.selectedDevice(c)
+    #     yield dev.write("c6r")
+    #     ans = yield dev.read()
+    #     returnValue(ans)
 
     @setting(417,returns='s')
     def iden(self,c):
@@ -290,7 +287,7 @@ class ValveRelayServer(DeviceServer):
         yield dev.write("tsr")
         ans = yield dev.read()
         returnValue(ans)
-
+#
 
 
 

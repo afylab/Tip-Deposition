@@ -193,16 +193,17 @@ class Status_Window(Ui_StatusWindow):
         self.plottedVars[variable][2] = data # Save the data
     #
 
-    def trackedVariableSlot(self, name, create):
+    def trackedVariableSlot(self, create, name, units):
         '''
         Add or remove a tracked variable to the GUI.
 
         Args:
-            name (str) : The name of the tracked varaible, will display.
             create (bool) : If True will add it, if False will remove.
+            name (str) : The name of the tracked varaible, will display.
+            units (str) : The units of the tracked varaible, will display. Ignored if deleting.
         '''
         if create:
-            widget = VarEntry(self.variablesFrame, name)
+            widget = VarEntry(self.variablesFrame, name, units)
             widget.move(10, 32*self.trackedrow)
             self.trackedVarsWidgets[name] = widget
             self.trackedrow += 1

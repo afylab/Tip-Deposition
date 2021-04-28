@@ -135,3 +135,57 @@ class Recipe_Test(Recipe):
         super().shutdown() # call the superclass shutdown sequence which will stop all feedback and recording
     #
 #
+
+
+class Evaluation(Recipe): # A simple class for testing and evaluation of various hardware parts
+    def __init__(self, equip):
+        super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server'])
+    #
+
+    def proceed(self):
+        self.command('rvc_server', 'select_device')
+
+        self.command('valve_relay_server', 'select_device')
+        # #Iden command added so that arduino will respond to first command given from GUI.
+        # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
+        self.command('valve_relay_server', 'iden')
+
+        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
+        self.wait_for(0.01)
+        self.plotVariable("Pressure")
+
+        ## First rough out the chamber with the scroll pump
+        self.valve('all', True) # Open all the valves
+        self.leakvalve(True)
+        self.pump('scroll', True)
+        self.wait_until('Pressure', 1e-1, "less than")
+
+        ## Close the Chamber valve
+        self.valve('chamber', False)
+        self.pump('turbo', True)
+
+        self.wait_until('Pressure', 5e-2, "less than")
+
+        yield Step(True, "Close external Helium line valve 5.")
+        self.leakvalve(False)
+        self.wait_until('Pressure', 5e-6, "less than")
+
+        yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
+        self.leakvalve(True, pressure=5e-3)
+        self.wait_for(5)
+
+        '''
+        Pump out complete
+        '''
+        yield Step(True, "Press proceed to close valves.")
+
+        self.valve('all', False) # close all valves
+        self.pump('all', False) # Turn off all the pumps
+        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
+
+        self.wait_for(0.1)
+        self.stopPlotting("Pressure")
+
+        finalstep = Step(False, "All Done.")
+        yield finalstep
+    #

@@ -42,7 +42,7 @@ import labrad.units as units
 from labrad.types import Value
 import time
 
-TIMEOUT = Value(5,'s')
+TIMEOUT = Value(1,'s')
 # This server does not use timeout because the device doesn't implement standard message termination.
 BAUD    = 19200
 BYTESIZE = 8
@@ -205,24 +205,21 @@ class FTMServer(DeviceServer):
 
         try:
             crc_val = self.calcCRC_in(c,ans[:-2])
-            print(ans)
-            #print(ans[-2:-1], ans[-2:-1]==u"\uFFFD")
 
             # Python 3 update, a unicode decoding error will mess this up thr original test
-            # added the elif statement as a hack-y solution, checks if it contains the error character
-            # as the second character and returns True if it does
+            # added the elif statement as a hack-y solution, checks if it contains the error character serial server will put
             crc = chr(self.crc1(c,crc_val)) + chr(self.crc2(c,crc_val))
             if crc == ans[-2:]:
                 return True
-            elif ans[-2:-1]==u"\uFFFD":
+            elif ans[-2]==u"\uFFFD" or ans[-1]==u"\uFFFD":
                 return True
             else:
+                print(ans)
+                print(ans[-2], ans[-1], u"\uFFFD")
                 print('CRC did not match expected form. Error in data: ' + str(ans))
                 return False
         except IndexError:
             return False
-
-
 
     @setting(105,str='s',returns='i')
     def calcCRC_in(self,c,str):

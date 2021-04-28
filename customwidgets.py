@@ -243,19 +243,30 @@ class VarEntry(QWidget):
     '''
     A simple widget to display a value with a label
     '''
-    def __init__(self, parent, label, width=300, height=35, labelwidth=150, valuewidth=150):
+    def __init__(self, parent, label, units="", width=300, height=35, labelwidth=150, valuewidth=100, unitswidth=50):
         super().__init__(parent)
-        self.setMaximumSize(labelwidth+valuewidth, height)
+        self.setMaximumSize(labelwidth+valuewidth+unitswidth, height)
         self.value = 0.0
-        self.staticLabel = QLabel(self)
-        self.staticLabel.setGeometry(QtCore.QRect(0, 5, labelwidth, height-10))
+
         font = QFont()
         font.setPointSize(14)
+
+        self.staticLabel = QLabel(self)
+        self.staticLabel.setGeometry(QtCore.QRect(0, 5, labelwidth, height-10))
         self.staticLabel.setFont(font)
+        #self.staticLabel.setStyleSheet("background-color: green")
+
         self.dynamicLabel = QLabel(self)
         self.dynamicLabel.setGeometry(QtCore.QRect(labelwidth, 5, valuewidth, height-10))
         self.dynamicLabel.setFont(font)
         self.setLabel(label)
+        #self.dynamicLabel.setStyleSheet("background-color: blue")
+
+        self.unitsLabel = QLabel(self)
+        self.unitsLabel.setGeometry(QtCore.QRect(labelwidth+valuewidth, 5, unitswidth, height-10))
+        self.unitsLabel.setFont(font)
+        self.setUnits(units)
+        #self.unitsLabel.setStyleSheet("background-color: yellow")
         self.show()
     #
 
@@ -274,9 +285,20 @@ class VarEntry(QWidget):
         Set the numeric value of the label.
 
         Args:
-            val : The value
+            val (float) : The value
         '''
         self.value = val
         self.dynamicLabel.setText(str(self.value))
+    #
+
+    def setUnits(self, unit):
+        '''
+        Set the units of the value
+
+        Args:
+            unit (str) : The unit
+        '''
+        self.units = unit
+        self.unitsLabel.setText(str(self.units))
     #
 #

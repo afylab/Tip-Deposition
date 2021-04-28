@@ -139,13 +139,13 @@ class EquipmentHandler(QThread):
     # Signals for GUI
     errorSignal = pyqtSignal() # Indicates an equipment error that is fatal to the process
     serverNotFoundSignal = pyqtSignal(str) # Indicates an equipment error that is fatal to the process
-    guiTrackedVarSignal = pyqtSignal(str, bool) # Add/Remove a tracked variable entry on status window
+    guiTrackedVarSignal = pyqtSignal(bool, str, str) # Add/Remove a tracked variable entry on status window
     updateTrackedVarSignal = pyqtSignal(str)
     plotVariableSignal = pyqtSignal(str, bool)
 
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)
-    trackSignal = pyqtSignal(str, str, str)
+    trackSignal = pyqtSignal(str, str, str, str)
     initRecordSignal = pyqtSignal(str, str, str)
     recordSignal = pyqtSignal(str)
     stopRecordSignal = pyqtSignal(str)
@@ -212,14 +212,18 @@ class EquipmentHandler(QThread):
         '''
         self.active = True
         update_delay = 1.0/self.updateFrequency
-        t0 = perf_counter()
         try:
             while self.active:
                 sleep(update_delay)
-                print(t0-perf_counter())
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
-                    self.info[k] = float(self.trackedVarsAccess[k]())
-                    self.updateTrackedVarSignal.emit(k)
+                    #t0 = perf_counter() # For Debugging timing issues
+                    val = self.trackedVarsAccess[k]()
+                    if val != "Timeout":
+                        self.info[k] = float(val)
+                        self.updateTrackedVarSignal.emit(k)
+                    else:
+                        print("Warning " + str(k) + " timed out, value not updated")
+                    #print(k, perf_counter()-t0) # For Debugging timing issues
                 tnow = datetime.now()
 
                 # Update any feedback loops
@@ -240,7 +244,7 @@ class EquipmentHandler(QThread):
         self.stopAllFeedback()
     #
 
-    def trackSlot(self, name, server, accessor):
+    def trackSlot(self, name, server, accessor, units):
         '''
         Creates a tracked variable, after creation the tracked variable is continuously
         updated and the value is accessable at self.info[name]. After creating a tracked
@@ -256,6 +260,7 @@ class EquipmentHandler(QThread):
             accessor (str): The accessor function (in the namespace of that server, i.e.
                 getattr(server, accessor) gives the function) to get the value must return
                 one floating point number.
+            units (str) : The units of the tracked varaible (for display purposes only).
         '''
         try:
             if server in self.servers:
@@ -263,7 +268,7 @@ class EquipmentHandler(QThread):
                     return
                 if hasattr(self.servers[server], accessor):
                     self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
-                    self.guiTrackedVarSignal.emit(name, True)
+                    self.guiTrackedVarSignal.emit(True, name, units)
                 else:
                     raise ValueError("Server " + str(server) + " does not have " + str(accessor))
             else:

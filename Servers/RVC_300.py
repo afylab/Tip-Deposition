@@ -45,7 +45,7 @@ import labrad.units as units
 from labrad.types import Value
 import time
 
-TIMEOUT = Value(5,'s')
+TIMEOUT = Value(2,'s')
 BAUD    = 9600
 BYTESIZE = 8
 STOPBITS = 1

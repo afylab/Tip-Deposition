@@ -160,10 +160,10 @@ class PowerSupplyServer(DeviceServer):
 
         while True:
             if self.busy == False:
-                print('Initiating Query: ' + input)
+                #print('Initiating Query: ' + input)
                 self.busy = True
                 dev=self.selectedDevice(c)
-                print('Writing: ' + input)
+                #print('Writing: ' + input)
                 yield dev.write(input)
                 ans = ''
                 tzero = time.perf_counter()
@@ -177,40 +177,40 @@ class PowerSupplyServer(DeviceServer):
                             ans_final = ans_final + char
 
                     ans = ans_final
-                    print(ans)
-                    print(len(ans))
-                    try:
-                        print('Printing 3rd to last char: ' + ans[-3])
-                    except:
-                        pass
+                    #print(ans)
+                    #print(len(ans))
+                    # try:
+                    #     print('Printing 3rd to last char: ' + ans[-3])
+                    # except:
+                    #     pass
                     if len(ans)>3 and ans[-3] == '$':
-                        print('Checking stuff')
-                        print(ans[-2:])
-                        print(self.checksum(ans[:-3]))
+                        #print('Checking stuff')
+                        #print(ans[-2:])
+                        #print(self.checksum(ans[:-3]))
                         if ans[-2:] == self.checksum(ans[:-3]):
-                            print('Returning: ' + ans)
+                            #print('Returning: ' + ans)
                             self.busy = False
                             returnValue(ans[:-3])
                         else:
                             ans_num = ''
                             for char in ans:
                                 ans_num = ans_num + str(ord(char)) + ','
-                            print('Checksum error: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
+                            #print('Checksum error: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
                             self.busy = False
                             returnValue('ChecksumError')
                     elif (time.perf_counter() - tzero) > 5:
                         ans_num = ''
                         for char in ans:
                             ans_num = ans_num + str(ord(char)) + ','
-                        print('Reading timeout: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
+                        #print('Reading timeout: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
                         self.busy = False
                         returnValue('Timeout')
-                    yield self.sleep(0.05)
+                    yield self.sleep(0.005)
             elif (time.perf_counter() - tzero) > 2:
-                print('Connection timed out while writing')
+                #print('Connection timed out while writing')
                 self.busy = False
                 returnValue("Timeout")
-            yield self.sleep(0.1)
+            yield self.sleep(0.01)
 
     def sleep(self,secs):
         d = defer.Deferred()

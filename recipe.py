@@ -294,10 +294,136 @@ class Recipe():
         else:
             self.equip.commandSignal.emit(server, command, args)
         if wait:
-            sleep(0.11) # give the program a little time to catch up
+            sleep(0.10) # give the program a little time to catch up
     #
 
-    def trackVariable(self, name, server, accessor, wait=True):
+    def valve(self, valve, open, wait=True, server='valve_relay_server'):
+        '''
+        Handels opening and closing of simple vacuum valves, leak valve is handeled
+        with the leakvalve function. Also sends signal to update the status widget.
+
+        Args:
+            Valves (str) : Which valve to open/close. OPeitons "gate", "chamber", "turbo" and "all"
+            open (bool) : Will open valve if True, close if False.
+            wait (bool) : If True will wait 0.1 seconds after sending the signal to allow
+                the equipment handler and servers to catch up.
+            server (str) : The name of the valve relay server
+        '''
+        if valve == "gate":
+            if open:
+                self.equip.commandSignal.emit(server, 'gate_open', [])
+            else:
+                self.equip.commandSignal.emit(server, 'gate_close', [])
+        elif valve == "chamber":
+            if open:
+                self.equip.commandSignal.emit(server, 'chamber_valve_open', [])
+            else:
+                self.equip.commandSignal.emit(server, 'chamber_valve_close', [])
+        elif valve == "turbo":
+            if open:
+                self.equip.commandSignal.emit(server, 'turbo_valve_open', [])
+            else:
+                self.equip.commandSignal.emit(server, 'turbo_valve_close', [])
+        elif valve == 'all':
+            if open:
+                self.equip.commandSignal.emit(server, 'gate_open', [])
+                self.equip.commandSignal.emit(server, 'chamber_valve_open', [])
+                self.equip.commandSignal.emit(server, 'turbo_valve_open', [])
+            else:
+                self.equip.commandSignal.emit(server, 'gate_close', [])
+                self.equip.commandSignal.emit(server, 'chamber_valve_close', [])
+                self.equip.commandSignal.emit(server, 'turbo_valve_close', [])
+        else:
+            print("WARNNG invalid valve command, no change")
+        if wait:
+            sleep(0.10) # give the program a little time to catch up
+        '''
+        SIGNAL to the Manual Control
+        '''
+    #
+
+    def pump(self, pump, on, wait=True, server='valve_relay_server'):
+        '''
+        Handels opening and closing of simple vacuum valves, leak valve is handeled
+        with the leakvalve function. Also sends signal to update the status widget.
+
+        Args:
+            Valves (str) : Which valve to open/close. Options "gate", "chamber", "turbo" and "all"
+            open (bool) : Will open valve if True, close if False.
+            wait (bool) : If True will wait 0.1 seconds after sending the signal to allow
+                the equipment handler and servers to catch up.
+            server (str) : The name of the valve relay server
+        '''
+        if valve == "scroll":
+            if on:
+                self.equip.commandSignal.emit(server, 'scroll_on', [])
+            else:
+                self.equip.commandSignal.emit(server, 'scroll_off', [])
+        elif valve == "turbo":
+            if open:
+                self.equip.commandSignal.emit(server, 'turbo_on', [])
+            else:
+                self.equip.commandSignal.emit(server, 'turbo_off', [])
+        elif valve == 'all':
+            if open:
+                self.equip.commandSignal.emit(server, 'scroll_on', [])
+                self.equip.commandSignal.emit(server, 'turbo_on', [])
+            else:
+                self.equip.commandSignal.emit(server, 'turbo_off', [])
+                self.equip.commandSignal.emit(server, 'scroll_off', [])
+        else:
+            print("WARNNG invalid pump command, no change")
+        if wait:
+            sleep(0.10) # give the program a little time to catch up
+        '''
+        SIGNAL to the Manual Control
+        '''
+    #
+
+    def leakvalve(self, open, flow=None, pressure=None, wait=True, server='rvc_server'):
+        '''
+        Handels opening and closing of simple vacuum valves, leak valve is handeled
+        with the leakvalve function. Also sends signal to update the status widget.
+
+        Args:
+            Valves (str) : Which valve to open/close. Options: "gate", "chamber", "turbo" and "all"
+            open (bool) : Will close if False, if open will look for a flow or pressure,
+                if neither are defined will open to 100% flow.
+            flow (float) : The percentage of flow in flow mode, needs open to be True
+            pressure (float) : The target pressure, in mbar, for pressure mode, needs open to be True
+            wait (bool) : If True will wait 0.1 seconds after sending the signal to allow
+                the equipment handler and servers to catch up.
+            server (str) : The name of the valve relay server
+        '''
+        if not open: # Close the valve in both flow and pressure modes
+            self.equip.commandSignal.emit(server, 'close_valve', [])
+        elif open and flow is None and pressure is None: # open the valve to 100% flow
+            self.equip.commandSignal.emit(server, 'set_mode_flo', [])
+            self.equip.commandSignal.emit(server, 'set_nom_flo', ['100.0'])
+        elif open and flow is not None: # open to an arbitrary flow
+            if not isinstance(flow, float) or float > 100.0 or float < 0.0:
+                print("WARNNG invalid leakvalve command, malformatted flow parameter, no change")
+                return
+            else:
+                self.equip.commandSignal.emit(server, 'set_mode_flo', [])
+                self.equip.commandSignal.emit(server, 'set_nom_flo', ["{:05.1F}".format(flow)])
+        elif open and pressure is not None: # open to an arbitrary pressure
+            if not isinstance(pressure, float):
+                print("WARNNG invalid leakvalve command, malformatted pressure parameter, no change")
+                return
+            else:
+                self.equip.commandSignal.emit(server, 'set_mode_prs', [])
+                self.equip.commandSignal.emit(server, 'set_nom_prs', ["{:.2E}".format(pressure)])
+        else:
+            print("WARNNG invalid leakvalve command, no change")
+        if wait:
+            sleep(0.10) # give the program a little time to catch up
+        '''
+        SIGNAL to the Manual Control
+        '''
+    #
+
+    def trackVariable(self, name, server, accessor, units='', wait=True):
         '''
         Send a signal to the equipment handler to track a varaible.
 
@@ -307,10 +433,11 @@ class Recipe():
             accessor (str): The accessor function (in the namespace of that server, i.e.
                 getattr(server, accessor) gives the function) to get the value must return
                 one floating point number.
+            units (str) : If not '' a label will appear after the tracked varaible with the given unit
             wait (bool) : If True will wait short while after sending the signal
                 to allow the equipment handler and servers to catch up.
         '''
-        self.equip.trackSignal.emit(name, server, accessor)
+        self.equip.trackSignal.emit(name, server, accessor, units)
         if wait:
             sleep(0.11) # give the program a little time to catch up
     #
