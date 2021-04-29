@@ -70,6 +70,7 @@ class Process_Window(Ui_mainWindow):
 
         # Bind Menu Items
         self.loadRecipeAction.triggered.connect(self.loadRecipe)
+        self.calibrateAction.triggered.connect(self.loadCalibration)
         self.abortAction.triggered.connect(self.abortCallback)
         self.exitAction.triggered.connect(mainWindow.close)
         self.openTipAction.triggered.connect(self.openTipCallback)
@@ -88,7 +89,7 @@ class Process_Window(Ui_mainWindow):
         self.mainWindow.setWindowIcon(QtGui.QIcon(join('Interfaces','images','squid_tip.png')))
     #
 
-    def loadRecipe(self):
+    def loadRecipe(self, calibration=False):
         '''
         Open a dialog box to load a recipe and then setup the Sequencer thread
         '''
@@ -102,7 +103,10 @@ class Process_Window(Ui_mainWindow):
         recipeDialogBox = QtWidgets.QDialog()
         dialog = RecipeDialog()
         dialog.setupUi(recipeDialogBox)
-        dialog.loadRecipes('Recipes')
+        if calibration:
+            dialog.loadRecipes('Calibrations')
+        else:
+            dialog.loadRecipes('Recipes')
         # dialog.viewButton.clicked.connect(self.openTipCallback)
         recipeDialogBox.exec()
         recipe = dialog.getRecipe()
@@ -147,6 +151,10 @@ class Process_Window(Ui_mainWindow):
         self.proceedButton.clicked.connect(self.startCallback)
 
         self.sequencer.start()
+    #
+
+    def loadCalibration(self):
+        self.loadRecipe(calibration=True)
     #
 
     def setup_step(self, step):

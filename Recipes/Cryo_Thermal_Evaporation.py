@@ -10,10 +10,10 @@ class Cryo_Thermal_Evaporation(Recipe):
         # Add all the hardwave servers needed for evaporation
 
         # Starting iwth the servers you always need, including 'data_vault'
-        servers = ['data_vault', 'stepper_server', 'rvc_server', 'valve_relay_server', 'ftm_server']
+        servers = ['data_vault', 'rvc_server', 'valve_relay_server', 'ftm_server']
 
         # Then evaporation specific servers
-        servers.append('power_supply_server')
+        servers.append('power_supply_server', 'evaporator_shutter_server')
 
         super().__init__(equip, required_servers=servers, version="1.0.0")
     #
@@ -26,7 +26,13 @@ class Cryo_Thermal_Evaporation(Recipe):
         Following the initilization from the old Evaporator software, with any comments
         '''
         self.command('rvc_server', 'select_device')
-        self.command('stepper_server', 'select_device')
+        self.command('valve_relay_server', 'select_device')
+        # #Iden command added so that arduino will respond to first command given from GUI.
+        # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
+        self.command('valve_relay_server', 'iden')
+
+
+        self.command('evaporator_shutter_server', 'select_device')
         self.command('ftm_server', 'select_device')
         #
         # # Setup the power supply server
@@ -34,16 +40,12 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.command('power_supply_server', 'adr', '6')
         self.command('power_supply_server', 'rmt_set', 'REM')
         #
-        self.command('valve_relay_server', 'select_device')
-        # #Iden command added so that arduino will respond to first command given from GUI.
-        # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
-        self.command('valve_relay_server', 'iden')
 
         '''
         Track the variables
         '''
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
-        self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
+        self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
         self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
 
@@ -92,8 +94,6 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         Pump out sequence
         '''
-
-        # Access data from step1 and initilize servers with information
         yield Step(False, "Beginning pump out sequence, waiting until pressure falls below 1E-6 mbar.")
 
         ## First rough out the chamber with the scroll pump
@@ -108,7 +108,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.wait_until('Pressure', 1e-2, "less than")
 
         yield Step(True, "Close external Helium line valve 5.")
-        self.wait_until('Pressure', 1e-6, "less than")
+        yield Step(False, "Pumping down to base pressure.")
+        self.leakvalve(False)
+        self.wait_until('Pressure', 5e-6, "less than")
 
         yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
         self.leakvalve(True, pressure=5e-3)
@@ -124,8 +126,13 @@ class Cryo_Thermal_Evaporation(Recipe):
         yield Step(False, "Calibrating voltage to reach deposition rate.")
 
         # Voltage calibration  <--------
-        setpoint = 0.0
-        self.PIDLoop('DummyVar', 'testserver', 'set_output', params('P'), params('I'), params('D'), setpoint, 0.0, (0,100))
+
+        #Set the shutter to open
+        #self.command('evaporator_shutter_server', 'rot', args=['40','C']) # Close the shutter
+        #self.command('evaporator_shutter_server', 'rot', args=['40','A']) # Open the shutter
+
+        setpoint = 4.0
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', params('P'), params('I'), params('D'), setpoint, 0.0, (0,100))
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
@@ -167,22 +174,26 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         yield Step(False, "Second contact deposition finished")
 
-        # Warm up procedure
         yield Step(True, "Deposition Finished. Follow warm up procedure.")
 
+        '''
+        Shutdown sequence
+        '''
         yield Step(True, "Press proceed to shut down vacuum system.")
-
-        #
         self.valve('all', False) # close all valves
+        self.wait_for(0.1)
         self.pump('all', False) # Turn off all the pumps
         yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
 
-        # Stop updating the plots of the tracked varaibles
+        self.leakvalve(True)
         self.wait_for(0.1)
+
+        # Stop updating the plots of the tracked varaibles
         self.stopPlotting("Pressure")
         self.stopPlotting('Deposition Rate')
+        self.stopTracking('all')
 
-        finalstep = Step(False, "All Done.")
+        finalstep = Step(False, "All Done. Vent the chamber and retreive your SQUID!")
         yield finalstep
 
     #

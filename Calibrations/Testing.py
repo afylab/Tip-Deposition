@@ -136,15 +136,62 @@ class Recipe_Test(Recipe):
     #
 #
 
-
 class Evaluation(Recipe): # A simple class for testing and evaluation of various hardware parts
+    def __init__(self, equip):
+        super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server', 'ftm_server', 'power_supply_server'])
+    #
+
+    def proceed(self):
+        self.command('rvc_server', 'select_device')
+        self.command('valve_relay_server', 'select_device')
+        # #Iden command added so that arduino will respond to first command given from GUI.
+        # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
+        self.command('valve_relay_server', 'iden')
+
+        """
+        !!!!!!!!!!!!
+        Timing Test
+        !!!!!!!!!!!!
+        """
+        # self.command('ftm_server', 'select_device')
+        # #
+        # # # Setup the power supply server
+        # self.command('power_supply_server', 'select_device')
+        # self.command('power_supply_server', 'adr', '6')
+        # self.command('power_supply_server', 'rmt_set', 'REM')
+        #
+        #
+        # self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
+        # self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
+        # self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
+        # self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
+        #
+        # self.plotVariable("Pressure")
+        # self.plotVariable('Deposition Rate')
+        #
+        # yield Step(True, "Press Proceed to stop tracking Deposition Rate")
+        # self.stopTracking("Deposition Rate")
+        #
+        # yield Step(True, "Testing update timing")
+        #
+        # # Stop updating the plots of the tracked varaibles
+        # self.stopPlotting("Pressure")
+        # self.stopPlotting('Deposition Rate')
+        #
+        # finalstep = Step(False, "All Done.")
+        # yield finalstep
+    #
+
+class Vacuum_Test(CalibrationRecipe):
+    """
+    Tests the pump out sequence of the vacuum system.
+    """
     def __init__(self, equip):
         super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server'])
     #
 
     def proceed(self):
         self.command('rvc_server', 'select_device')
-
         self.command('valve_relay_server', 'select_device')
         # #Iden command added so that arduino will respond to first command given from GUI.
         # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
@@ -153,6 +200,11 @@ class Evaluation(Recipe): # A simple class for testing and evaluation of various
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.wait_for(0.01)
         self.plotVariable("Pressure")
+
+        """
+        Pump out process
+        """
+        yield Step(True, "Ready for pump out.")
 
         ## First rough out the chamber with the scroll pump
         self.valve('all', True) # Open all the valves
@@ -167,25 +219,30 @@ class Evaluation(Recipe): # A simple class for testing and evaluation of various
         self.wait_until('Pressure', 5e-2, "less than")
 
         yield Step(True, "Close external Helium line valve 5.")
+        yield Step(False, "Pumping down to base pressure.")
         self.leakvalve(False)
         self.wait_until('Pressure', 5e-6, "less than")
 
-        yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
-        self.leakvalve(True, pressure=5e-3)
-        self.wait_for(5)
+        # yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
+        # self.leakvalve(True, pressure=5e-3)
+        # self.wait_for(5)
 
         '''
         Pump out complete
         '''
         yield Step(True, "Press proceed to close valves.")
-
         self.valve('all', False) # close all valves
+        self.wait_for(0.1)
         self.pump('all', False) # Turn off all the pumps
         yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
 
+        self.leakvalve(True)
         self.wait_for(0.1)
-        self.stopPlotting("Pressure")
 
-        finalstep = Step(False, "All Done.")
+        # Stop updating the plots of the tracked quantities
+        self.stopPlotting("Pressure")
+        self.stopTracking('all')
+
+        finalstep = Step(False, "All Done. Leak valve open, vent the chamber and retreive your SQUID!")
         yield finalstep
     #

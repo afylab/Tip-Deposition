@@ -118,6 +118,7 @@ class Recipe():
         self.version = version
         self.abort = False # Calling Sequencer.abortSlot will set this to false and stop current process
         self.pause = False
+        self.wait_delay = 0.25 # Amount of time to wait after sending a command to hardware, to give the hardware time to catch up
 
         if savedir is None:
             self.savedir = 'Tip Deposition Database'
@@ -200,6 +201,7 @@ class Recipe():
         '''
         self.stopAllFeedback()
         self.equip.stopRecordSignal.emit("ALL")
+        self.equip.stopTrackingSignal.emit("All")
     #
 
     def default(self, name):
@@ -294,7 +296,7 @@ class Recipe():
         else:
             self.equip.commandSignal.emit(server, command, args)
         if wait:
-            sleep(0.10) # give the program a little time to catch up
+            sleep(self.wait_delay) # give the program a little time to catch up
     #
 
     def valve(self, valve, open, wait=True, server='valve_relay_server'):
@@ -336,7 +338,7 @@ class Recipe():
         else:
             print("WARNNG invalid valve command, no change")
         if wait:
-            sleep(0.10) # give the program a little time to catch up
+            sleep(self.wait_delay) # give the program a little time to catch up
         '''
         SIGNAL to the Manual Control
         '''
@@ -354,27 +356,29 @@ class Recipe():
                 the equipment handler and servers to catch up.
             server (str) : The name of the valve relay server
         '''
-        if valve == "scroll":
+        if pump == "scroll":
             if on:
                 self.equip.commandSignal.emit(server, 'scroll_on', [])
             else:
                 self.equip.commandSignal.emit(server, 'scroll_off', [])
-        elif valve == "turbo":
+        elif pump == "turbo":
             if open:
                 self.equip.commandSignal.emit(server, 'turbo_on', [])
             else:
                 self.equip.commandSignal.emit(server, 'turbo_off', [])
-        elif valve == 'all':
+        elif pump == 'all':
             if open:
                 self.equip.commandSignal.emit(server, 'scroll_on', [])
                 self.equip.commandSignal.emit(server, 'turbo_on', [])
             else:
                 self.equip.commandSignal.emit(server, 'turbo_off', [])
+                if wait:
+                    sleep(self.wait_delay) # give the program a little time to catch up
                 self.equip.commandSignal.emit(server, 'scroll_off', [])
         else:
             print("WARNNG invalid pump command, no change")
         if wait:
-            sleep(0.10) # give the program a little time to catch up
+            sleep(self.wait_delay) # give the program a little time to catch up
         '''
         SIGNAL to the Manual Control
         '''
@@ -417,7 +421,7 @@ class Recipe():
         else:
             print("WARNNG invalid leakvalve command, no change")
         if wait:
-            sleep(0.10) # give the program a little time to catch up
+            sleep(self.wait_delay) # give the program a little time to catch up
         '''
         SIGNAL to the Manual Control
         '''
@@ -439,7 +443,17 @@ class Recipe():
         '''
         self.equip.trackSignal.emit(name, server, accessor, units)
         if wait:
-            sleep(0.11) # give the program a little time to catch up
+            sleep(self.wait_delay) # give the program a little time to catch up
+    #
+
+    def stopTracking(self, variable):
+        '''
+        Stop plotting a tracked varaible.
+
+        Args:
+            variable (str) : The tracked variable to stop.
+        '''
+        self.equip.stopTrackingSignal.emit(variable)
     #
 
     def plotVariable(self, variable):
@@ -483,7 +497,7 @@ class Recipe():
         self.equip.stopRecordSignal.emit(variable)
     #
 
-    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput):
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, startoutput=0):
         '''
         Begin plotting a tracked varaible.
 
@@ -496,8 +510,9 @@ class Recipe():
             setpoint (float) : The initial setpoint of the loop
             offset (float) : The offset for the output.
             minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
+            startoutput (float) : The starting value of the output
         '''
-        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1]))]
+        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), startoutput]
         self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
     #
 
@@ -532,3 +547,51 @@ class Recipe():
             raise ValueError(err)
     #
 #
+
+class CalibrationRecipe(Recipe):
+    def setup(self, defaults):
+        '''
+        Setup the recipe by loading defaults or information from previous depositions and getting user
+        input. This function returns a Step object which is used to get the initial parameters in the
+        user interface. Add parameter to it using Step.add_input_param then at startup the sequencer
+        will automatically pass this step to the user interface and subsequently load the values into
+        Recipe.parameters, a dictionary containg the parameters as {name:value}.  Use limits on
+        numerical values to make sure no equipment breaking values are entered.
+
+        To preserve insertion order and load in defaults when overloading, always call the superclass
+        constructor before adding any parameters, i.e. the first line should be super().__init__(step, defaults)
+
+        Args:
+            defaults (dict) : a dictionary containg the previous parameters as {name:value}, to use as
+                defaults. This dictionary is loaded and default values can be accessed using
+                Recipe.default("Param Name") which will return the default or None if there is no such
+                default parameter.
+        '''
+        if defaults is None:
+            self.defaultParams = {}
+        else:
+            self.defaultParams = defaults
+        setupstep = Step(instructions="Press Start to proceed.")
+
+        # Basic paramters that should be included for all recipies
+        setupstep.add_input_param("Person Calibrating")
+        return setupstep
+    #
+
+    def _process_startup(self, startupstep):
+        """
+        Loads the startup parameters into Recipe.parameters, doesn't start recording.
+        """
+        self.parameters = dict()
+        for k in startupstep.input_param_values.keys():
+            self.parameters[k] = startupstep.input_param_values[k]
+
+        # # Maybe put some calibration data somewhere in the future?
+        #
+        # try:
+        #     self.equip.initRecordSignal.emit(self.savedir, self.get_name(), self.parameters['SQUID Num.'])
+        # except:
+        #     err = "Cannot initilize files for recording variables. "
+        #     err += "Likely the starting parameters were not setup correctly."
+        #     raise ValueError(err)
+    #

@@ -44,8 +44,6 @@ class Status_Window(Ui_StatusWindow):
         self.trackedVarsWidgets = dict()
         self.trackedrow = 0
 
-        self.floatpercision = 3
-
         # Setup plots
         self.extraWindows = []
         self.plots = [self.plot1, self.plot2] # Add more plots later maybe
@@ -222,11 +220,7 @@ class Status_Window(Ui_StatusWindow):
         '''
         if name in self.trackedVarsWidgets:
             val = self.equip.info[name]
-        if isinstance(val, float):
-            s = str(round(val, self.floatpercision))
-        else:
-            s = str(val)
-        self.trackedVarsWidgets[name].setValue(s)
+        self.trackedVarsWidgets[name].setValue(val)
         if name in self.plottedVars:
             self.updatePlot(name)
     #

@@ -12,7 +12,7 @@ from time import sleep, perf_counter
 from os.path import join
 
 class PIDFeedbackController():
-    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, minMaxIntegral=None):
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, start, minMaxIntegral=None):
         '''
         Controller to run a PID loop on the data.
 
@@ -29,6 +29,7 @@ class PIDFeedbackController():
             minMaxIntegral : A tuple of (minimum_integral, maximum_integral), if None will be set
                 such that I*maximum_integral = maximum_output (similar for minimum), i.e.
                 values such that the integral term can drive to the maximum output by itself.
+            start (float) : The starting value of the feedback loop
         '''
         self.varDict = info
         self.variable = variable
@@ -146,6 +147,7 @@ class EquipmentHandler(QThread):
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)
     trackSignal = pyqtSignal(str, str, str, str)
+    stopTrackingSignal = pyqtSignal(str)
     initRecordSignal = pyqtSignal(str, str, str)
     recordSignal = pyqtSignal(str)
     stopRecordSignal = pyqtSignal(str)
@@ -194,6 +196,7 @@ class EquipmentHandler(QThread):
         # signals to GUI are connected in the relevant GUI code
         self.commandSignal.connect(self.commandSlot)
         self.trackSignal.connect(self.trackSlot)
+        self.stopTrackingSignal.connect(self.stopTrackingSlot)
         self.initRecordSignal.connect(self.initRecording)
         self.recordSignal.connect(self.recordVariableSlot)
         self.stopRecordSignal.connect(self.stopRecordSlot)
@@ -202,7 +205,7 @@ class EquipmentHandler(QThread):
         self.stopFeedbackPIDSignal.connect(self.stopFeedbackPIDSlot)
         self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
 
-        self.updateFrequency = 5 # Hz
+        self.minimumUpdateDelay = 0.01 # s
     #
 
     def run(self):
@@ -211,19 +214,20 @@ class EquipmentHandler(QThread):
         and logs data as appropriate. Handels errors if any come up.
         '''
         self.active = True
-        update_delay = 1.0/self.updateFrequency
         try:
+            # t0 = perf_counter() # For Debugging timing issues
             while self.active:
-                sleep(update_delay)
+                sleep(self.minimumUpdateDelay)
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
-                    #t0 = perf_counter() # For Debugging timing issues
-                    val = self.trackedVarsAccess[k]()
-                    if val != "Timeout":
-                        self.info[k] = float(val)
-                        self.updateTrackedVarSignal.emit(k)
-                    else:
-                        print("Warning " + str(k) + " timed out, value not updated")
-                    #print(k, perf_counter()-t0) # For Debugging timing issues
+                    try:
+                        val = self.trackedVarsAccess[k]()
+                        if val != "Timeout":
+                            self.info[k] = float(val)
+                            self.updateTrackedVarSignal.emit(k)
+                        else:
+                            print("Warning " + str(k) + " timed out, value not updated")
+                    except KeyError: # Sometimes untracking variables will cause a key error
+                        pass
                 tnow = datetime.now()
 
                 # Update any feedback loops
@@ -235,7 +239,10 @@ class EquipmentHandler(QThread):
                     if self.recordedVars[k][0]:
                         self.recordedVars[k][1].add((tnow-self.recordedVars[k][2]).total_seconds(), self.info[k])
 
-                # Special GUI tasks, such as the status of the valves or GUI interfaces
+                # # For Debugging timing issues
+                # t1 = perf_counter()
+                # print(t1-t0)
+                # t0 = t1
         except:
             self.errorSignal.emit()
             self.active = False
@@ -275,6 +282,23 @@ class EquipmentHandler(QThread):
                 raise ValueError("Server " + str(server) + " not found")
         except:
             self.errorSignal.emit()
+    #
+
+    def stopTrackingSlot(self, name):
+        '''
+        Stop tacking a variable
+
+        Args:
+            name (str) : The name of the variable, which will function as the key to access it.
+                Setting name to 'all' will result in all tracked varaibles being stopped.
+        '''
+        if name.lower() == 'all':
+            for k in list(self.trackedVarsAccess.keys()):
+                self.trackedVarsAccess.pop(k)
+        else:
+            if name in self.trackedVarsAccess:
+                self.trackedVarsAccess.pop(name)
+        #
     #
 
     def commandSlot(self, server, command, args):
@@ -374,16 +398,16 @@ class EquipmentHandler(QThread):
                 First is the name of the command to set the output, (accessible by getattr).
                 Must accept one floating point argument. The subsequent parameters are
                 numerical positional arguments to the constructor the PIDFeedbackController
-                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput]
+                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput, start]
         '''
         try:
             if server in self.servers:
                 if variable not in self.info:
                     raise ValueError("Cannot feedback, variable " + str(variable) + " not tracked.")
-                outputFunc, P, I, D, setpoint, offset, minMaxOutput = feedbackParams
+                outputFunc, P, I, D, setpoint, offset, minMaxOutput, start = feedbackParams
                 if hasattr(self.servers[server], outputFunc):
                     command = getattr(self.servers[server], outputFunc)
-                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput)
+                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, start)
                 else:
                     raise ValueError("Server " + str(server) + " does not have function" + str(outputFunc))
             else:

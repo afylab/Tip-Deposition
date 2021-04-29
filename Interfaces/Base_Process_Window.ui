@@ -289,6 +289,7 @@
      <string>File</string>
     </property>
     <addaction name="loadRecipeAction"/>
+    <addaction name="calibrateAction"/>
     <addaction name="abortAction"/>
     <addaction name="exitAction"/>
    </widget>
@@ -320,6 +321,11 @@
   <action name="openTipAction">
    <property name="text">
     <string>Open Previous</string>
+   </property>
+  </action>
+  <action name="calibrateAction">
+   <property name="text">
+    <string>Calibrate</string>
    </property>
   </action>
  </widget>
