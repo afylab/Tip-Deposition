@@ -12,7 +12,7 @@ from time import sleep, perf_counter
 from os.path import join
 
 class PIDFeedbackController():
-    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, start, minMaxIntegral=None):
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, minMaxIntegral=None):
         '''
         Controller to run a PID loop on the data.
 
@@ -29,7 +29,6 @@ class PIDFeedbackController():
             minMaxIntegral : A tuple of (minimum_integral, maximum_integral), if None will be set
                 such that I*maximum_integral = maximum_output (similar for minimum), i.e.
                 values such that the integral term can drive to the maximum output by itself.
-            start (float) : The starting value of the feedback loop
         '''
         self.varDict = info
         self.variable = variable
@@ -142,7 +141,7 @@ class EquipmentHandler(QThread):
     serverNotFoundSignal = pyqtSignal(str) # Indicates an equipment error that is fatal to the process
     guiTrackedVarSignal = pyqtSignal(bool, str, str) # Add/Remove a tracked variable entry on status window
     updateTrackedVarSignal = pyqtSignal(str)
-    plotVariableSignal = pyqtSignal(str, bool)
+    plotVariableSignal = pyqtSignal(str, bool, bool)
 
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)
@@ -205,7 +204,10 @@ class EquipmentHandler(QThread):
         self.stopFeedbackPIDSignal.connect(self.stopFeedbackPIDSlot)
         self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
 
-        self.minimumUpdateDelay = 0.01 # s
+        # time to puase between loops, to prevent overload slowing the program down
+        # when there are no varaibles, roughly equal to the response time of most
+        # labrad servers
+        self.minimumUpdateDelay = 0.04
     #
 
     def run(self):
@@ -221,11 +223,14 @@ class EquipmentHandler(QThread):
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
                     try:
                         val = self.trackedVarsAccess[k]()
-                        if val != "Timeout":
+                        if val == "Timeout":
+                            print("Warning " + str(k) + " timed out, value not updated")
+                        elif val == "ChecksumError": # Common error from power supply server
+                            #print("Warning " + str(k) + " had a serial error, value not updated")
+                            pass
+                        else:
                             self.info[k] = float(val)
                             self.updateTrackedVarSignal.emit(k)
-                        else:
-                            print("Warning " + str(k) + " timed out, value not updated")
                     except KeyError: # Sometimes untracking variables will cause a key error
                         pass
                 tnow = datetime.now()
@@ -404,10 +409,10 @@ class EquipmentHandler(QThread):
             if server in self.servers:
                 if variable not in self.info:
                     raise ValueError("Cannot feedback, variable " + str(variable) + " not tracked.")
-                outputFunc, P, I, D, setpoint, offset, minMaxOutput, start = feedbackParams
+                outputFunc, P, I, D, setpoint, offset, minMaxOutput = feedbackParams
                 if hasattr(self.servers[server], outputFunc):
                     command = getattr(self.servers[server], outputFunc)
-                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, start)
+                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput)
                 else:
                     raise ValueError("Server " + str(server) + " does not have function" + str(outputFunc))
             else:

@@ -195,7 +195,7 @@ class PowerSupplyServer(DeviceServer):
                             ans_num = ''
                             for char in ans:
                                 ans_num = ans_num + str(ord(char)) + ','
-                            #print('Checksum error: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
+                            print('Checksum error: ' + ans + ', Length: ' + str(len(ans)) + ', ASCII: ' +  ans_num)
                             self.busy = False
                             returnValue('ChecksumError')
                     elif (time.perf_counter() - tzero) > 5:
@@ -242,10 +242,11 @@ class PowerSupplyServer(DeviceServer):
         ans = yield self.read(c,"IDN?")
         returnValue(ans)
 
-    @setting(307,volts = 's',returns='s')
+    @setting(307,volts = 'v',returns='s')
     def volt_set(self,c,volts):
         """Sets the output voltage value in Volts."""
-        ans = yield self.read(c,"PV " + volts)
+        print("Setting Voltage to " + str(volts))
+        ans = yield self.read(c,"PV " + str(volts))
         returnValue(ans)
 
     @setting(308,returns='s')
@@ -260,10 +261,10 @@ class PowerSupplyServer(DeviceServer):
         ans = yield self.read(c,"MV?")
         returnValue(ans)
 
-    @setting(310,current = 's',returns='s')
+    @setting(310,current = 'v',returns='s')
     def cur_set(self,c,current):
         """Sets the output current value in Amperes."""
-        ans = yield self.read(c,"PC " + current)
+        ans = yield self.read(c,"PC " + str(current))
         returnValue(ans)
 
     @setting(311,returns='s')

@@ -324,8 +324,10 @@ class Recipe():
         elif valve == "turbo":
             if open:
                 self.equip.commandSignal.emit(server, 'turbo_valve_open', [])
+                print("opened the turbo")
             else:
                 self.equip.commandSignal.emit(server, 'turbo_valve_close', [])
+                print("closed the turbo")
         elif valve == 'all':
             if open:
                 self.equip.commandSignal.emit(server, 'gate_open', [])
@@ -456,14 +458,15 @@ class Recipe():
         self.equip.stopTrackingSignal.emit(variable)
     #
 
-    def plotVariable(self, variable):
+    def plotVariable(self, variable, logy=False):
         '''
         Begin plotting a tracked varaible.
 
         Args:
             variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
+            logy (bool) : If True will make the y-axis logarithmic
         '''
-        self.equip.plotVariableSignal.emit(variable, True)
+        self.equip.plotVariableSignal.emit(variable, True, logy)
     #
 
     def stopPlotting(self, variable):
@@ -473,7 +476,7 @@ class Recipe():
         Args:
             variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
         '''
-        self.equip.plotVariableSignal.emit(variable, False)
+        self.equip.plotVariableSignal.emit(variable, False, False)
     #
 
     def recordVariable(self, variable):
@@ -497,7 +500,7 @@ class Recipe():
         self.equip.stopRecordSignal.emit(variable)
     #
 
-    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, startoutput=0):
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput):
         '''
         Begin plotting a tracked varaible.
 
@@ -510,9 +513,8 @@ class Recipe():
             setpoint (float) : The initial setpoint of the loop
             offset (float) : The offset for the output.
             minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
-            startoutput (float) : The starting value of the output
         '''
-        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), startoutput]
+        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1]))]
         self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
     #
 

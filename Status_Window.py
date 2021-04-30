@@ -99,10 +99,15 @@ class Status_Window(Ui_StatusWindow):
             self.serverWidgets = dict()
     #
 
-    def plottingSlot(self, variable, start):
+    def plottingSlot(self, variable, start, logy):
         '''
-        FOR NOW: Wrapper for starting the main plot,
-        LATER add the ability to watch multiple plots.
+        Plots a variable to an availible plot, or makes a new one if there is no
+        availible plot.
+
+        Args:
+            varaible (str) : The tracked varaible to plot
+            start (bool) : If True will start plotting, if False will stop.
+            logy (bool) : If True will make the y-axis logarithmic
         '''
         if start:
             for plot in self.plots:
@@ -111,7 +116,7 @@ class Status_Window(Ui_StatusWindow):
                     if self.plottedVars[k][0] == plot:
                         inuse = True
                 if not inuse:
-                    self.startPlotting(plot, variable)
+                    self.startPlotting(plot, variable, logy=logy)
                     return
             # If there is not availible plot, make one
             base = BaseStatusWidget()
@@ -119,13 +124,13 @@ class Status_Window(Ui_StatusWindow):
             newplot = pg.PlotWidget(base, viewBox=CustomViewBox())
             newplot.setGeometry(QtCore.QRect(0, 0, 550, 400))
             self.plots.append(newplot)
-            self.startPlotting(newplot, variable)
+            self.startPlotting(newplot, variable, logy=logy)
             base.show()
         else:
             self.stopPlotting(variable)
     #
 
-    def startPlotting(self, plotWidget, variable):
+    def startPlotting(self, plotWidget, variable, logy=False):
         '''
         Starts plotting to a plot widget and creates and entry for it in self.plottedVars
         Will overwrite a plot if it is already in use. If a varaible is already being plotted
@@ -134,6 +139,7 @@ class Status_Window(Ui_StatusWindow):
         Args:
             plot : The PlotWidget to plot onto.
             variable (str) : The name of the tracked variable in self.equip.info to plot
+            logy (bool) : If True will make the y-axis logarithmic
         '''
         if variable in self.plottedVars: # If it's already plotted do nothing.
             return
@@ -157,6 +163,8 @@ class Status_Window(Ui_StatusWindow):
         data = np.zeros((1,2))
         data[0,1] = val
         curve = plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
+        if logy:
+            plotWidget.setLogMode(0, 1)
         plotWidget.enableAutoRange()
         plotWidget.setTitle(variable)
         self.plottedVars[variable] = [plotWidget, curve, data, t0]

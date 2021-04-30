@@ -145,6 +145,12 @@ class Display_Window(Ui_DisplayWindow):
         plotWidget.setLabel('left',"")
         plotWidget.setLabel('bottom',"time (s)")
         plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
+
+        # A hack to display pressure as a log scale (the usual choice)
+        # Need to implement a better way, such as changing the scale
+        if variable == "Pressure":
+            plotWidget.setLogMode(0, 1)
+
         plotWidget.setTitle(variable)
     #
 

@@ -2,7 +2,7 @@
 Generic recipes for testing and calibration of equipment.
 '''
 
-from recipe import Recipe, Step
+from recipe import CalibrationRecipe, Recipe, Step
 
 class Recipe_Test(Recipe):
     '''
@@ -46,13 +46,12 @@ class Recipe_Test(Recipe):
         # Track the variables that you want to track on the interface
         # trackVariable(name, server, accessor_function)
         # The accessor function takes no arguments and returns the given value
-        self.trackVariable('Time', 'testserver', 'get_time')
         self.trackVariable('DummyVar', 'testserver', 'query')
         self.trackVariable('DummyOutput', 'testserver', 'get_output')
 
         # Variables can be plotted on the interface using the plotVariable function, but they need
         # to be tracked first
-        self.plotVariable("DummyVar")
+        self.plotVariable("DummyVar", logy=True)
         self.plotVariable("DummyOutput")
 
         # You can record a variable to the Data Vault using the recordVariable function
@@ -136,9 +135,9 @@ class Recipe_Test(Recipe):
     #
 #
 
-class Evaluation(Recipe): # A simple class for testing and evaluation of various hardware parts
+class Evaluation(CalibrationRecipe): # A simple class for testing and evaluation of various hardware parts
     def __init__(self, equip):
-        super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server', 'ftm_server', 'power_supply_server'])
+        super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server', 'ftm_server', 'power_supply_server'], version="1.0.1")
     #
 
     def proceed(self):
@@ -161,25 +160,26 @@ class Evaluation(Recipe): # A simple class for testing and evaluation of various
         # self.command('power_supply_server', 'rmt_set', 'REM')
         #
         #
-        # self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
+        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
+        self.wait_for(0.01)
         # self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
         # self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
         # self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
         #
-        # self.plotVariable("Pressure")
+        self.plotVariable("Pressure", logy=True)
         # self.plotVariable('Deposition Rate')
         #
         # yield Step(True, "Press Proceed to stop tracking Deposition Rate")
         # self.stopTracking("Deposition Rate")
         #
-        # yield Step(True, "Testing update timing")
-        #
-        # # Stop updating the plots of the tracked varaibles
-        # self.stopPlotting("Pressure")
+        yield Step(True, "Testing update timing")
+
+        # Stop updating the plots of the tracked varaibles
+        self.stopPlotting("Pressure")
         # self.stopPlotting('Deposition Rate')
-        #
-        # finalstep = Step(False, "All Done.")
-        # yield finalstep
+
+        finalstep = Step(False, "All Done.")
+        yield finalstep
     #
 
 class Vacuum_Test(CalibrationRecipe):
@@ -199,7 +199,7 @@ class Vacuum_Test(CalibrationRecipe):
 
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.wait_for(0.01)
-        self.plotVariable("Pressure")
+        self.plotVariable("Pressure", logy=True)
 
         """
         Pump out process

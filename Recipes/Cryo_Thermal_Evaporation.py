@@ -48,17 +48,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
         self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
-
-        self.plotVariable("Pressure")
+        self.wait_for(0.01) # Here because it threw an error one time
+        self.plotVariable("Pressure", logy=True)
         self.plotVariable('Deposition Rate')
-
-        '''
-        !!!!!!!!!!!!!!
-        For Debugging
-        !!!!!!!!!!!!!!
-        '''
-
-        yield Step(True, "Press Proceed to continue")
 
         '''
         Get parameters from the user
@@ -130,9 +122,6 @@ class Cryo_Thermal_Evaporation(Recipe):
         #Set the shutter to open
         #self.command('evaporator_shutter_server', 'rot', args=['40','C']) # Close the shutter
         #self.command('evaporator_shutter_server', 'rot', args=['40','A']) # Open the shutter
-
-        setpoint = 4.0
-        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', params('P'), params('I'), params('D'), setpoint, 0.0, (0,100))
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
