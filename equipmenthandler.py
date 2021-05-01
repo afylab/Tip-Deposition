@@ -45,6 +45,7 @@ class PIDFeedbackController():
         self.input = input
         self.min = minMaxOutput[0]
         self.max = minMaxOutput[1]
+        self.output = 0
 
         if minMaxIntegral is None:
             if self.I != 0.0:
@@ -53,12 +54,71 @@ class PIDFeedbackController():
             else:
                 self.minIntegral = 0
                 self.maxIntegral = 0
+        #
+        self.paused = False
+        self.waiting = False
+        self.wait_time = 0
+        self.wait_start = datetime.now()
+    #
+
+    def pause(self):
+        '''
+        Pauses the feedback loop, retaining all relevant parameters. Zeros the output
+        while paused.
+        '''
+        if not self.paused:
+            self.paused = True
+            self.function(0.0)
+            print("Paused output: " + str(self.output))
+        #
+    #
+
+    def resume_after(self, wait):
+        '''
+        Resumes the output of the loop after waiting a certain period. The output
+        is restored to the previous setting immediatly, then the loop waits a
+        certain amount of time for the system to stabalize.
+
+        Args:
+            wait (float) : The number of second to wait after resetting the output
+        '''
+        if self.paused:
+            self.paused = False
+            print("Resuming at output: " + str(self.output))
+            self.function(self.output)
+            self.wait_time = float(wait)
+            self.wait_start = datetime.now()
+            self.waiting = True
+        #
+    #
+
+    def resume(self):
+        '''
+        Immediately resumes both the output and the loop to the prior settings.
+        '''
+        if self.paused:
+            self.paused = False
+            self.waiting = False
+            self.function(self.output)
+            self.prev_time = (datetime.now()-self.t0).total_seconds()
+        #
     #
 
     def update(self):
         '''
         Update the output based on current values.
         '''
+
+        if self.paused:
+            return
+        elif self.waiting:
+            if (datetime.now()-self.wait_start).total_seconds() >= self.wait_time:
+                self.prev_time = (datetime.now()-self.t0).total_seconds() # reset the timing
+                self.waiting = False
+            else:
+                return
+        #
+
         time = (datetime.now()-self.t0).total_seconds()
         error = self.setpoint - float(self.varDict[self.variable])
 
@@ -75,16 +135,19 @@ class PIDFeedbackController():
         I_value = self.I*self.integral
 
         # Derivative term
-        D_value = self.D*(error - self.prev_error)/(time - self.prev_time)
+        if time - self.prev_time > 1e-3: # Protect from the derivative term diverging
+            D_value = self.D*(error - self.prev_error)/(time - self.prev_time)
+        else:
+            D_value = 0
 
         output = P_value + I_value + D_value + self.offset
         if output > self.max:
             output = self.max
         elif output < self.min:
             output = self.min
-        #
+        self.output = output
 
-        self.function(output) # Set the output
+        self.function(self.output) # Set the output
         self.prev_time = time
         self.prev_error = error
     #
@@ -152,16 +215,19 @@ class EquipmentHandler(QThread):
     stopRecordSignal = pyqtSignal(str)
     verifySignal = pyqtSignal(list)
     feedbackPIDSignal = pyqtSignal(str, str, list)
+    pauseFeedbackPIDSignal = pyqtSignal(str)
+    resumeFeedbackPIDSignal = pyqtSignal(str, float)
     stopFeedbackPIDSignal = pyqtSignal(str)
     stopAllFeedbackSignal = pyqtSignal()
 
-    def __init__(self, servers=None):
+    def __init__(self, servers=None, debug=False):
         '''
         Initialize the equipment handler
 
         Args:
             servers : A list of servers to specifically load, if None it will load every
                 labRAD server that it can find.
+            debug (bool) : If True will print out serial error and timing information to the terminal
         '''
         super().__init__()
 
@@ -201,13 +267,19 @@ class EquipmentHandler(QThread):
         self.stopRecordSignal.connect(self.stopRecordSlot)
         self.verifySignal.connect(self.verifySlot)
         self.feedbackPIDSignal.connect(self.feedbackPIDSlot)
+        self.pauseFeedbackPIDSignal.connect(self.pauseFeedbackPIDSlot)
+        self.resumeFeedbackPIDSignal.connect(self.resumeFeedbackPIDSlot)
         self.stopFeedbackPIDSignal.connect(self.stopFeedbackPIDSlot)
         self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
 
-        # time to puase between loops, to prevent overload slowing the program down
-        # when there are no varaibles, roughly equal to the response time of most
-        # labrad servers
-        self.minimumUpdateDelay = 0.04
+        # To ensure that data is recored and updated at regular intervals have a target
+        # update drequency that will attempt to match by sleeping the main loop for an
+        # interval after all serial communications are made. If serial communictions are
+        # too slow then it will not wait.
+        self.targetUpdateFrequency = 5 # Hz
+        self.targetUpdatePeriod = 1.0/self.targetUpdateFrequency
+
+        self.debugmode = debug
     #
 
     def run(self):
@@ -217,17 +289,17 @@ class EquipmentHandler(QThread):
         '''
         self.active = True
         try:
-            # t0 = perf_counter() # For Debugging timing issues
             while self.active:
-                sleep(self.minimumUpdateDelay)
+                t0 = perf_counter()
                 for k in list(self.trackedVarsAccess.keys()): # Update the tracked varaibles
                     try:
                         val = self.trackedVarsAccess[k]()
                         if val == "Timeout":
-                            print("Warning " + str(k) + " timed out, value not updated")
+                            if self.debugmode:
+                                print("Warning " + str(k) + " timed out, value not updated")
                         elif val == "ChecksumError": # Common error from power supply server
-                            #print("Warning " + str(k) + " had a serial error, value not updated")
-                            pass
+                            if self.debugmode:
+                                print("Warning " + str(k) + " had a serial error, value not updated")
                         else:
                             self.info[k] = float(val)
                             self.updateTrackedVarSignal.emit(k)
@@ -244,10 +316,14 @@ class EquipmentHandler(QThread):
                     if self.recordedVars[k][0]:
                         self.recordedVars[k][1].add((tnow-self.recordedVars[k][2]).total_seconds(), self.info[k])
 
-                # # For Debugging timing issues
-                # t1 = perf_counter()
-                # print(t1-t0)
-                # t0 = t1
+                #
+                t1 = perf_counter()
+                dt = t1 - t0
+                delay = self.targetUpdatePeriod - dt
+                if self.debugmode:
+                    print(t1-t0, delay, dt+delay) # For Debugging timing issues
+                if delay > 0:
+                    sleep(delay)
         except:
             self.errorSignal.emit()
             self.active = False
@@ -421,6 +497,28 @@ class EquipmentHandler(QThread):
             self.errorSignal.emit()
     #
 
+    def pauseFeedbackPIDSlot(self, variable):
+        '''
+        Pause a PID feedback loop on a given variable, setting the output equal
+        to zero but retaining the previous output
+        '''
+        if variable in self.feedbackLoops:
+            self.feedbackLoops[variable].pause()
+    #
+
+    def resumeFeedbackPIDSlot(self, variable, wait):
+        '''
+        Resume a PID feedback loop on a given variable, setting the output equal
+        to zero the previous output then waiting a certain amount of time before
+        retuming the loop
+        '''
+        if variable in self.feedbackLoops:
+            if wait > 0:
+                self.feedbackLoops[variable].resume_after(wait)
+            else:
+                self.feedbackLoops[variable].resume()
+    #
+
     def stopFeedbackPIDSlot(self, variable):
         '''
         Stop a PID feedback loop on a given variable, setting the output equal to zero.
@@ -458,6 +556,10 @@ class EquipmentHandler(QThread):
             err = "Server " + err
             err += " not found."
             self.serverNotFoundSignal.emit(err)
+    #
+
+    def toggleDebugMode(self):
+        self.debugmode = not self.debugmode
     #
 
     def __del__(self):

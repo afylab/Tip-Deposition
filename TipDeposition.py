@@ -312,14 +312,17 @@ class Process_Window(Ui_mainWindow):
             step = self.stepQueue.get()
             for k in step.input_spec.keys():
                 widget = self.params[k]
-                if isinstance(widget, QComboBox): # if it is an option box
-                    val = widget.currentText()
-                elif isinstance(widget, QSpinBox) or isinstance(widget, CustomSpinBox): # if it is a numerical entry
-                    val = widget.value()
-                else: # if it is a simple label
-                    val = widget.text()
-                step.input_param_values[k] = val
-                widget.setEnabled(False)
+                try:
+                    if isinstance(widget, QComboBox): # if it is an option box
+                        val = widget.currentText()
+                    elif isinstance(widget, QSpinBox) or isinstance(widget, CustomSpinBox): # if it is a numerical entry
+                        val = widget.value()
+                    else: # if it is a simple label
+                        val = widget.text()
+                    step.input_param_values[k] = val
+                    widget.setEnabled(False)
+                except RuntimeError: # To prevent issues when reloading after an abort
+                    pass
     #
 
     def clear(self):
@@ -444,6 +447,8 @@ class Process_Window(Ui_mainWindow):
                 self.sequencer.abortSignal.emit()
             self.set_status('error')
             self.pauseButton.setEnabled(False)
+            while not self.stepQueue.empty(): # clear out any Queued steps
+                self.stepQueue.get()
     #
 
     def close(self):

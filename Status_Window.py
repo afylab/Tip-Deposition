@@ -165,6 +165,8 @@ class Status_Window(Ui_StatusWindow):
         curve = plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
         if logy:
             plotWidget.setLogMode(0, 1)
+        else:
+            plotWidget.setLogMode(None, None)
         plotWidget.enableAutoRange()
         plotWidget.setTitle(variable)
         self.plottedVars[variable] = [plotWidget, curve, data, t0]

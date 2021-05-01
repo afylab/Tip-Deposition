@@ -243,11 +243,11 @@ class VarEntry(QWidget):
     '''
     A simple widget to display a value with a label
     '''
-    def __init__(self, parent, label, units="", width=300, height=35, labelwidth=150, valuewidth=100, unitswidth=50, decimalprecision=3):
+    def __init__(self, parent, label, units="", width=300, height=35, labelwidth=150, valuewidth=100, unitswidth=50):
         super().__init__(parent)
         self.setMaximumSize(labelwidth+valuewidth+unitswidth, height)
         self.value = 0.0
-        self.precision = decimalprecision
+        self.precision = 3
 
         font = QFont()
         font.setPointSize(14)
@@ -290,7 +290,7 @@ class VarEntry(QWidget):
         '''
         self.value = val
         if isinstance(val, float):
-            if val <= self.precision:
+            if val <= 0.001 and val != 0.0:
                 s = "{:.2E}".format(val)
             else:
                 s = str(round(val, self.precision))

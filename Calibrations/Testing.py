@@ -51,7 +51,7 @@ class Recipe_Test(Recipe):
 
         # Variables can be plotted on the interface using the plotVariable function, but they need
         # to be tracked first
-        self.plotVariable("DummyVar", logy=True)
+        self.plotVariable("DummyVar")
         self.plotVariable("DummyOutput")
 
         # You can record a variable to the Data Vault using the recordVariable function
@@ -100,8 +100,19 @@ class Recipe_Test(Recipe):
         setpoint = step3.get_param('setpoint')
         self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 0.0, (0,100))
 
-        yield Step(False, "Testing feedback, wait 1 min")
-        self.wait_for(1)
+        yield Step(False, "Testing feedback, wait 30s")
+        self.wait_for(0.5)
+
+        yield Step(False, "Pausing feedback, wait 30s")
+        self.pausePIDLoop("DummyVar")
+        self.wait_for(0.5)
+
+        yield Step(False, "Resuming feedback after 20 seconds")
+        self.resumePIDLoop("DummyVar", 20.0)
+        self.wait_for(2.0/6)
+
+        yield Step(False, "Output Resumed, wait 20s")
+        self.wait_for(2.0/6)
 
         yield Step(False, "Stopping Feedback")
         self.stopPIDLoop('DummyVar') # Stop the feedback on the varaible "DummyVar"
@@ -135,48 +146,45 @@ class Recipe_Test(Recipe):
     #
 #
 
-class Evaluation(CalibrationRecipe): # A simple class for testing and evaluation of various hardware parts
+class Timing_Test(CalibrationRecipe): # A simple class for debugging timing issues in the serial ports
     def __init__(self, equip):
+        equip.toggleDebugMode()
         super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server', 'ftm_server', 'power_supply_server'], version="1.0.1")
     #
 
     def proceed(self):
+        """
+        Below add all the servers and plots you would in a normal evaporation, but don't atually do
+        anything with the equipment. Timing information will be printed out to the terminal by the equipment handler
+        """
         self.command('rvc_server', 'select_device')
         self.command('valve_relay_server', 'select_device')
         # #Iden command added so that arduino will respond to first command given from GUI.
         # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
         self.command('valve_relay_server', 'iden')
 
-        """
-        !!!!!!!!!!!!
-        Timing Test
-        !!!!!!!!!!!!
-        """
-        # self.command('ftm_server', 'select_device')
-        # #
-        # # # Setup the power supply server
-        # self.command('power_supply_server', 'select_device')
-        # self.command('power_supply_server', 'adr', '6')
-        # self.command('power_supply_server', 'rmt_set', 'REM')
+
+        self.command('evaporator_shutter_server', 'select_device')
+        self.command('ftm_server', 'select_device')
         #
-        #
+        # # Setup the power supply server
+        self.command('power_supply_server', 'select_device')
+        self.command('power_supply_server', 'adr', '6')
+        self.command('power_supply_server', 'rmt_set', 'REM')
+
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
-        self.wait_for(0.01)
-        # self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate')
-        # self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
-        # self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
-        #
+        self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
+        self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
+        self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
+        self.wait_for(0.01) # Here because it threw an error one time
         self.plotVariable("Pressure", logy=True)
-        # self.plotVariable('Deposition Rate')
-        #
-        # yield Step(True, "Press Proceed to stop tracking Deposition Rate")
-        # self.stopTracking("Deposition Rate")
+        self.plotVariable('Deposition Rate')
         #
         yield Step(True, "Testing update timing")
 
         # Stop updating the plots of the tracked varaibles
         self.stopPlotting("Pressure")
-        # self.stopPlotting('Deposition Rate')
+        self.stopPlotting('Deposition Rate')
 
         finalstep = Step(False, "All Done.")
         yield finalstep

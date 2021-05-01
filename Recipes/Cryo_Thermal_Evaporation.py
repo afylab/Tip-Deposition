@@ -34,6 +34,9 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         self.command('evaporator_shutter_server', 'select_device')
         self.command('ftm_server', 'select_device')
+
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+
         #
         # # Setup the power supply server
         self.command('power_supply_server', 'select_device')
@@ -51,6 +54,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.wait_for(0.01) # Here because it threw an error one time
         self.plotVariable("Pressure", logy=True)
         self.plotVariable('Deposition Rate')
+
+        self.recordVariable("Pressure")
+        self.recordVariable("Deposition Rate")
 
         '''
         Get parameters from the user
@@ -117,11 +123,23 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         yield Step(False, "Calibrating voltage to reach deposition rate.")
 
-        # Voltage calibration  <--------
+        # Voltage calibration step, to get the voltage that gives hte deposition
+        # rate we want, as a starting point for later evaporations.
+        self.command('power_supply_server', 'switch', 'on')
+        self.command('evaporator_shutter_server', 'open_shutter')
 
-        #Set the shutter to open
-        #self.command('evaporator_shutter_server', 'rot', args=['40','C']) # Close the shutter
-        #self.command('evaporator_shutter_server', 'rot', args=['40','A']) # Open the shutter
+        P = params['P']
+        I = params['I']
+        D = params['D']
+        Voffset = params['Voffset']
+        Vmax = params['Vmax']
+        setpoint = int(params['Deposition Rate (A/s)'])
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
+        self.wait_until('Deposition Rate', 4, "greater than")
+        yield Step(True, "Once deposition rate has stabilized at " + str(setpoint) + "press proceed to pause evaporation.")
+
+        self.pausePIDLoop('Deposition Rate')
+        self.command('evaporator_shutter_server', 'close_shutter')
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
@@ -133,9 +151,14 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         yield Step(True, "Rotate Tip to 90&deg;.")
 
-        yield Step(False, "Beginning first contact deposition.")
+        yield Step(False, "Beginning first contact deposition. Waiting 2 min for evaporator to heat up")
+
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
 
         # Contact Depositon Step <--------
+        self.resumePIDLoop('Deposition Rate', 120)
+        self.wait_for(2)
+        self.command('evaporator_shutter_server', 'open_shutter')
 
         yield Step(False, "First contact deposition finished")
 
@@ -148,6 +171,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         yield Step(False, "Beginning head deposition.")
 
         # Contact Depositon Step <--------
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
 
         yield Step(False, "Head deposition finished")
 
@@ -160,6 +184,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         yield Step(False, "Beginning second contact deposition.")
 
         # Contact Depositon Step <--------
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
 
         yield Step(False, "Second contact deposition finished")
 
@@ -171,19 +196,29 @@ class Cryo_Thermal_Evaporation(Recipe):
         yield Step(True, "Press proceed to shut down vacuum system.")
         self.valve('all', False) # close all valves
         self.wait_for(0.1)
-        self.pump('all', False) # Turn off all the pumps
-        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
+        self.pump('turbo', False) # Turn off the turbo pump
+        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
 
         self.leakvalve(True)
         self.wait_for(0.1)
+        # self.pump('scroll', False) # Turn off the scroll pump
 
         # Stop updating the plots of the tracked varaibles
         self.stopPlotting("Pressure")
         self.stopPlotting('Deposition Rate')
+        self.stopRecordingVariable("Pressure")
+        self.stopRecordingVariable("Deposition Rate")
         self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Vent the chamber and retreive your SQUID!")
         yield finalstep
+    #
 
+    def shutdown(self):
+        try:
+            self.command('power_supply_server', 'switch', 'off')
+        except:
+            print("Warning could not shutdown the power supply.")
+        super().shutdown()
     #
 #

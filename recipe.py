@@ -197,11 +197,11 @@ class Recipe():
         '''
         Attempts to shutdown any relevant equipment and put the system on standby. Either
         part of normal shutdown or in the event of an unexpected error. Overload to protect
-        critical equipment.
+        critical equipment, but call super().shutdown().
         '''
         self.stopAllFeedback()
         self.equip.stopRecordSignal.emit("ALL")
-        self.equip.stopTrackingSignal.emit("All")
+        self.equip.stopTrackingSignal.emit("ALL")
     #
 
     def default(self, name):
@@ -530,6 +530,25 @@ class Recipe():
         Signals the equipment handler to stop all feedback loops
         '''
         self.equip.stopAllFeedbackSignal.emit()
+    #
+
+    def pausePIDLoop(self, trackedVar):
+        '''
+        Stops feedback on the given tracked variable.
+        '''
+        self.equip.pauseFeedbackPIDSignal.emit(trackedVar)
+    #
+
+    def resumePIDLoop(self, trackedVar, wait):
+        '''
+        Resumes a paused PID loop. Sets the output to the previous value immediatly
+        the resumes the loop after a certain amount of time.
+
+        Args:
+            wait (flaot) : The number of seconds to wait before resuming the loop,
+                to allow the systme to stabilize.
+        '''
+        self.equip.resumeFeedbackPIDSignal.emit(trackedVar, wait)
     #
 
     def _process_startup(self, startupstep):
