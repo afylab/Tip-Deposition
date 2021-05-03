@@ -216,6 +216,9 @@ class Vacuum_Test(CalibrationRecipe):
 
         ## First rough out the chamber with the scroll pump
         self.valve('all', True) # Open all the valves
+
+        yield Step(True, "Valves opened, ready for rough-out")
+
         self.leakvalve(True)
         self.pump('scroll', True)
         self.wait_until('Pressure', 1e-1, "less than")
@@ -236,16 +239,16 @@ class Vacuum_Test(CalibrationRecipe):
         # self.wait_for(5)
 
         '''
-        Pump out complete
+        Pump out complete, uncomment to include spin-down
         '''
-        yield Step(True, "Press proceed to close valves.")
-        self.valve('all', False) # close all valves
-        self.wait_for(0.1)
-        self.pump('all', False) # Turn off all the pumps
-        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
-
-        self.leakvalve(True)
-        self.wait_for(0.1)
+        # yield Step(True, "Press proceed to close valves.")
+        # self.valve('all', False) # close all valves
+        # self.wait_for(0.1)
+        # self.pump('all', False) # Turn off all the pumps
+        # yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
+        #
+        # self.leakvalve(True)
+        # self.wait_for(0.1)
 
         # Stop updating the plots of the tracked quantities
         self.stopPlotting("Pressure")

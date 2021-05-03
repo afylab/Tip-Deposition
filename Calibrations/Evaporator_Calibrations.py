@@ -11,15 +11,15 @@ class Calibrate_Evaporator_Shutter(CalibrationRecipe):
 
         s = "Calibrating the zero position of the Evaporator shutter."
         s = s + " Enter the angle from the analog dial of the stepper motor."
-        s = s + " 57&deg; is the normal closed position."
+        s = s + " 60&deg; is the normal closed position."
         step1 = Step(True, s)
-        step1.add_input_param("Angle", default=57, limits=(0,360))
+        step1.add_input_param("Angle", default=60, limits=(0,360))
         yield step1
         val = int(step1.get_param("Angle"))
 
         yield Step(False, "Recalibrating")
 
-        diff = 57 - val
+        diff = 60 - val
         if diff > 0:
             self.command('evaporator_shutter_server', 'rot', args=[str(int(abs(diff))), "C"])
         else:

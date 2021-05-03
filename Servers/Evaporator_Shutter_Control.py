@@ -207,7 +207,7 @@ class EvaporatorShutter(DeviceServer):
     def open_shutter(self,c):
         """Opens the shutter, does nothing if the shutter is already open"""
         if not self.open:
-            ret = yield self.rot(c, "38", "A")
+            ret = yield self.rot(c, "35", "A")
             self.open = True
             return ret
         return "No change"
@@ -217,7 +217,7 @@ class EvaporatorShutter(DeviceServer):
     def close_shutter(self,c):
         """Closes the shutter, does nothing if the shutter is already closed"""
         if self.open:
-            ret = yield self.rot(c, "38", "C")
+            ret = yield self.rot(c, "35", "C")
             self.open = False
             return ret
         return "No change"
