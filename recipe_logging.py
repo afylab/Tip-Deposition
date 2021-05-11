@@ -7,6 +7,7 @@ from os.path import join, exists
 from datetime import datetime
 
 from exceptions import LogFileFormatError
+from recipe import CalibrationRecipe
 
 class recipe_logger():
     '''
@@ -20,7 +21,10 @@ class recipe_logger():
     '''
     def __init__(self, recipe, savedir=None):
         if savedir is None:
-            savedir = '..\database'
+            if issubclass(type(recipe), CalibrationRecipe):
+                savedir = join('..','database','Calibrations')
+            else:
+                savedir = join('..','database')
         if not exists(savedir):
             makedirs(savedir)
         #

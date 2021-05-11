@@ -6,7 +6,7 @@ A simple thermal evaporation using only the thermal evaporator and the cryogenic
 from recipe import Recipe, Step
 
 class Cryo_Thermal_Evaporation(Recipe):
-    def __init__(self, equip):
+    def __init__(self, *args):
         # Add all the hardwave servers needed for evaporation
 
         # Starting iwth the servers you always need, including 'data_vault'
@@ -15,7 +15,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         # Then evaporation specific servers
         servers.append('power_supply_server', 'evaporator_shutter_server')
 
-        super().__init__(equip, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.0.0")
     #
 
     def proceed(self):

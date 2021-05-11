@@ -32,10 +32,10 @@ timeout = 20
 
 import platform
 global serial_server_name
-serial_server_name = (platform.node() + '_serial_server').replace('-','_').lower()
+serial_server_name = (platform.node() + '_serial_server').replace('-', '_').lower()
 
 from labrad.server import setting
-from labrad.devices import DeviceServer,DeviceWrapper
+from labrad.devices import DeviceServer, DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
 import labrad.units as units
 from labrad.types import Value
@@ -43,8 +43,8 @@ import time
 
 from traceback import format_exc
 
-TIMEOUT = Value(5,'s')
-BAUD    = 9600
+TIMEOUT = Value(5, 's')
+BAUD = 9600
 BYTESIZE = 8
 STOPBITS = 1
 PARITY = 0
@@ -59,8 +59,8 @@ class ValveRelayWrapper(DeviceWrapper):
         self.ctx = server.context()
         self.port = port
         p = self.packet()
-        #p.open(port)
-        #Testing no pulse serial connect
+        # p.open(port)
+        # Testing no pulse serial connect
         p.open(port, True)
         p.baudrate(BAUD)
         p.bytesize(BYTESIZE)
@@ -68,7 +68,7 @@ class ValveRelayWrapper(DeviceWrapper):
         p.setParity = PARITY
         p.read()  # clear out the read buffer
         p.timeout(TIMEOUT)
-        #p.timeout(None)
+        # p.timeout(None)
         print(" CONNECTED ")
         yield p.send()
 
@@ -88,9 +88,9 @@ class ValveRelayWrapper(DeviceWrapper):
     @inlineCallbacks
     def read(self):
         """Read a response line from the device"""
-        p=self.packet()
+        p = self.packet()
         p.read_line()
-        ans=yield p.send()
+        ans = yield p.send()
         returnValue(ans.read_line)
 
     @inlineCallbacks
@@ -104,9 +104,17 @@ class ValveRelayWrapper(DeviceWrapper):
 
 
 class ValveRelayServer(DeviceServer):
-    name             = 'valve_relay_server'
-    deviceName       = 'Valve and Relay Controller'
-    deviceWrapper    = ValveRelayWrapper
+    name = 'valve_relay_server'
+    deviceName = 'Valve and Relay Controller'
+    deviceWrapper = ValveRelayWrapper
+    def __init__(self):
+        super().__init__()
+        self.state = dict()
+        self.state['turbo pump'] = False
+        self.state['scroll pump'] = False
+        self.state['gate valve'] = False
+        self.state['chamber valve'] = False
+        self.state['turbo valve'] = False
 
     @inlineCallbacks
     def initServer(self):
@@ -124,14 +132,13 @@ class ValveRelayServer(DeviceServer):
         dirs, keys = yield reg.dir()
         p = reg.packet()
         print("Created packet")
-        print("printing all the keys",keys)
+        print("printing all the keys", keys)
         for k in keys:
-            print("k=",k)
+            print("k=", k)
             p.get(k, key=k)
         ans = yield p.send()
-        print("ans=",ans)
+        print("ans=", ans)
         self.serialLinks = dict((k, ans[k]) for k in keys)
-
 
     @inlineCallbacks
     def findDevices(self):
@@ -148,57 +155,63 @@ class ValveRelayServer(DeviceServer):
                     continue
                 devName = '%s - %s' % (serServer, port)
                 devs += [(devName, (server, port))]
+            return devs
         except:
             print(format_exc())
-        returnValue(devs)
 
-    @setting(405,returns='s')
-    def turbo_valve_open(self,c):
+    @setting(405, returns='s')
+    def turbo_valve_open(self, c):
         """Opens turbo valve."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("otr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['turbo valve'] = True
+        return ans
 
-    @setting(406,returns='s')
-    def turbo_valve_close(self,c):
+    @setting(406, returns='s')
+    def turbo_valve_close(self, c):
         """Closess turbo valve."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("ctr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['turbo valve'] = False
+        return ans
 
-    @setting(407,returns='s')
-    def chamber_valve_open(self,c):
+    @setting(407, returns='s')
+    def chamber_valve_open(self, c):
         """Opens chamber valve."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("ocr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['chamber valve'] = True
+        return ans
 
-    @setting(408,returns='s')
-    def chamber_valve_close(self,c):
+    @setting(408, returns='s')
+    def chamber_valve_close(self, c):
         """Closes chamber valve."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("ccr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['chamber valve'] = False
+        return ans
 
-    @setting(409,returns='s')
-    def gate_open(self,c):
+    @setting(409, returns='s')
+    def gate_open(self, c):
         """Opens Gate valve."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("ogr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['gate valve'] = True
+        return ans
 
-    @setting(410,returns='s')
-    def gate_close(self,c):
+    @setting(410, returns='s')
+    def gate_close(self, c):
         """Closes Gate valve."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("cgr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['gate valve'] = False
+        return ans
 
     # @setting(411,returns='s')
     # def valve_four_open(self,c):
@@ -206,7 +219,7 @@ class ValveRelayServer(DeviceServer):
     #     dev=self.selectedDevice(c)
     #     yield dev.write("o4r")
     #     ans = yield dev.read()
-    #     returnValue(ans)
+    #     return ans
     #
     # @setting(412,returns='s')
     # def valve_four_close(self,c):
@@ -214,7 +227,7 @@ class ValveRelayServer(DeviceServer):
     #     dev=self.selectedDevice(c)
     #     yield dev.write("c4r")
     #     ans = yield dev.read()
-    #     returnValue(ans)
+    #     return ans
     #
     # @setting(413,returns='s')
     # def valve_five_open(self,c):
@@ -222,7 +235,7 @@ class ValveRelayServer(DeviceServer):
     #     dev=self.selectedDevice(c)
     #     yield dev.write("o5r")
     #     ans = yield dev.read()
-    #     returnValue(ans)
+    #     return ans
     #
     # @setting(414,returns='s')
     # def valve_five_close(self,c):
@@ -230,7 +243,7 @@ class ValveRelayServer(DeviceServer):
     #     dev=self.selectedDevice(c)
     #     yield dev.write("c5r")
     #     ans = yield dev.read()
-    #     returnValue(ans)
+    #     return ans
     #
     # @setting(415,returns='s')
     # def valve_six_open(self,c):
@@ -238,7 +251,7 @@ class ValveRelayServer(DeviceServer):
     #     dev=self.selectedDevice(c)
     #     yield dev.write("o6r")
     #     ans = yield dev.read()
-    #     returnValue(ans)
+    #     return ans
     #
     # @setting(416,returns='s')
     # def valve_six_close(self,c):
@@ -246,49 +259,56 @@ class ValveRelayServer(DeviceServer):
     #     dev=self.selectedDevice(c)
     #     yield dev.write("c6r")
     #     ans = yield dev.read()
-    #     returnValue(ans)
+    #     return ans
 
-    @setting(417,returns='s')
-    def iden(self,c):
+    @setting(417, returns='s')
+    def iden(self, c):
         """Identifies the valve controller."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("ir")
         ans = yield dev.read()
-        returnValue(ans)
+        return ans
 
-    @setting(418,returns='s')
-    def scroll_on(self,c):
+    @setting(418, returns='s')
+    def scroll_on(self, c):
         """Starts the scroll pump."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("spr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['scroll pump'] = True
+        return ans
 
-    @setting(419,returns='s')
-    def scroll_off(self,c):
+    @setting(419, returns='s')
+    def scroll_off(self, c):
         """Stops the scroll pump."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("ssr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['scroll pump'] = False
+        return ans
 
-    @setting(420,returns='s')
-    def turbo_on(self,c):
+    @setting(420, returns='s')
+    def turbo_on(self, c):
         """Starts the turbo pump."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("tpr")
         ans = yield dev.read()
-        returnValue(ans)
+        self.state['turbo pump'] = True
+        return ans
 
-    @setting(421,returns='s')
-    def turbo_off(self,c):
+    @setting(421, returns='s')
+    def turbo_off(self, c):
         """Stops the turbo pump."""
-        dev=self.selectedDevice(c)
+        dev = self.selectedDevice(c)
         yield dev.write("tsr")
         ans = yield dev.read()
-        returnValue(ans)
-#
+        self.state['turbo pump'] = False
+        return ans
 
+    @setting(422, name='s', returns='b')
+    def returnstate(self, c, name):
+        return self.state[name]
+#
 
 
 __server__ = ValveRelayServer()

@@ -5,7 +5,6 @@ thread.
 '''
 import labrad
 from PyQt5.QtCore import QThread, pyqtSignal
-from twisted.internet.defer import inlineCallbacks
 
 from datetime import datetime
 from time import sleep, perf_counter

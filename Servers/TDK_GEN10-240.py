@@ -38,7 +38,6 @@ from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import reactor, defer
-import labrad.units as units
 from labrad.types import Value
 import time
 
@@ -364,7 +363,7 @@ class PowerSupplyServer(DeviceServer):
         returnValue(ans)
 
     @setting(327,returns='s')
-    def fbd_read(self,c):
+    def ast_read(self,c):
         """Reads the auto restart status."""
         ans = yield self.read(c,"AST?")
         returnValue(ans)

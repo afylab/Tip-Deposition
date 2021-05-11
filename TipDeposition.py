@@ -10,9 +10,11 @@ from PyQt5.QtWidgets import QMainWindow
 from Interfaces.Base_Process_Window import Ui_mainWindow
 from Status_Window import Status_Window
 from Display_Window import Display_Window
+from ManualControlWidget import EvaporatorWidget
 from equipmenthandler import EquipmentHandler
 
 from sequencer import Sequencer
+from recipe import CalibrationRecipe
 
 from customwidgets import BaseMainWindow, BaseStatusWidget, CustomSpinBox
 from customwidgets import RecipeDialog, TipSelectionDialog
@@ -46,10 +48,8 @@ class Process_Window(Ui_mainWindow):
         self.statusWindowWidget = BaseStatusWidget()
         self.statusWindow = Status_Window(self.statusWindowWidget, self, self.equip)
 
-        # # Vacuum Manual Controller Pesudocode
-        # self.ManualController = Widget(superWindow=self)
-        # self.superWindow.status == "active"
-        # self.superwindow.sequencer.abortSlot
+        # # Vacuum System Manual Controller
+        self.ManualController = EvaporatorWidget(self)
 
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Load")
@@ -133,6 +133,7 @@ class Process_Window(Ui_mainWindow):
         self.sequencer.userStepSignal.connect(self.user_step)
         self.sequencer.finishedSignal.connect(self.finished)
         self.sequencer.activeSignal.connect(self.active_process)
+        self.sequencer.updateHardware.connect(self.ManualController.refresh)
 
         # Connect signals back to the sequencer
         self.sequencer.canAdvanceSignal.connect(self.sequencer.advanceSlot)
@@ -198,7 +199,6 @@ class Process_Window(Ui_mainWindow):
     '''
     Status Functions
     '''
-
     def set_status(self, status):
         if status == "standby":
             self.statusLabel.setText("Standby")
@@ -430,16 +430,19 @@ class Process_Window(Ui_mainWindow):
             self.paused = True
     #
 
-    def abortCallback(self):
+    def abort(self, warn=False):
         '''
-        Callback function for the abort button
+        Abort the current process
         '''
-        msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Critical)
-        msgBox.setText("Are you sure you want to abort the current process?")
-        msgBox.setWindowTitle("Abort Process Warning")
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        ret = msgBox.exec()
+        if warn:
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Critical)
+            msgBox.setText("Are you sure you want to abort the current process?")
+            msgBox.setWindowTitle("Abort Process Warning")
+            msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+            ret = msgBox.exec()
+        else:
+            ret = QMessageBox.Ok
         if ret == QMessageBox.Ok:
             self.proceedButton.setEnabled(False)
             self.append_ins_warning("Aborting Process")
@@ -449,6 +452,13 @@ class Process_Window(Ui_mainWindow):
             self.pauseButton.setEnabled(False)
             while not self.stepQueue.empty(): # clear out any Queued steps
                 self.stepQueue.get()
+    #
+
+    def abortCallback(self):
+        '''
+        Callback function for the abort button, with a warning to the user.
+        '''
+        self.abort(warn=True)
     #
 
     def close(self):
@@ -523,11 +533,15 @@ class Process_Window(Ui_mainWindow):
             autosave = False
         else:
             if hasattr(self, 'sequencer'):
+                if issubclass(type(self.sequencer.recipe), CalibrationRecipe):
+                    return
                 version = self.sequencer.get_recipe_name()
                 squidname = self.sequencer.get_squid_name()
             else:
-                version = ""
-                squidname = ""
+                print("Error no loaded recipe")
+                return
+                # version = ""
+                # squidname = ""
             autosave = True
         try:
             base = QMainWindow()

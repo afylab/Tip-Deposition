@@ -87,6 +87,10 @@ class PowerSupplyServer(DeviceServer):
     deviceName = 'DCXS Power'
     deviceWrapper = DCXSPowerWrapper
 
+    def __init__(self):
+        super().__init__()
+        self.state = False
+
     @inlineCallbacks
     def initServer(self):
         print('loading config info...', end=' ')
@@ -139,7 +143,8 @@ class PowerSupplyServer(DeviceServer):
             if state not in ['A', 'B']:
                 raise Exception('state must be A - ON, B - OFF')
             yield dev.write(state.encode("ASCII", "ignore"))
-        resp = yield dev.query('a'.encode("ASCII", "ignore"))  # doesn't change from 0
+            self.state = not self.state
+        resp = yield dev.query('a'.encode("ASCII", "ignore"))
         return resp
 
     @setting(11, p='?')
@@ -216,6 +221,9 @@ class PowerSupplyServer(DeviceServer):
         iden = yield dev.query('?'.encode("ASCII", "ignore"))
         return iden
 
+    @setting(16, returns='b')
+    def returnstate(self, c):
+        return self.state
 
 __server__ = PowerSupplyServer()
 

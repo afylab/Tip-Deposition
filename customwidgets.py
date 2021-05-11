@@ -10,7 +10,7 @@ from importlib.util import spec_from_file_location #, module_from_spec
 from PyQt5 import QtCore
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import QLabel, QMainWindow, QListWidgetItem, QDoubleSpinBox, QWidget
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem
+from PyQt5.QtWidgets import QTreeWidgetItem
 
 import pyqtgraph as pg
 

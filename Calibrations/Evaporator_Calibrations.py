@@ -2,8 +2,8 @@ from recipe import CalibrationRecipe, Step
 from numpy import abs
 
 class Calibrate_Evaporator_Shutter(CalibrationRecipe):
-    def __init__(self, equip):
-        super().__init__(equip, required_servers=['evaporator_shutter_server'])
+    def __init__(self, *args):
+        super().__init__(*args, required_servers=['evaporator_shutter_server'])
     #
 
     def proceed(self):
@@ -36,7 +36,7 @@ class Evaporation_Test(CalibrationRecipe):
     """
     Tests the evaporation hardware.
     """
-    def __init__(self, equip):
+    def __init__(self, *args):
         # Add all the hardwave servers needed for evaporation
 
         # Starting iwth the servers you always need, including 'data_vault'
@@ -46,7 +46,7 @@ class Evaporation_Test(CalibrationRecipe):
         servers.append('power_supply_server')
         servers.append('evaporator_shutter_server')
 
-        super().__init__(equip, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.0.0")
     #
 
     def proceed(self):
@@ -121,60 +121,60 @@ class Evaporation_Test(CalibrationRecipe):
         Evaporation test
         '''
 
-        # # Calibrate the voltage needed to reach set deposition rate
-        # yield Step(True, "Rotate Tip to 165&deg;. Press proceed to start depositing.")
-        #
-        # # Open the shutter
-        # self.command('evaporator_shutter_server', 'open_shutter')
-        # self.command('power_supply_server', 'switch', 'on')
-        #
-        # P = params['P']
-        # I = params['I']
-        # D = params['D']
-        # Voffset = params['Voffset']
-        # Vmax = params['Vmax']
-        # setpoint = int(params['Deposition Rate (A/s)'])
-        # self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        #
-        # yield Step(True, "Press proceed to pause evaporation.")
-        #
-        # self.pausePIDLoop('Deposition Rate')
-        # self.command('evaporator_shutter_server', 'close_shutter')
-        #
-        # yield Step(True, "Press proceed to resume evaporation after 2 minutes.")
-        #
-        # self.resumePIDLoop('Deposition Rate', 120)
-        # self.wait_for(2)
-        # self.command('evaporator_shutter_server', 'open_shutter')
-        #
-        # yield Step(True, "Evaporating press proceed to stop.")
-        #
-        # self.stopPIDLoop('Deposition Rate')
-        # self.command('power_supply_server', 'switch', 'off')
-        # self.command('evaporator_shutter_server', 'close_shutter')
-        #
-        # finalstep = Step(False, "All Done. Chamber still being pumped on.")
-        # yield finalstep
+        # Calibrate the voltage needed to reach set deposition rate
+        yield Step(True, "Rotate Tip to 165&deg;. Press proceed to start depositing.")
+
+        # Open the shutter
+        self.shutter(self, "evaporator", True)
+        self.command('power_supply_server', 'switch', 'on')
+
+        P = params['P']
+        I = params['I']
+        D = params['D']
+        Voffset = params['Voffset']
+        Vmax = params['Vmax']
+        setpoint = int(params['Deposition Rate (A/s)'])
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
+
+        yield Step(True, "Press proceed to pause evaporation.")
+
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter(self, "evaporator", False)
+
+        yield Step(True, "Press proceed to resume evaporation after 2 minutes.")
+
+        self.resumePIDLoop('Deposition Rate', 120)
+        self.wait_for(2)
+        self.command('evaporator_shutter_server', 'open_shutter')
+
+        yield Step(True, "Evaporating press proceed to stop.")
+
+        self.stopPIDLoop('Deposition Rate')
+        self.command('power_supply_server', 'switch', 'off')
+        self.command('evaporator_shutter_server', 'close_shutter')
+
+        finalstep = Step(False, "All Done. Chamber still being pumped on.")
+        yield finalstep
 
         '''
         Finishing process
         '''
-        yield Step(True, "Press proceed to close valves and prepare to vent.")
-        self.valve('all', False) # close all valves
-        self.wait_for(0.1)
-        self.pump('turbo', False) # Turn off the turbo pump
-        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
-
-        self.leakvalve(True)
-        self.wait_for(0.1)
-        # self.pump('scroll', False) # Turn off the scroll pump
-
-        # Stop updating the plots of the tracked quantities
-        self.stopPlotting("Pressure")
-        self.stopTracking('all')
-
-        finalstep = Step(False, "All Done. Leak valve open, ready to vent the chamber.")
-        yield finalstep
+        # yield Step(True, "Press proceed to close valves and prepare to vent.")
+        # self.valve('all', False) # close all valves
+        # self.wait_for(0.1)
+        # self.pump('turbo', False) # Turn off the turbo pump
+        # yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
+        #
+        # self.leakvalve(True)
+        # self.wait_for(0.1)
+        # # self.pump('scroll', False) # Turn off the scroll pump
+        #
+        # # Stop updating the plots of the tracked quantities
+        # self.stopPlotting("Pressure")
+        # self.stopTracking('all')
+        #
+        # finalstep = Step(False, "All Done. Leak valve open, ready to vent the chamber.")
+        # yield finalstep
 
     def shutdown(self):
         try:
@@ -182,5 +182,4 @@ class Evaporation_Test(CalibrationRecipe):
         except:
             print("Warning could not shutdown the power supply.")
         super().shutdown()
-    #
     #

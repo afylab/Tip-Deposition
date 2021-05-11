@@ -16,7 +16,7 @@ class Recipe_Test(Recipe):
     class for new users. All core recipe functions are detailed below.
     '''
 
-    def __init__(self, equip):
+    def __init__(self, *args):
         '''
         The initilizer setups the recipe, normally the only thing needed is to call the superclass
         initilizer with the list of required servers and a version number. The program will check
@@ -27,7 +27,7 @@ class Recipe_Test(Recipe):
         is changed without changing the version number there may be issues loading and saving parameters
         to file.
         '''
-        super().__init__(equip, required_servers=['data_vault','testserver'], version="1.0.1")
+        super().__init__(*args, required_servers=['data_vault','testserver'], version="1.0.1")
 
     def proceed(self):
         '''
@@ -147,9 +147,9 @@ class Recipe_Test(Recipe):
 #
 
 class Timing_Test(CalibrationRecipe): # A simple class for debugging timing issues in the serial ports
-    def __init__(self, equip):
+    def __init__(self, equip, updateSig):
         equip.toggleDebugMode()
-        super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server', 'ftm_server', 'power_supply_server'], version="1.0.1")
+        super().__init__(equip, updateSig, required_servers=['data_vault','valve_relay_server','rvc_server', 'ftm_server', 'power_supply_server'], version="1.0.1")
     #
 
     def proceed(self):
@@ -194,8 +194,8 @@ class Vacuum_Test(CalibrationRecipe):
     """
     Tests the pump out sequence of the vacuum system.
     """
-    def __init__(self, equip):
-        super().__init__(equip, required_servers=['data_vault','valve_relay_server','rvc_server'])
+    def __init__(self, *args):
+        super().__init__(*args, required_servers=['data_vault','valve_relay_server','rvc_server'])
     #
 
     def proceed(self):

@@ -5,6 +5,7 @@ A module for defining tip deposition recipes generically
 from exceptions import ProcessInterruptionError, ProcessTimeoutError
 from time import sleep
 from datetime import datetime, timedelta
+from os.path import join
 
 class Step():
     '''
@@ -101,17 +102,19 @@ class Recipe():
     objects before attempting to make a Recipe.
     '''
 
-    def __init__(self, equip, required_servers=None, version="1.0.0", savedir=None):
+    def __init__(self, equip, updateSig, required_servers=None, version="1.0.0", savedir=None):
         '''
         Class initilizer, inhert and extend with any needed features then call the superclass initilizer
         i.e. super().__init__(equip, required, version_number)
         where:
         - equip is the equipment handler object and should be the first argument of your initilizer.
+        - updateSig is the signal to update the manual hardware control everytime the recipe makes
+            a change to the hardware
         - required is a list of the server names (keys to the servers dictionary) that your recipe needs.
-          be sure to add all relevant equipment to this.
+            be sure to add all relevant equipment to this.
         - version is the version number of the recipe, if major changes are made to a recipe increment
-          the version number and a new record of parameters will automatically be logged seperatly from
-          any previous runs, elimiating potential compatability issues.
+            the version number and a new record of parameters will automatically be logged seperatly from
+            any previous runs, elimiating potential compatability issues.
          -savedir is the root Vault file where deposition data is saved.
         '''
         self.name = type(self).__name__.replace("_"," ")
@@ -119,9 +122,13 @@ class Recipe():
         self.abort = False # Calling Sequencer.abortSlot will set this to false and stop current process
         self.pause = False
         self.wait_delay = 0.25 # Amount of time to wait after sending a command to hardware, to give the hardware time to catch up
+        self.updateSig = updateSig
 
         if savedir is None:
-            self.savedir = 'Tip Deposition Database'
+            if issubclass(type(self), CalibrationRecipe):
+                self.savedir = join('Tip Deposition Database','Calibrations')
+            else:
+                self.savedir = 'Tip Deposition Database'
         else:
             self.savedir = savedir
 
@@ -341,9 +348,7 @@ class Recipe():
             print("WARNNG invalid valve command, no change")
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
-        '''
-        SIGNAL to the Manual Control
-        '''
+        self.updateSig.emit()
     #
 
     def pump(self, pump, on, wait=True, server='valve_relay_server'):
@@ -381,9 +386,7 @@ class Recipe():
             print("WARNNG invalid pump command, no change")
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
-        '''
-        SIGNAL to the Manual Control
-        '''
+        self.updateSig.emit()
     #
 
     def leakvalve(self, open, flow=None, pressure=None, wait=True, server='rvc_server'):
@@ -424,9 +427,37 @@ class Recipe():
             print("WARNNG invalid leakvalve command, no change")
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
+    #
+
+    def shutter(self, shutter, open, wait=True):
         '''
-        SIGNAL to the Manual Control
+        Handels opening and closing of the deposition source shutters.
+
+        Args:
+            shutter (str) : Which shutter to open/close. Options "evaporator", "effusion", and "all"
+            open (bool) : Will open valve if True, close if False.
+            wait (bool) : If True will wait 0.1 seconds after sending the signal to allow
+                the equipment handler and servers to catch up.
+            server (str) : The name of the valve relay server
         '''
+        if shutter == "evaporator":
+            if open:
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'open_shutter', [])
+            else:
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'close_shutter', [])
+        elif shutter == "effusion":
+            print("Warning, effusion cell shutter not implemented yet")
+        elif shutter == 'all':
+            if open:
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'open_shutter', [])
+            else:
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'close_shutter', [])
+        else:
+            print("WARNNG invalid valve command, no change")
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
     #
 
     def trackVariable(self, name, server, accessor, units='', wait=True):
@@ -500,7 +531,7 @@ class Recipe():
         self.equip.stopRecordSignal.emit(variable)
     #
 
-    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput):
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, wait=True):
         '''
         Begin plotting a tracked varaible.
 
@@ -513,33 +544,59 @@ class Recipe():
             setpoint (float) : The initial setpoint of the loop
             offset (float) : The offset for the output.
             minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
         '''
         args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1]))]
         self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
     #
 
-    def stopPIDLoop(self, trackedVar):
+    def stopPIDLoop(self, trackedVar, wait=True):
         '''
         Stops feedback on the given tracked variable.
+
+        Args:
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
         '''
         self.equip.stopFeedbackPIDSignal.emit(trackedVar)
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
     #
 
-    def stopAllFeedback(self):
+    def stopAllFeedback(self, wait=True):
         '''
-        Signals the equipment handler to stop all feedback loops
+        Signals the equipment handler to stop all feedback loops.
+
+        Args:
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
         '''
         self.equip.stopAllFeedbackSignal.emit()
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
     #
 
-    def pausePIDLoop(self, trackedVar):
+    def pausePIDLoop(self, trackedVar, wait=True):
         '''
         Stops feedback on the given tracked variable.
+
+        Args:
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
         '''
         self.equip.pauseFeedbackPIDSignal.emit(trackedVar)
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
     #
 
-    def resumePIDLoop(self, trackedVar, wait):
+    def resumePIDLoop(self, trackedVar, wait, updateWait=True):
         '''
         Resumes a paused PID loop. Sets the output to the previous value immediatly
         the resumes the loop after a certain amount of time.
@@ -547,8 +604,13 @@ class Recipe():
         Args:
             wait (flaot) : The number of seconds to wait before resuming the loop,
                 to allow the systme to stabilize.
+            updateWait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
         '''
         self.equip.resumeFeedbackPIDSignal.emit(trackedVar, wait)
+        if updateWait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
     #
 
     def _process_startup(self, startupstep):

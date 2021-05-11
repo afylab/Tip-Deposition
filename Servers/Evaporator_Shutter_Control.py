@@ -37,10 +37,8 @@ serial_server_name = (platform.node() + '_serial_server').replace('-','_').lower
 from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
-import labrad.units as units
 from labrad.types import Value
 from collections import deque
-import time
 
 TIMEOUT = Value(5,'s')
 BAUD    = 9600
@@ -176,7 +174,7 @@ class EvaporatorShutter(DeviceServer):
             if stat.startswith('stationary'):
                 command = self.stack.popleft()
                 yield dev.write(command)
-                ans = yield dev.read()
+                yield dev.read()
                 yield self.empty_stack(c)
 
     @setting(508, degrees = 's', direction = 's', returns='s')
@@ -229,7 +227,9 @@ class EvaporatorShutter(DeviceServer):
         self.open = False
         return "Manually set state to close"
     #
-
+    @setting(512,returns = 'b')
+    def returnstate(self,c):
+        return self.open
 
 __server__ = EvaporatorShutter()
 if __name__ == '__main__':

@@ -31,6 +31,7 @@ class Sequencer(QThread):
     finishedSignal = pyqtSignal()
     abortSignal = pyqtSignal()
     pauseSignal = pyqtSignal(bool)
+    updateHardware = pyqtSignal()
 
     def __init__(self, recipe, equip, loadsquid=None):
         '''
@@ -45,13 +46,11 @@ class Sequencer(QThread):
         self.active = False # Parameter is active the process is running, will not load a new process
         self.abort = False # Calling self.abortSlot will set false and stop current process
         self.pause = False
-        self.recipe = recipe(equip)
         self.equip = equip
         self.loadsquid = loadsquid
 
-        # Setup the equipment
-
         super().__init__()
+        self.recipe = recipe(equip, self.updateHardware)
     #
 
     '''
