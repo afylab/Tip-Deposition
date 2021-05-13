@@ -345,7 +345,7 @@ class Recipe():
                 self.equip.commandSignal.emit(server, 'chamber_valve_close', [])
                 self.equip.commandSignal.emit(server, 'turbo_valve_close', [])
         else:
-            print("WARNNG invalid valve command, no change")
+            print("WARNNG invalid valve command, no change", valve)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()
@@ -383,7 +383,7 @@ class Recipe():
                     sleep(self.wait_delay) # give the program a little time to catch up
                 self.equip.commandSignal.emit(server, 'scroll_off', [])
         else:
-            print("WARNNG invalid pump command, no change")
+            print("WARNNG invalid pump command, no change", pump)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()
@@ -454,7 +454,7 @@ class Recipe():
             else:
                 self.equip.commandSignal.emit('evaporator_shutter_server', 'close_shutter', [])
         else:
-            print("WARNNG invalid valve command, no change")
+            print("WARNNG invalid shutter command, no change", shutter)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()

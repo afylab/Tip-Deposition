@@ -68,7 +68,7 @@ class PIDFeedbackController():
         if not self.paused:
             self.paused = True
             self.function(0.0)
-            print("Paused output: " + str(self.output))
+            #print("Paused output: " + str(self.output))
         #
     #
 
@@ -83,7 +83,7 @@ class PIDFeedbackController():
         '''
         if self.paused:
             self.paused = False
-            print("Resuming at output: " + str(self.output))
+            #print("Resuming at output: " + str(self.output))
             self.function(self.output)
             self.wait_time = float(wait)
             self.wait_start = datetime.now()

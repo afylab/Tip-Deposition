@@ -171,7 +171,7 @@ class EvaporatorWidget(QtWidgets.QWidget):
 
         self.vrs.gate_close()
         self.vrs.chamber_valve_close()
-        self.vrs.turbo_valve_open()
+        self.vrs.turbo_valve_close()
         self.vrs.turbo_off()
         #self.vrs.scroll_off()
 
@@ -424,26 +424,31 @@ class Valve(QtWidgets.QPushButton):
                 self.state = False
                 self.setToolTip('Closed')
                 self.parent.equip[self.name].status = False
-                print(self.name + " closed")
+                print(self.name + " manually closed")
                 if self.name == 'gate valve':
                     self.parent.vrs.gate_close()
                 elif self.name == 'chamber valve':
                     self.parent.vrs.chamber_valve_close()
                 elif self.name == 'turbo valve':
                     self.parent.vrs.turbo_valve_close()
+                elif self.name == 'leak valve':
+                    self.parent.rvc.close_valve()
                 else:
                     print('Incorrect name')
             else:
                 self.state = True
                 self.setToolTip('Open')
                 self.parent.equip[self.name].status = True
-                print(self.name + " opened")
+                print(self.name + " manually opened")
                 if self.name == 'gate valve':
                     self.parent.vrs.gate_open()
                 elif self.name == 'chamber valve':
                     self.parent.vrs.chamber_valve_open()
                 elif self.name == 'turbo valve':
                     self.parent.vrs.turbo_valve_open()
+                elif self.name == 'leak valve':
+                    self.parent.rvc.set_mode_flo()
+                    self.parent.rvc.set_nom_flo('100.0')
                 else:
                     print('Incorrect name')
             self.update()
@@ -550,6 +555,7 @@ class Pump(QtWidgets.QPushButton):
                 self.state = False
                 self.setToolTip('Off')
                 self.parent.equip[self.name].status = False
+                print(self.name + " manually turned off")
                 if self.name == 'turbo pump':
                     self.parent.vrs.turbo_off()
                 elif self.name == 'scroll pump':
@@ -560,6 +566,7 @@ class Pump(QtWidgets.QPushButton):
                 self.state = True
                 self.setToolTip('On')
                 self.parent.equip[self.name].status = True
+                print(self.name + " manually turned on")
                 if self.name == 'turbo pump':
                     self.parent.vrs.turbo_on()
                 elif self.name == 'scroll pump':

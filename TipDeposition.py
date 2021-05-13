@@ -122,6 +122,9 @@ class Process_Window(Ui_mainWindow):
         except:
             pass
 
+        # Clear any previous variables of plots
+        self.statusWindow.reset()
+
         # Setup the sequencer
         self.sequencer = Sequencer(recipe, self.equip, loadsquid=loadsquid)
 

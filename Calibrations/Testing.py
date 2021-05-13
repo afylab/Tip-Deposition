@@ -133,7 +133,6 @@ class Recipe_Test(Recipe):
 
         finalstep = Step(False, "All Done.")
         yield finalstep
-
     #
 
     def shutdown(self):
@@ -221,13 +220,13 @@ class Vacuum_Test(CalibrationRecipe):
 
         self.leakvalve(True)
         self.pump('scroll', True)
-        self.wait_until('Pressure', 1e-1, "less than")
+        self.wait_until('Pressure', 6e-2, "less than")
 
         ## Close the Chamber valve
         self.valve('chamber', False)
         self.pump('turbo', True)
 
-        self.wait_until('Pressure', 5e-2, "less than")
+        self.wait_until('Pressure', 1e-2, "less than")
 
         yield Step(True, "Close external Helium line valve 5.")
         yield Step(False, "Pumping down to base pressure.")

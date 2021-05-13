@@ -92,7 +92,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         Pump out sequence
         '''
-        yield Step(False, "Beginning pump out sequence, waiting until pressure falls below 1E-6 mbar.")
+        yield Step(False, "Beginning pump out sequence, waiting until pressure falls below 5E-6 mbar.")
 
         ## First rough out the chamber with the scroll pump
         self.valve('all', True) # Open all the valves
@@ -126,7 +126,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         # Voltage calibration step, to get the voltage that gives hte deposition
         # rate we want, as a starting point for later evaporations.
         self.command('power_supply_server', 'switch', 'on')
-        self.command('evaporator_shutter_server', 'open_shutter')
+        self.shutter("evaporator", True)
 
         P = params['P']
         I = params['I']
@@ -134,32 +134,38 @@ class Cryo_Thermal_Evaporation(Recipe):
         Voffset = params['Voffset']
         Vmax = params['Vmax']
         setpoint = int(params['Deposition Rate (A/s)'])
-        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        self.wait_until('Deposition Rate', 4, "greater than")
-        yield Step(True, "Once deposition rate has stabilized at " + str(setpoint) + "press proceed to pause evaporation.")
 
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
+        self.wait_until('Deposition Rate', 4, conditional="greater than", timeout=5)
+        yield Step(True, "Once deposition rate appears stable press proceed to pause evaporation.")
         self.pausePIDLoop('Deposition Rate')
-        self.command('evaporator_shutter_server', 'close_shutter')
+        self.shutter("evaporator", False)
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
-        yield Step(False, "Wait until stable cryostat temperature is reached. Adjust the helium flow to acheive desired stability.")
+        yield Step(False, "Wait until stable cryostat temperature is reached. Adjust the liquid helium flow to acheive desired stability.")
 
         # Deposit the first contact
         yield Step(False, "Beginning thermalization, waiting 20 min")
+
+        # Open the helium at ~1e-3 Torr for 20 min to thermalize tip
+        self.leakvalve(True, pressure=1e-3)
         self.wait_for(20)
 
         yield Step(True, "Rotate Tip to 90&deg;.")
 
         yield Step(False, "Beginning first contact deposition. Waiting 2 min for evaporator to heat up")
 
+        # First Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-
-        # Contact Depositon Step <--------
         self.resumePIDLoop('Deposition Rate', 120)
         self.wait_for(2)
-        self.command('evaporator_shutter_server', 'open_shutter')
+        self.shutter("evaporator", True)
 
+        self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than', timeout=5)
+
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
         yield Step(False, "First contact deposition finished")
 
         # Deposit the SQUID head
@@ -170,9 +176,16 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         yield Step(False, "Beginning head deposition.")
 
-        # Contact Depositon Step <--------
+        # SQUID Head Deposition
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.resumePIDLoop('Deposition Rate', 120)
+        self.wait_for(2)
+        self.shutter("evaporator", True)
 
+        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than', timeout=5)
+
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
         yield Step(False, "Head deposition finished")
 
         # Deposit the second contact
@@ -183,8 +196,16 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         yield Step(False, "Beginning second contact deposition.")
 
-        # Contact Depositon Step <--------
+        # First Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.resumePIDLoop('Deposition Rate', 120)
+        self.wait_for(2)
+        self.shutter("evaporator", True)
+
+        self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than', timeout=5)
+
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
 
         yield Step(False, "Second contact deposition finished")
 
@@ -195,13 +216,13 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         yield Step(True, "Press proceed to shut down vacuum system.")
         self.valve('all', False) # close all valves
-        self.wait_for(0.1)
+        self.wait_for(0.2)
         self.pump('turbo', False) # Turn off the turbo pump
         yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
 
         self.leakvalve(True)
         self.wait_for(0.1)
-        # self.pump('scroll', False) # Turn off the scroll pump
+        self.pump('scroll', False) # Turn off the scroll pump
 
         # Stop updating the plots of the tracked varaibles
         self.stopPlotting("Pressure")
@@ -217,6 +238,7 @@ class Cryo_Thermal_Evaporation(Recipe):
     def shutdown(self):
         try:
             self.command('power_supply_server', 'switch', 'off')
+            self.shutter("evaporator", False)
         except:
             print("Warning could not shutdown the power supply.")
         super().shutdown()

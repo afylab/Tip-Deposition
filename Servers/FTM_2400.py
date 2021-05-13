@@ -38,7 +38,7 @@ from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import reactor, defer
-import labrad.units as units
+#import labrad.units as units
 from labrad.types import Value
 import time
 
@@ -351,10 +351,11 @@ class FTMServer(DeviceServer):
         returnValue(ans)
 
     #@setting(211,sensor = 'i',returns='s')
-    @setting(211,returns='s')
+    @setting(211,returns='v')
     def get_sensor_thickness(self,c,sensor=1):
         """Queries the N command and returns the response. Usage is get_sensor_thickness()"""
         ans = yield self.read(c,'N'+str(sensor)+'?')
+        ans = float(ans)*1e3 # Resturns units of kA, convert to A
         returnValue(ans)
 
     @setting(212,returns='s')

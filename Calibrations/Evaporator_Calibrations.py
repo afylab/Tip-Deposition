@@ -122,11 +122,14 @@ class Evaporation_Test(CalibrationRecipe):
         '''
 
         # Calibrate the voltage needed to reach set deposition rate
-        yield Step(True, "Rotate Tip to 165&deg;. Press proceed to start depositing.")
+        yield Step(True, "Rotate Tip to 165&deg;.")
 
-        # Open the shutter
-        self.shutter(self, "evaporator", True)
+        yield Step(False, "Calibrating voltage to reach deposition rate.")
+
+        # Voltage calibration step, to get the voltage that gives hte deposition
+        # rate we want, as a starting point for later evaporations.
         self.command('power_supply_server', 'switch', 'on')
+        self.shutter("evaporator", True)
 
         P = params['P']
         I = params['I']
@@ -134,24 +137,80 @@ class Evaporation_Test(CalibrationRecipe):
         Voffset = params['Voffset']
         Vmax = params['Vmax']
         setpoint = int(params['Deposition Rate (A/s)'])
+
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-
-        yield Step(True, "Press proceed to pause evaporation.")
-
+        self.wait_until('Deposition Rate', setpoint-0.1, "greater than", timeout=5)
+        yield Step(True, "Once deposition rate appears stable press proceed to pause evaporation.")
         self.pausePIDLoop('Deposition Rate')
-        self.shutter(self, "evaporator", False)
+        self.shutter("evaporator", False)
 
-        yield Step(True, "Press proceed to resume evaporation after 2 minutes.")
+        # yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
+        # yield Step(False, "Wait until stable cryostat temperature is reached. Adjust the liquid helium flow to acheive desired stability.")
+
+        # # Deposit the first contact
+        # yield Step(False, "Waiting 10 min")
+        #
+        # # Open the helium at ~1e-3 Torr for 20 min to thermalize tip
+        # # self.leakvalve(True, pressure=1e-3)
+        # self.wait_for(10)
+
+        #yield Step(True, "Rotate Tip to 90&deg;.")
+
+        yield Step(False, "Beginning first contact deposition. Waiting 2 min for evaporator to heat up")
+
+        # First Contact Depositon
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
         self.resumePIDLoop('Deposition Rate', 120)
         self.wait_for(2)
-        self.command('evaporator_shutter_server', 'open_shutter')
+        self.shutter("evaporator", True)
 
-        yield Step(True, "Evaporating press proceed to stop.")
+        self.wait_until('Thickness', 200, conditional='greater than', timeout=5)
 
-        self.stopPIDLoop('Deposition Rate')
-        self.command('power_supply_server', 'switch', 'off')
-        self.command('evaporator_shutter_server', 'close_shutter')
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
+        yield Step(False, "First contact deposition finished")
+
+        # Deposit the SQUID head
+        yield Step(False, "Beginning thermalization, waiting 10 min")
+        self.wait_for(10)
+
+        #yield Step(True, "Rotate Tip to 345&deg;.")
+
+        yield Step(False, "Beginning head deposition.")
+
+        # SQUID Head Deposition
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.resumePIDLoop('Deposition Rate', 120)
+        self.wait_for(2)
+        self.shutter("evaporator", True)
+
+        self.wait_until('Thickness', 150, conditional='greater than', timeout=5)
+
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
+        yield Step(False, "Head deposition finished")
+
+        # # Deposit the second contact
+        # yield Step(False, "Beginning thermalization, waiting 10 min")
+        # self.wait_for(10)
+        #
+        # yield Step(True, "Rotate Tip to 240&deg;.")
+        #
+        # yield Step(False, "Beginning second contact deposition.")
+        #
+        # # First Contact Depositon
+        # self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        # self.resumePIDLoop('Deposition Rate', 120)
+        # self.wait_for(2)
+        # self.shutter("evaporator", True)
+        #
+        # self.wait_until('Thickness', 'greater than', 200, timeout=5)
+        #
+        # self.pausePIDLoop('Deposition Rate')
+        # self.shutter("evaporator", False)
+        #
+        # yield Step(False, "Second contact deposition finished")
 
         finalstep = Step(False, "All Done. Chamber still being pumped on.")
         yield finalstep
@@ -179,6 +238,7 @@ class Evaporation_Test(CalibrationRecipe):
     def shutdown(self):
         try:
             self.command('power_supply_server', 'switch', 'off')
+            self.shutter("evaporator", False)
         except:
             print("Warning could not shutdown the power supply.")
         super().shutdown()
