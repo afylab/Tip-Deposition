@@ -23,6 +23,7 @@ import sys
 from traceback import format_exc
 from queue import Queue
 from os.path import join
+from time import sleep # Be careful with this in a GUI
 
 class Process_Window(Ui_mainWindow):
     '''
@@ -42,6 +43,7 @@ class Process_Window(Ui_mainWindow):
         self.equip = EquipmentHandler()
         self.equip.errorSignal.connect(self.equipErrorSlot)
         self.equip.serverNotFoundSignal.connect(self.serverErrorSlot)
+        self.equip.timerSignal.connect(self.timerSlot)
         self.equip.start()
 
         # Setup the Status Window
@@ -57,8 +59,19 @@ class Process_Window(Ui_mainWindow):
         self.proceedButton.clicked.connect(self.loadRecipe)
         self.set_status('standby')
 
+        self.default_display() # Load the pressure variable by default
+
         self.statusWindowWidget.show()
     #
+
+    def default_display(self):
+        '''
+        By default display the pressure
+        '''
+        self.equip.commandSignal.emit('rvc_server', 'select_device', [])
+        self.equip.trackSignal.emit('Pressure', 'rvc_server', 'get_pressure_mbar', 'mbar')
+        sleep(0.15)
+        self.equip.plotVariableSignal.emit('Pressure', True, True)
 
     def setupUi(self, mainWindow):
         super(Process_Window, self).setupUi(mainWindow)
@@ -80,6 +93,7 @@ class Process_Window(Ui_mainWindow):
         self.pauseButton.clicked.connect(self.pauseCallback)
 
         self.stepLabel.setText(str(self.step_cnt))
+        self.timerLabel.setText("")
 
         self.params = dict()
         self.otherDisplays = []
@@ -241,6 +255,10 @@ class Process_Window(Ui_mainWindow):
         self.proceedButton.clicked.connect(self.loadRecipe)
         self.set_status('standby')
         self.openTipDisplay(False)
+    #
+
+    def timerSlot(self, s):
+        self.timerLabel.setText(s)
     #
 
     '''

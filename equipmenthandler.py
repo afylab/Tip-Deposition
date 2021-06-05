@@ -11,7 +11,7 @@ from time import sleep, perf_counter
 from os.path import join
 
 class PIDFeedbackController():
-    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, minMaxIntegral=None):
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, warmup, minMaxIntegral=None):
         '''
         Controller to run a PID loop on the data.
 
@@ -25,6 +25,7 @@ class PIDFeedbackController():
             D (float) : The derivative term, must be positive
             setpoint (float) : The setpoint for calculating error signal.
             minMaxOutput (tuple) : A tuple of (minimum_output, maximum_output)
+            warmup (float) : If nonzero will turn the output to the offset value and wait a given number of seconds before starting the loop.
             minMaxIntegral : A tuple of (minimum_integral, maximum_integral), if None will be set
                 such that I*maximum_integral = maximum_output (similar for minimum), i.e.
                 values such that the integral term can drive to the maximum output by itself.
@@ -44,7 +45,6 @@ class PIDFeedbackController():
         self.input = input
         self.min = minMaxOutput[0]
         self.max = minMaxOutput[1]
-        self.output = 0
 
         if minMaxIntegral is None:
             if self.I != 0.0:
@@ -55,9 +55,17 @@ class PIDFeedbackController():
                 self.maxIntegral = 0
         #
         self.paused = False
-        self.waiting = False
-        self.wait_time = 0
-        self.wait_start = datetime.now()
+        if warmup == 0.0:
+            self.output = 0.0
+            self.waiting = False
+            self.wait_time = 0
+            self.wait_start = datetime.now()
+        else:
+            self.output = self.offset
+            self.function(self.output)
+            self.wait_time = float(warmup)
+            self.wait_start = datetime.now()
+            self.waiting = True
     #
 
     def pause(self):
@@ -68,7 +76,6 @@ class PIDFeedbackController():
         if not self.paused:
             self.paused = True
             self.function(0.0)
-            #print("Paused output: " + str(self.output))
         #
     #
 
@@ -83,7 +90,6 @@ class PIDFeedbackController():
         '''
         if self.paused:
             self.paused = False
-            #print("Resuming at output: " + str(self.output))
             self.function(self.output)
             self.wait_time = float(wait)
             self.wait_start = datetime.now()
@@ -107,7 +113,6 @@ class PIDFeedbackController():
         '''
         Update the output based on current values.
         '''
-
         if self.paused:
             return
         elif self.waiting:
@@ -204,6 +209,7 @@ class EquipmentHandler(QThread):
     guiTrackedVarSignal = pyqtSignal(bool, str, str) # Add/Remove a tracked variable entry on status window
     updateTrackedVarSignal = pyqtSignal(str)
     plotVariableSignal = pyqtSignal(str, bool, bool)
+    timerSignal = pyqtSignal(str)
 
     # Primary Signals
     commandSignal = pyqtSignal(str, str, list)
@@ -374,7 +380,8 @@ class EquipmentHandler(QThread):
         '''
         if name.lower() == 'all':
             for k in list(self.trackedVarsAccess.keys()):
-                self.trackedVarsAccess.pop(k)
+                if k != "Pressure": # We always want to be tracking pressure
+                    self.trackedVarsAccess.pop(k)
         else:
             if name in self.trackedVarsAccess:
                 self.trackedVarsAccess.pop(name)
@@ -478,16 +485,16 @@ class EquipmentHandler(QThread):
                 First is the name of the command to set the output, (accessible by getattr).
                 Must accept one floating point argument. The subsequent parameters are
                 numerical positional arguments to the constructor the PIDFeedbackController
-                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput, start]
+                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput, warmup]
         '''
         try:
             if server in self.servers:
                 if variable not in self.info:
                     raise ValueError("Cannot feedback, variable " + str(variable) + " not tracked.")
-                outputFunc, P, I, D, setpoint, offset, minMaxOutput = feedbackParams
+                outputFunc, P, I, D, setpoint, offset, minMaxOutput, warmup = feedbackParams
                 if hasattr(self.servers[server], outputFunc):
                     command = getattr(self.servers[server], outputFunc)
-                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput)
+                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, warmup)
                 else:
                     raise ValueError("Server " + str(server) + " does not have function" + str(outputFunc))
             else:

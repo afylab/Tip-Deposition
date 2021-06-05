@@ -41,6 +41,8 @@ class Status_Window(Ui_StatusWindow):
         pg.setConfigOption('foreground', 'k')
         self.setupUi(self.widget)
 
+        self.t0 = datetime.now()
+
         self.trackedVarsWidgets = dict()
         self.trackedrow = 0
 
@@ -52,8 +54,9 @@ class Status_Window(Ui_StatusWindow):
         for plot in self.plots:
             self.setupPlot(plot)
 
-        # LabRAD Server Status Widget
-        # self.labRADStatus = LabRAD_Server_Status()
+        # Open the default values
+        self.alwaysPlot = ["Pressure"] # If a varaible is in this it's always plotted and never deleted
+        # Generlly pressure will get added when the equipment handler starts up.
     #
 
     def setupUi(self, widget):
@@ -73,6 +76,9 @@ class Status_Window(Ui_StatusWindow):
     #
 
     def setupPlot(self, widget):
+        for k in list(self.plottedVars.keys()): # The plot is already in use, overwrite it
+            if self.plottedVars[k][0] == widget:
+                return
         widget.setTitle("Choose Data For Display")
         widget.setLabel('left',"")
         widget.setLabel('bottom',"time (s)")
@@ -85,18 +91,25 @@ class Status_Window(Ui_StatusWindow):
         Restart the status window, normally used when re-loading a recipe
         '''
         if self.trackedVarsWidgets: # Dicitonaries evaluate to False if they are empty, True otherwise
-            for widget in self.trackedVarsWidgets: # Delete elements to avoid screwing up updating
-                del widget
-            self.trackedrow = 0
+            for k in list(self.trackedVarsWidgets.keys()):
+                saveix = 0
+                if k not in self.alwaysPlot:
+                    widget = self.trackedVarsWidgets.pop(k)
+                    widget.deleteLater()
+                else:
+                    saveix += 1
+            self.trackedrow = saveix
+        self.t0 = datetime.now()
         if self.plottedVars:
             for k in list(self.plottedVars.keys()):
-                plot = self.plottedVars.pop(k)
-                plot[1].clear()
+                if k in self.alwaysPlot:
+                    self.zeroPlot(k)
+                else:
+                    plot = self.plottedVars.pop(k)
+                    plot[1].clear()
         for plot in self.plots:
             self.setupPlot(plot)
-        if self.serverWidgets:
-            del self.serverWidgets
-            self.serverWidgets = dict()
+        #self.default()
     #
 
     def plottingSlot(self, variable, start, logy):
@@ -133,8 +146,8 @@ class Status_Window(Ui_StatusWindow):
     def startPlotting(self, plotWidget, variable, logy=False):
         '''
         Starts plotting to a plot widget and creates and entry for it in self.plottedVars
-        Will overwrite a plot if it is already in use. If a varaible is already being plotted
-        will do nothing.
+        Will overwrite a plot if it is already in use. If a varaible is already being
+        plotted will do nothing.
 
         Args:
             plot : The PlotWidget to plot onto.
@@ -159,8 +172,8 @@ class Status_Window(Ui_StatusWindow):
             self.stopPlotting(inuse)
         plotWidget.clear()
         #
-        t0 = datetime.now()
         data = np.zeros((1,2))
+        data[0,0] = (datetime.now() - self.t0).total_seconds()
         data[0,1] = val
         curve = plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
         if logy:
@@ -169,14 +182,16 @@ class Status_Window(Ui_StatusWindow):
             plotWidget.setLogMode(None, None)
         plotWidget.enableAutoRange()
         plotWidget.setTitle(variable)
-        self.plottedVars[variable] = [plotWidget, curve, data, t0]
+        self.plottedVars[variable] = [plotWidget, curve, data]
     #
 
     def stopPlotting(self, variable):
         '''
         Stops plotting a variable, does not clear the plot. If a variable is not being
-        plotted nothing happens.
+        plotted nothing happens. Certain variables are always plotted, thus this is ignored
         '''
+        if variable in self.alwaysPlot:
+            return
         if variable in self.plottedVars:
             self.plottedVars.pop(variable)
     #
@@ -194,16 +209,31 @@ class Status_Window(Ui_StatusWindow):
         '''
         if variable not in self.plottedVars:
             raise ValueError("Cannot update plot, variable " + str(variable) + " not being plotted")
-        widget, curve, data, t0 = self.plottedVars[variable]
-        t = (datetime.now() - t0).total_seconds()
+        widget, curve, data = self.plottedVars[variable]
+        t = (datetime.now() - self.t0).total_seconds()
         data = np.append(data, np.array([t, self.equip.info[variable]]).reshape(1,2), axis=0)
         curve.setData(x=data[:,0], y=data[:,1]) # Update the plot
         self.plottedVars[variable][2] = data # Save the data
     #
 
+    def zeroPlot(self, variable):
+        """
+        Resets the range of the plot, removing old data.
+        """
+        plotWidget, curve, data = self.plottedVars[variable]
+        newdata = np.zeros((1,2))
+        newdata[0,0] = (datetime.now() - self.t0).total_seconds()
+        newdata[0,1] = float(self.equip.info[variable])
+        curve.clear()
+        curve = plotWidget.plot(newdata[:,0], newdata[:,1], pen=self.pgPen)
+        plotWidget.enableAutoRange()
+        self.plottedVars[variable] = [plotWidget, curve, newdata]
+    #
+
+
     def trackedVariableSlot(self, create, name, units):
         '''
-        Add or remove a tracked variable to the GUI.
+        Add or remove a tracked variable to the GUI. If a varaible is already
 
         Args:
             create (bool) : If True will add it, if False will remove.
@@ -216,8 +246,10 @@ class Status_Window(Ui_StatusWindow):
             self.trackedVarsWidgets[name] = widget
             self.trackedrow += 1
         else:
-            # Do we need removal? Generally we define variables for the whole run?
-            print("NEED TO IMPLEMENT REMOVAL")
+            if name in self.trackedVarsWidgets and (name not in self.alwaysPlot):
+                if name not in self.alwaysPlot:
+                    widget = self.trackedVarsWidgets.pop(name)
+                    widget.deleteLater()
     #
 
     def updateTrackedVarSlot(self, name):
@@ -228,10 +260,13 @@ class Status_Window(Ui_StatusWindow):
         Args:
             name (str) : The name of the tracked varaible to update.
         '''
-        if name in self.trackedVarsWidgets:
-            val = self.equip.info[name]
-        self.trackedVarsWidgets[name].setValue(val)
-        if name in self.plottedVars:
-            self.updatePlot(name)
+        try:
+            if name in self.trackedVarsWidgets:
+                val = self.equip.info[name]
+            self.trackedVarsWidgets[name].setValue(val)
+            if name in self.plottedVars:
+                self.updatePlot(name)
+        except KeyError:
+            print("KeyError Could not update " + name)
     #
 #

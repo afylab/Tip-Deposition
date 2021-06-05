@@ -98,10 +98,15 @@ class Recipe_Test(Recipe):
         step3.add_input_param("D", default=self.default("D"), limits=(0,100))
         yield step3
         setpoint = step3.get_param('setpoint')
-        self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 0.0, (0,100))
 
-        yield Step(False, "Testing feedback, wait 30s")
-        self.wait_for(0.5)
+        self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 10.0, (0,100), 20)
+
+        # yield Step(False, "Wait 15s")
+        # self.wait_for(0.25)
+
+        # We can wait until the output is stable.
+        yield Step(False, "Wait until stable")
+        self.wait_stable("DummyVar", setpoint, 1, window=20)
 
         yield Step(False, "Pausing feedback, wait 30s")
         self.pausePIDLoop("DummyVar")
@@ -122,8 +127,8 @@ class Recipe_Test(Recipe):
         # 1.0, then we can stop recording. To do this use the wait_until function where the program
         # will wait for a certain condition to be met, many different conditions can be specified
         # see the wait_until function docstring for more information.
-        yield Step(False, "Waiting until DummyVar is below 1")
-        self.wait_until('DummyVar', 1.0, conditional='less than')
+        yield Step(False, "Waiting until DummyVar is below 5")
+        self.wait_until('DummyVar', 5.0, conditional='less than')
 
         self.stopRecordingVariable("DummyVar") # Stop recording the values of the varaible "DummyVar"
 
@@ -254,5 +259,31 @@ class Vacuum_Test(CalibrationRecipe):
         self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Leak valve open, vent the chamber and retreive your SQUID!")
+        yield finalstep
+    #
+
+class Pressure_Test(CalibrationRecipe): # A simple class for viewing pressure
+    def __init__(self, equip, updateSig):
+        super().__init__(equip, updateSig, required_servers=['data_vault', 'rvc_server'], version="1.0.1")
+    #
+
+    def proceed(self):
+        """
+        Below add all the servers and plots you would in a normal evaporation, but don't atually do
+        anything with the equipment. Timing information will be printed out to the terminal by the equipment handler
+        """
+        self.command('rvc_server', 'select_device')
+
+        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
+
+        self.wait_for(0.01) # Here because it threw an error one time
+        self.plotVariable("Pressure", logy=True)
+        #
+        yield Step(True, "Press proceed to end.")
+
+        # Stop updating the plots of the tracked varaibles
+        self.stopPlotting("Pressure")
+
+        finalstep = Step(False, "All Done.")
         yield finalstep
     #

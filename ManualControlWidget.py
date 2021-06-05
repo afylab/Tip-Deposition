@@ -2,8 +2,9 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt, QLine, QPoint
 from PyQt5.QtGui import QPolygon, QFont
+from twisted.internet.defer import inlineCallbacks
 import labrad
-
+import time
 from os.path import join
 
 
@@ -58,7 +59,7 @@ class EvaporatorWidget(QtWidgets.QWidget):
         self.equip[name].label.move(75, 290)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
         self.equip[name].input = QtWidgets.QLineEdit(self)
-        self.equip[name].input.setReadOnly(True) # Until we implement a way for it to display the setpoint
+        self.equip[name].input.setReadOnly(False) # Until we implement a way for it to display the setpoint
         self.equip[name].input.setPlaceholderText('Pressure')
         self.equip[name].input.setGeometry(85, 310, 50, 20)
         #self.equip[name].input.returnPressed.connect(self.helium_setpoint) # Comment until we implement a way for it to display the setpoint
@@ -85,13 +86,15 @@ class EvaporatorWidget(QtWidgets.QWidget):
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'evaporator shutter'
-        self.equip[name] = Shutter(self, 185, 190, 'ver', 'red')
+        self.equip[name] = Shutter(self, 185, 190, 'ver', 'red', name)
+        self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('evaporator\nshutter', self)
         self.equip[name].label.move(100, 190)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'effusion shutter'
-        self.equip[name] = Shutter(self, 350, 190, 'ver', QtGui.QColor(20, 30, 30))
+        self.equip[name] = Shutter(self, 350, 190, 'ver', QtGui.QColor(20, 30, 30), name)
+        # self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('effusion\nshutter', self)
         self.equip[name].label.move(285, 190)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
@@ -155,10 +158,11 @@ class EvaporatorWidget(QtWidgets.QWidget):
                 self.equip[name].input.clear()
             else:
                 prs = self.equip[name].input.text()
+                #prs = "{:.2E}".format(prs)
                 self.equip[name].input.clear()
                 print('helium pressure is ', prs)
-                # yield self.rvc.set_mode_prs()
-                # yield self.rvc.set_nom_prs(prs)
+                yield self.rvc.set_mode_prs()
+                yield self.rvc.set_nom_prs(prs)
 
     def emergencystop(self):
         """
@@ -396,8 +400,8 @@ class Valve(QtWidgets.QPushButton):
                 QPoint(40, 58)
             ])
             painter.drawPolygon(points)
-
-    def toggle(self):
+    @inlineCallbacks
+    def toggle(self, c):
         """
         Change the state of the valve. If the process is active QMessageBox appears. You can stop the process
         by pressing 'Stop'. If you want ot pause the process or dismiss the action press 'Cancel'.
@@ -421,34 +425,68 @@ class Valve(QtWidgets.QPushButton):
             msg.exec_()
         else:
             if self.state:
-                self.state = False
-                self.setToolTip('Closed')
-                self.parent.equip[self.name].status = False
-                print(self.name + " manually closed")
-                if self.name == 'gate valve':
-                    self.parent.vrs.gate_close()
-                elif self.name == 'chamber valve':
-                    self.parent.vrs.chamber_valve_close()
-                elif self.name == 'turbo valve':
-                    self.parent.vrs.turbo_valve_close()
-                elif self.name == 'leak valve':
-                    self.parent.rvc.close_valve()
+                if self.name == 'leak valve':
+                    print(self.parent.equip[self.name].input.text())
+                    if self.parent.equip[self.name].input.text() == '':
+                        self.parent.rvc.close_valve()
+                        self.state = False
+                        self.setToolTip('Closed')
+                        self.parent.equip[self.name].status = False
+                        print(self.name + " manually closed")
+                    else:
+                        prs = self.parent.equip[self.name].input.text()
+                        prs = "{:.2E}".format(prs)
+                        self.parent.equip[self.name].input.clear()
+                        yield self.parent.rvc.set_mode_prs()
+
+                        yield self.parent.rvc.set_nom_prs(prs)
                 else:
-                    print('Incorrect name')
+                    self.state = False
+                    self.setToolTip('Closed')
+                    self.parent.equip[self.name].status = False
+                    print(self.name + " manually closed")
+                    if self.name == 'gate valve':
+                        yield self.parent.vrs.gate_close()
+                    elif self.name == 'chamber valve':
+                        yield self.parent.vrs.chamber_valve_close()
+                    elif self.name == 'turbo valve':
+                        yield self.parent.vrs.turbo_valve_close()
+                    else:
+                        print('Incorrect name')
             else:
                 self.state = True
                 self.setToolTip('Open')
                 self.parent.equip[self.name].status = True
                 print(self.name + " manually opened")
                 if self.name == 'gate valve':
-                    self.parent.vrs.gate_open()
+                    yield self.parent.vrs.gate_open()
                 elif self.name == 'chamber valve':
-                    self.parent.vrs.chamber_valve_open()
+                    yield self.parent.vrs.chamber_valve_open()
                 elif self.name == 'turbo valve':
-                    self.parent.vrs.turbo_valve_open()
+                    yield self.parent.vrs.turbo_valve_open()
                 elif self.name == 'leak valve':
-                    self.parent.rvc.set_mode_flo()
-                    self.parent.rvc.set_nom_flo('100.0')
+                    if self.parent.equip[self.name].input.text() == '':
+                        prs = str('5.00E-03')
+                        print(prs)
+                        ans = yield self.parent.rvc.set_mode_prs()
+                        print(ans)
+
+                        ans = yield self.parent.rvc.set_nom_prs(prs)
+                        print(ans)
+                    elif (self.parent.equip[self.name].input.text() == 'vent') or \
+                         (self.parent.equip[self.name].input.text() == 'Vent'):
+                        self.parent.equip[self.name].input.clear()
+                        yield self.parent.rvc.set_mode_flo()
+
+                        yield self.parent.rvc.set_nom_flo('100.0')
+                    else:
+                        prs = self.parent.equip[self.name].input.text()
+                        prs = "{:.2E}".format(prs)
+                        self.parent.equip[self.name].input.clear()
+                        ans = yield self.parent.rvc.set_mode_prs()
+                        print(ans)
+                        ans = yield self.parent.rvc.set_nom_prs(str(prs))
+                        print(ans)
                 else:
                     print('Incorrect name')
             self.update()
@@ -652,8 +690,9 @@ class Shutter(QtWidgets.QPushButton):
     Defines all the shutters in the Widget
     """
 
-    def __init__(self, EvaporatorWidget, posx, posy, orient, color):
+    def __init__(self, EvaporatorWidget, posx, posy, orient, color, name):
         super().__init__(EvaporatorWidget)
+        self.name = name
         self.parent = EvaporatorWidget
         self.state = False # True for Open
         self.setToolTip('Closed')
@@ -710,9 +749,15 @@ class Shutter(QtWidgets.QPushButton):
         if self.state:
             self.state = False
             self.setToolTip('Closed')
+            if self.name == 'evaporator shutter':
+                self.parent.evss.close_shutter()
+                print('close shutter')
         else:
             self.state = True
             self.setToolTip('Open')
+            if self.name == 'evaporator shutter':
+                self.parent.evss.open_shutter()
+                print('open shutter')
         self.update()
 
 

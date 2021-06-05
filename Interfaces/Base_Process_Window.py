@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Interfaces\Base_Process_Window.ui'
+# Form implementation generated from reading ui file 'Base_Process_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
 #
@@ -56,13 +56,25 @@ class Ui_mainWindow(object):
         self.statusLabel.setFont(font)
         self.statusLabel.setObjectName("statusLabel")
         self.formLayoutWidget = QtWidgets.QWidget(self.instructionsFrame)
-        self.formLayoutWidget.setGeometry(QtCore.QRect(670, 40, 271, 311))
+        self.formLayoutWidget.setGeometry(QtCore.QRect(670, 60, 271, 291))
         self.formLayoutWidget.setObjectName("formLayoutWidget")
         self.coreParamsLayout = QtWidgets.QFormLayout(self.formLayoutWidget)
         self.coreParamsLayout.setContentsMargins(0, 0, 0, 0)
         self.coreParamsLayout.setHorizontalSpacing(7)
         self.coreParamsLayout.setVerticalSpacing(5)
         self.coreParamsLayout.setObjectName("coreParamsLayout")
+        self.timerStaticLabel = QtWidgets.QLabel(self.instructionsFrame)
+        self.timerStaticLabel.setGeometry(QtCore.QRect(670, 30, 71, 31))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.timerStaticLabel.setFont(font)
+        self.timerStaticLabel.setObjectName("timerStaticLabel")
+        self.timerLabel = QtWidgets.QLabel(self.instructionsFrame)
+        self.timerLabel.setGeometry(QtCore.QRect(730, 30, 201, 31))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.timerLabel.setFont(font)
+        self.timerLabel.setObjectName("timerLabel")
         self.parametersFrame = QtWidgets.QFrame(self.centralWidget)
         self.parametersFrame.setGeometry(QtCore.QRect(-1, 399, 951, 231))
         self.parametersFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
@@ -152,6 +164,8 @@ class Ui_mainWindow(object):
         self.stepLabel.setText(_translate("mainWindow", "##"))
         self.statusStaticLabel.setText(_translate("mainWindow", "Status:"))
         self.statusLabel.setText(_translate("mainWindow", "<Standby>"))
+        self.timerStaticLabel.setText(_translate("mainWindow", "Timer:"))
+        self.timerLabel.setText(_translate("mainWindow", "   "))
         self.proceedButton.setText(_translate("mainWindow", "Start"))
         self.abortButton.setText(_translate("mainWindow", "Abort"))
         self.pauseButton.setText(_translate("mainWindow", "Pause"))

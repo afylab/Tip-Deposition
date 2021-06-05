@@ -6,6 +6,21 @@ from exceptions import ProcessInterruptionError, ProcessTimeoutError
 from time import sleep
 from datetime import datetime, timedelta
 from os.path import join
+import numpy as np
+
+def timeformat(delta):
+    '''
+    Put the time in a nice fuman readable format.
+
+    Args:
+        delta (timedelta) : The timedetlta object
+    '''
+    hours, remainder = divmod(delta.total_seconds(), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours != 0.0:
+        return '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+    else:
+        return '{:02}:{:02}'.format(int(minutes), int(seconds))
 
 class Step():
     '''
@@ -232,12 +247,14 @@ class Recipe():
         '''
         stoptime = datetime.now() + timedelta(minutes=minutes)
         while stoptime > datetime.now():
+            self.equip.timerSignal.emit(timeformat(stoptime - datetime.now()))
             sleep(0.05)
             if self.abort:
                 raise ProcessInterruptionError
             elif self.pause: # If paused, wait
                 while self.pause:
                     sleep(0.01)
+        self.equip.timerSignal.emit("")
     #
 
     def wait_until(self, variable, state, conditional="less than", timeout=100):
@@ -270,7 +287,7 @@ class Recipe():
             comparitor = conditional
         else:
             raise ValueError("Conditional not recognized.")
-
+        self.equip.timerSignal.emit("Waiting for condition")
         while not comparitor(self.equip.info[variable]):
             sleep(0.05)
             if self.abort:
@@ -280,7 +297,65 @@ class Recipe():
                     sleep(0.01)
             if datetime.now() > stoptime:
                 raise ProcessTimeoutError
+        self.equip.timerSignal.emit("")
     #
+
+    def wait_stable(self, variable, state, interval, window=30, timeout=60):
+        '''
+        Sleep the recipe until a variable is stable to within a specified time
+        window.
+
+        Args:
+            variable (str) : The name of the tracked variable to follow, i.e. the key in
+                self.equip.info[varaible]
+            state (float): The desired state of that variable, must be numeric
+            interval (float, tuple) : The interval that the setpoint needs to be within for the whole window of time.
+                If it is a float, stable means state-interval/2 < variable < state + interval/2
+                If it's a tuple, stable means interval[0] < variable < interval[1]
+            window (float) : the window of time to examine, in seconds.
+            timeout : The number of minutes to wait, after which the condition will raise a
+                ProcessTimeoutError exception.
+        '''
+        if variable not in self.equip.info:
+            raise ValueError("Varaible " + str(variable) + " not a tracked variable.")
+
+        t0 = datetime.now()
+        stoptime = t0 + timedelta(minutes=timeout)
+
+        if isinstance(interval, tuple) or isinstance(interval, list):
+            min = interval[0]
+            max = interval[1]
+        else:
+            min = state - interval/2
+            max = state + interval/2
+
+        points = np.zeros(int(window/0.05)) # The buffer to put the points into
+        N = len(points)
+        ix = 0
+        filled = False
+        def comparitor(value):
+            if not filled:
+                return False
+            return np.max(points) < max and np.min(points) > min
+        #
+
+        self.equip.timerSignal.emit("Waiting until stable")
+        while not comparitor(self.equip.info[variable]):
+            points[ix] = self.equip.info[variable]
+            ix += 1
+            if ix >= N:
+                ix = 0
+                filled = True
+
+            sleep(0.05)
+            if self.abort:
+                raise ProcessInterruptionError
+            elif self.pause: # If paused, wait
+                while self.pause:
+                    sleep(0.01)
+            if datetime.now() > stoptime:
+                raise ProcessTimeoutError
+        self.equip.timerSignal.emit("")
 
     def command(self, server, command, args=None, wait=True):
         '''
@@ -422,7 +497,7 @@ class Recipe():
                 return
             else:
                 self.equip.commandSignal.emit(server, 'set_mode_prs', [])
-                self.equip.commandSignal.emit(server, 'set_nom_prs', ["{:.2E}".format(pressure)])
+                self.equip.commandSignal.emit(server, 'set_nom_prs', [pressure])
         else:
             print("WARNNG invalid leakvalve command, no change")
         if wait:
@@ -531,7 +606,7 @@ class Recipe():
         self.equip.stopRecordSignal.emit(variable)
     #
 
-    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, wait=True):
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, warmup=0.0, wait=True):
         '''
         Begin plotting a tracked varaible.
 
@@ -544,10 +619,12 @@ class Recipe():
             setpoint (float) : The initial setpoint of the loop
             offset (float) : The offset for the output.
             minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
+            warmup (float) : If nonzero will set the output to the offset then wait for
+                the given number of seconds to warmup the output.
             wait (bool) : If True will wait 0.1 seconds after sending the
                 signal to allow the equipment handler and servers to catch up.
         '''
-        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1]))]
+        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), float(warmup)]
         self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up

@@ -44,6 +44,8 @@ from labrad.devices import DeviceServer, DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
 from labrad.types import Value
 
+from traceback import format_exc
+
 TIMEOUT = Value(2, 's')
 BAUD = 9600
 BYTESIZE = 8
@@ -167,11 +169,12 @@ class RVCServer(DeviceServer):
         ans = yield dev.read()
         returnValue(ans)
 
-    @setting(207, nom_prs='s', returns='s')
+    @setting(207, nom_prs='?', returns='s')
     def set_nom_prs(self, c, nom_prs):
         """Queries the PRS=x.xxEsxx command and returns the response. Input requires string
         of the form x.xxEsxx, where x are digits and s is either + or -. Usage is set_nom_prs('1.00E+01')"""
         dev = self.selectedDevice(c)
+        nom_prs = "{:.2E}".format(nom_prs)
         yield dev.write("PRS=" + nom_prs + "\r\n")
         ans = yield dev.read()
         self.state = True
@@ -257,7 +260,7 @@ class RVCServer(DeviceServer):
         ans = yield dev.read()
         returnValue(ans)
 
-    @setting(316, returns='v')
+    @setting(316, returns='?')
     def get_pressure_mbar(self, c):
         """
         Queries the PRI? command and returns the response. Gets current pressure
@@ -267,7 +270,12 @@ class RVCServer(DeviceServer):
         yield dev.write("PRI?\r\n")
         ans = yield dev.read()
         ans = ans.replace("PRI=", "").replace("mbar", "")
-        returnValue(float(ans))
+        try:
+            #returnValue(float(ans))
+            return float(ans)
+        except:
+            print(format_exc())
+
 
     @setting(217, returns='s')
     def get_unit(self, c):

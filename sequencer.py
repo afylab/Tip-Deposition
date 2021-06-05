@@ -129,6 +129,7 @@ class Sequencer(QThread):
 
     def wait_for_gui(self):
         self.advance = False
+        self.equip.timerSignal.emit("Waiting for input")
         while not self.advance:
             sleep(0.01)
             if self.abort:

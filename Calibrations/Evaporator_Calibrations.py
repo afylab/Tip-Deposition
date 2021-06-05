@@ -11,15 +11,15 @@ class Calibrate_Evaporator_Shutter(CalibrationRecipe):
 
         s = "Calibrating the zero position of the Evaporator shutter."
         s = s + " Enter the angle from the analog dial of the stepper motor."
-        s = s + " 60&deg; is the normal closed position."
+        s = s + " 70&deg; is the normal closed position."
         step1 = Step(True, s)
-        step1.add_input_param("Angle", default=60, limits=(0,360))
+        step1.add_input_param("Angle", default=70, limits=(0,360))
         yield step1
         val = int(step1.get_param("Angle"))
 
         yield Step(False, "Recalibrating")
 
-        diff = 60 - val
+        diff = 70 - val
         if diff > 0:
             self.command('evaporator_shutter_server', 'rot', args=[str(int(abs(diff))), "C"])
         else:
@@ -46,7 +46,7 @@ class Evaporation_Test(CalibrationRecipe):
         servers.append('power_supply_server')
         servers.append('evaporator_shutter_server')
 
-        super().__init__(*args, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.0.1")
     #
 
     def proceed(self):
@@ -234,6 +234,166 @@ class Evaporation_Test(CalibrationRecipe):
         #
         # finalstep = Step(False, "All Done. Leak valve open, ready to vent the chamber.")
         # yield finalstep
+
+    def shutdown(self):
+        try:
+            self.command('power_supply_server', 'switch', 'off')
+            self.shutter("evaporator", False)
+        except:
+            print("Warning could not shutdown the power supply.")
+        super().shutdown()
+    #
+
+class Single_Evaporation(CalibrationRecipe):
+    """
+    Tests the evaporation hardware.
+    """
+    def __init__(self, *args):
+        # Add all the hardwave servers needed for evaporation
+
+        # Starting iwth the servers you always need, including 'data_vault'
+        servers = ['data_vault', 'rvc_server', 'valve_relay_server', 'ftm_server']
+
+        # Then evaporation specific servers
+        servers.append('power_supply_server')
+        servers.append('evaporator_shutter_server')
+
+        super().__init__(*args, required_servers=servers, version="1.0.0")
+    #
+
+    def proceed(self):
+        self.command('rvc_server', 'select_device')
+        self.command('valve_relay_server', 'select_device')
+        # #Iden command added so that arduino will respond to first command given from GUI.
+        # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
+        self.command('valve_relay_server', 'iden')
+
+
+        self.command('evaporator_shutter_server', 'select_device')
+        self.command('ftm_server', 'select_device')
+
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        #
+        # # Setup the power supply server
+        self.command('power_supply_server', 'select_device')
+        self.command('power_supply_server', 'adr', '6')
+        self.command('power_supply_server', 'rmt_set', 'REM')
+
+        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
+        self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
+        self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
+        self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
+        self.wait_for(0.01) # Here because it threw an error one time
+        self.plotVariable("Pressure", logy=True)
+        self.plotVariable('Deposition Rate')
+
+        '''
+        Get parameters from the user
+        '''
+        instruct = "Follow instructions for tip loading, confirm that:"
+        instruct += "\n 1. The Si chip is loaded"
+        instruct += "\n 2. The evaporation boat has been loaded with 10-13 pellets of superconductor."
+        instruct += "\n 3. the evaporator is sealed and ready for pump out."
+        instruct += "\n Confirm parameters below and press proceed to begin pumping out."
+        step1 = Step(True, instruct)
+
+        step1.add_input_param("Calibration Thickness (A)", default=2000, limits=(0,5000))
+
+        step1.add_input_param("Deposition Rate (A/s)", default=self.default("Deposition Rate (A/s)"), limits=(0,10))
+
+        step1.add_input_param("P", default=self.default("P"), limits=(0,1))
+        step1.add_input_param("I", default=self.default("I"), limits=(0,1))
+        step1.add_input_param("D", default=self.default("D"), limits=(0,1))
+
+        step1.add_input_param("Vmax", default=self.default("Vmax"), limits=(0,10))
+        step1.add_input_param("Voffset", default=self.default("Voffset"), limits=(0,10))
+        yield step1
+        params = step1.get_all_params()
+        cal_thickness = params["Calibration Thickness (A)"]
+
+        """
+        Pump out process
+        """
+
+        # ## First rough out the chamber with the scroll pump
+        # self.valve('all', True) # Open all the valves
+        # # self.leakvalve(True)
+        # self.pump('scroll', True)
+        # self.wait_until('Pressure', 1e-1, "less than")
+        # #
+        # # ## Close the Chamber valve
+        # self.valve('chamber', False)
+        # self.wait_for(0.1)
+        # self.leakvalve(False)
+        # self.pump('turbo', True)
+
+        yield Step(False, "Pumping down to base pressure.")
+
+        self.wait_until('Pressure', 6e-6, "less than")
+
+        '''
+        Evaporation test
+        '''
+
+        # Calibrate the voltage needed to reach set deposition rate
+        yield Step(True, "Rotate Tip to 345&deg;.")
+
+        yield Step(False, "Starting evaporation")
+
+        # Voltage calibration step, to get the voltage that gives hte deposition
+        # rate we want, as a starting point for later evaporations.
+        self.command('power_supply_server', 'switch', 'on')
+        self.shutter("evaporator", True)
+
+        P = params['P']
+        I = params['I']
+        D = params['D']
+        Voffset = params['Voffset']
+        Vmax = params['Vmax']
+        setpoint = int(params['Deposition Rate (A/s)'])
+
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
+        # self.wait_until('Deposition Rate', setpoint, "greater than", timeout=5)
+        # self.pausePIDLoop('Deposition Rate')
+        # self.shutter("evaporator", False)
+
+        # yield Step(True, "Rotate Tip to 345&deg;.")
+        # yield Step(False, "Beginning deposition. Waiting 1 min for evaporator to heat up")
+        #
+        # # First Contact Depositon
+        # self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        # self.resumePIDLoop('Deposition Rate', 60)
+        # self.wait_for(1)
+        #
+        # yield Step(False, "Starting evaporation")
+        #
+        # self.shutter("evaporator", True)
+        self.wait_until('Thickness', cal_thickness, conditional='greater than', timeout=60)
+
+        yield Step(False, "Desired thickness reached, stopping PID loop.")
+        self.stopPIDLoop('Deposition Rate')
+
+
+        # finalstep = Step(False, "All Done. Chamber still being pumped on.")
+        # yield finalstep
+
+        '''
+        Finishing process
+        '''
+        yield Step(True, "Press proceed to close valves and prepare to vent.")
+        self.valve('all', False) # close all valves
+        self.wait_for(0.2)
+        self.pump('turbo', False) # Turn off the turbo pump
+        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
+
+        #self.pump('scroll', False) # Turn off the scroll pump
+
+        # Stop updating the plots of the tracked quantities
+        #self.stopPlotting("Pressure")
+        #self.stopTracking('all')
+
+        finalstep = Step(True, "All Done. Ready to vent the chamber. Press proceed to end.")
+        yield finalstep
 
     def shutdown(self):
         try:
