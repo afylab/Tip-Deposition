@@ -10,6 +10,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
 
 from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QComboBox
 
 from datetime import datetime
 from os.path import join
@@ -68,9 +69,18 @@ class Status_Window(Ui_StatusWindow):
         self.plot1 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
         self.plot1.setGeometry(QtCore.QRect(0, 0, 550, 400))
         self.plot1.setObjectName("plot1")
+
+        self.plot1comboBox = QComboBox(self.plotFrame)
+        self.plot1comboBox.setGeometry(QtCore.QRect(450, 0, 100, 20))
+        self.plot1comboBox.setObjectName("plot1comboBox")
+
         self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
         self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
         self.plot2.setObjectName("plot2")
+
+        self.plot2comboBox = QComboBox(self.plotFrame)
+        self.plot2comboBox.setGeometry(QtCore.QRect(450, 400, 100, 20))
+        self.plot2comboBox.setObjectName("plot2comboBox")
 
         self.widget.setWindowIcon(QIcon(join('Interfaces','images','squid_tip.png')))
     #

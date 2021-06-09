@@ -51,7 +51,7 @@ class Process_Window(Ui_mainWindow):
         self.statusWindow = Status_Window(self.statusWindowWidget, self, self.equip)
 
         # # Vacuum System Manual Controller
-        self.ManualController = EvaporatorWidget(self)
+        self.ManualController = EvaporatorWidget(self, self.statusWindow.ManualWidgetFrame)
 
         self.proceedButton.setEnabled(True)
         self.proceedButton.setText("Load")

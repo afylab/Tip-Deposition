@@ -12,7 +12,7 @@ from os.path import join
 import numpy as np
 
 class PIDFeedbackController():
-    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, warmup, minMaxIntegral=None):
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, warmup, MaxIntegral=None):
         '''
         Controller to run a PID loop on the data.
 
@@ -27,8 +27,8 @@ class PIDFeedbackController():
             setpoint (float) : The setpoint for calculating error signal.
             minMaxOutput (tuple) : A tuple of (minimum_output, maximum_output)
             warmup (float) : If nonzero will turn the output to the offset value and wait a given number of seconds before starting the loop.
-            minMaxIntegral : A tuple of (minimum_integral, maximum_integral), if None will be set
-                such that I*maximum_integral = maximum_output (similar for minimum), i.e.
+            minMaxIntegral (float) : The maximum absolute value of the integral, if None will be set
+                such that I*maximum_integral = maximum_output, i.e.
                 values such that the integral term can drive to the maximum output by itself.
         '''
         self.varDict = info
@@ -47,13 +47,16 @@ class PIDFeedbackController():
         self.min = minMaxOutput[0]
         self.max = minMaxOutput[1]
 
-        if minMaxIntegral is None:
+        if MaxIntegral is None:
             if self.I != 0.0:
                 self.maxIntegral = np.abs(self.max/self.I)
                 self.minIntegral = -1.0*self.maxIntegral
             else:
                 self.minIntegral = 0
                 self.maxIntegral = 0
+        else:
+            self.maxIntegral = MaxIntegral
+            self.minIntegral = -1.0*MaxIntegral
         #
         self.paused = False
         if warmup == 0.0:

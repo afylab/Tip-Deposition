@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QLine, QPoint
 from PyQt5.QtGui import QPolygon, QFont
 from twisted.internet.defer import inlineCallbacks
 import labrad
-import time
+#import time
 from os.path import join
 
 
@@ -13,10 +13,10 @@ class EvaporatorWidget(QtWidgets.QWidget):
     Manual control widget pops up as a separate window from the main window.
     """
 
-    def __init__(self, main):
-        super().__init__()
-        self.main = main  #: parent widget
-        self.setGeometry(0, 0, 600, 750)
+    def __init__(self, main, frame):
+        super().__init__(frame)
+        self.main = main  # The main interface
+        self.setGeometry(0, 0, 500, 750)
         self.equip = dict()  #: dict attribute for all dynamic elements
         self.defineElements()
         # self.names = ['leak valve', 'gate valve', 'chamber valve', 'turbo valve', 'turbo pump', 'scroll pump',
@@ -25,7 +25,7 @@ class EvaporatorWidget(QtWidgets.QWidget):
 
         self.emergencystopbutton = QtWidgets.QPushButton('Emergency Stop', self)
         self.emergencystopbutton.setToolTip('Valves will be closed and pumps will be turned off')
-        self.emergencystopbutton.setGeometry(225, 600, 150, 50)
+        self.emergencystopbutton.setGeometry(225-50, 600, 150, 50)
         self.emergencystopbutton.setStyleSheet("QPushButton{background-color : #cf0000;} "
                                                "QPushButton::pressed{background-color : #b90000;}")
         self.emergencystopbutton.setFont(QFont('Times', 15))
@@ -42,7 +42,7 @@ class EvaporatorWidget(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(join('Interfaces','images','squid_tip.png')))
 
         self.isConnected = False
-        self.connect()
+        #self.connect()
         self.show()
     #
 
@@ -53,82 +53,82 @@ class EvaporatorWidget(QtWidgets.QWidget):
         returns: None
         """
         name = 'leak valve'
-        self.equip[name] = Valve(self, 80, 358, 'hor', 'blue', name)
+        self.equip[name] = Valve(self, 80-50, 358, 'hor', 'blue', name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(75, 290)
+        self.equip[name].label.move(75-50, 290)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
         self.equip[name].input = QtWidgets.QLineEdit(self)
         self.equip[name].input.setReadOnly(False) # Until we implement a way for it to display the setpoint
         self.equip[name].input.setPlaceholderText('Pressure')
-        self.equip[name].input.setGeometry(85, 310, 50, 20)
+        self.equip[name].input.setGeometry(85-50, 310, 50, 20)
         #self.equip[name].input.returnPressed.connect(self.helium_setpoint) # Comment until we implement a way for it to display the setpoint
 
         name = 'gate valve'
-        self.equip[name] = Valve(self, 150, 460, 'ver', 'blue', name)
+        self.equip[name] = Valve(self, 150-50, 460, 'ver', 'blue', name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('gate\nvalve', self)
-        self.equip[name].label.move(90, 470)
+        self.equip[name].label.move(90-50, 470)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'chamber valve'
-        self.equip[name] = Valve(self, 270, 430, 'hor', 'blue', name)
+        self.equip[name] = Valve(self, 270-50, 430, 'hor', 'blue', name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(260, 450)
+        self.equip[name].label.move(260-50, 450)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'turbo valve'
-        self.equip[name] = Valve(self, 425, 460, 'ver', 'blue', name)
+        self.equip[name] = Valve(self, 425-50, 460, 'ver', 'blue', name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('turbo\nvalve', self)
-        self.equip[name].label.move(450, 470)
+        self.equip[name].label.move(450-50, 470)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'evaporator shutter'
-        self.equip[name] = Shutter(self, 185, 190, 'ver', 'red', name)
+        self.equip[name] = Shutter(self, 185-50, 190, 'ver', 'red', name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('evaporator\nshutter', self)
-        self.equip[name].label.move(100, 190)
+        self.equip[name].label.move(100-50, 190)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'effusion shutter'
-        self.equip[name] = Shutter(self, 350, 190, 'ver', QtGui.QColor(20, 30, 30), name)
+        self.equip[name] = Shutter(self, 350-50, 190, 'ver', QtGui.QColor(20, 30, 30), name)
         # self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('effusion\nshutter', self)
-        self.equip[name].label.move(285, 190)
+        self.equip[name].label.move(285-50, 190)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'scroll pump'
-        self.equip[name] = Pump(self, 475, 410, name)
+        self.equip[name] = Pump(self, 475-50, 410, name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(460, 390)
+        self.equip[name].label.move(460-50, 390)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'turbo pump'
-        self.equip[name] = Pump(self, 280, 530, name)
+        self.equip[name] = Pump(self, 280-50, 530, name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(260, 510)
+        self.equip[name].label.move(260-50, 510)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'evaporator power'
-        self.equip[name] = Power(self, 165, 110, name)
+        self.equip[name] = Power(self, 165-50, 110, name)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(135, 80)
+        self.equip[name].label.move(135-50, 80)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'effusion power'
-        self.equip[name] = Power(self, 330, 110, name)
+        self.equip[name] = Power(self, 330-50, 110, name)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(295, 80)
+        self.equip[name].label.move(295-50, 80)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         name = 'sputterer power'
-        self.equip[name] = Power(self, 455, 110, name)
+        self.equip[name] = Power(self, 455-50, 110, name)
         self.equip[name].label = QtWidgets.QLabel(name, self)
-        self.equip[name].label.move(435, 80)
+        self.equip[name].label.move(435-50, 80)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
 
         for key in self.equip.keys():
@@ -226,11 +226,6 @@ class EvaporatorWidget(QtWidgets.QWidget):
         """
         painter = QtGui.QPainter(self)
         pen = QtGui.QPen()
-        pen.setWidth(2)
-        pen.setColor(QtGui.QColor(0, 0, 0))  # r, g, b
-        painter.setPen(pen)
-
-        painter.drawRects(QtCore.QRect(175, 275, 250, 125))
 
         pen.setWidth(4)
         pen.setColor(QtGui.QColor(0, 0, 255))  # r, g, b
@@ -238,46 +233,48 @@ class EvaporatorWidget(QtWidgets.QWidget):
 
         #####Main vacuum part######
         # Leak valve#
-        painter.drawLine(140, 358, 175, 358)  # (80, 358) -> (140, 358)
-        painter.drawLine(50, 358, 80, 358)
+        painter.drawLine(140-50, 358, 175-50, 358)  # (80, 358) -> (140, 358)
+        painter.drawLine(60-50, 358, 80-50, 358)
 
         # gate valve
-        painter.drawLine(175, 390, 150, 390)  # (150, 460) -> (150, 520)
-        painter.drawLine(150, 390, 150, 460)
-        painter.drawLine(150, 520, 150, 550)
+        painter.drawLine(175-50, 390, 150-50, 390)  # (150, 460) -> (150, 520)
+        painter.drawLine(150-50, 390, 150-50, 460)
+        painter.drawLine(150-50, 520, 150-50, 550)
 
         # scroll valve
-        painter.drawLine(150, 430, 270, 430)  # (270, 430) -> (330, 430)
-        painter.drawLine(330, 430, 475, 430)
+        painter.drawLine(150-50, 430, 270-50, 430)  # (270, 430) -> (330, 430)
+        painter.drawLine(330-50, 430, 475-50, 430)
 
         # turbo valve
-        painter.drawLine(425, 430, 425, 460)  # (425, 460) -> (425, 520)
-        painter.drawLine(425, 520, 425, 550)
+        painter.drawLine(425-50, 430, 425-50, 460)  # (425, 460) -> (425, 520)
+        painter.drawLine(425-50, 520, 425-50, 550)
 
         # turbo pump
-        painter.drawLine(150, 550, 280, 550)  # (270, 550) -> (330, 550)
-        painter.drawLine(320, 550, 425, 550)
+        painter.drawLine(150-50, 550, 280-50, 550)  # (270, 550) -> (330, 550)
+        painter.drawLine(320-50, 550, 425-50, 550)
 
         # Evaporator
         pen.setColor(QtGui.QColor(255, 0, 0))
         painter.setPen(pen)
-
-        painter.drawLine(185, 275, 185, 230)  # (185, 250) -> (185, 190)
-        painter.drawLine(185, 190, 185, 150)
+        painter.drawLine(185-50, 275, 185-50, 230)  # (185, 250) -> (185, 190)
+        painter.drawLine(185-50, 190, 185-50, 150)
 
         # Effusion
         pen.setColor(QtGui.QColor(20, 30, 30))
         painter.setPen(pen)
-
-        painter.drawLine(350, 275, 350, 230)  # (350, 250) -> (350, 190)
-        painter.drawLine(350, 190, 350, 150)
+        painter.drawLine(350-50, 275, 350-50, 230)  # (350, 250) -> (350, 190)
+        painter.drawLine(350-50, 190, 350-50, 150)
 
         # Sputterer
         pen.setColor(QtGui.QColor(20, 100, 30))
         painter.setPen(pen)
+        painter.drawLine(425-50, 358, 475-50, 358)  # (475, 250) -> (475, 190)
+        painter.drawLine(475-50, 358, 475-50, 150)
 
-        painter.drawLine(425, 358, 475, 358)  # (475, 250) -> (475, 190)
-        painter.drawLine(475, 358, 475, 150)
+        pen.setWidth(4)
+        pen.setColor(QtGui.QColor(0, 0, 0))  # r, g, b
+        painter.setPen(pen)
+        painter.drawRects(QtCore.QRect(175-50, 275, 250, 125))
 
     def connect(self):
         """

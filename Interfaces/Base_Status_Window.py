@@ -14,28 +14,22 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_StatusWindow(object):
     def setupUi(self, StatusWindow):
         StatusWindow.setObjectName("StatusWindow")
-        StatusWindow.resize(1015, 808)
-        self.vacuumFrame = QtWidgets.QFrame(StatusWindow)
-        self.vacuumFrame.setGeometry(QtCore.QRect(5, 5, 450, 300))
-        self.vacuumFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.vacuumFrame.setFrameShadow(QtWidgets.QFrame.Raised)
-        self.vacuumFrame.setObjectName("vacuumFrame")
+        StatusWindow.resize(1470, 810)
         self.plotFrame = QtWidgets.QFrame(StatusWindow)
-        self.plotFrame.setGeometry(QtCore.QRect(460, 5, 905, 831))
+        self.plotFrame.setGeometry(QtCore.QRect(915, 5, 550, 800))
         self.plotFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.plotFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.plotFrame.setObjectName("plotFrame")
-        self.plot1 = PlotWidget(self.plotFrame)
-        self.plot1.setGeometry(QtCore.QRect(0, 0, 550, 400))
-        self.plot1.setObjectName("plot1")
-        self.plot2 = PlotWidget(self.plotFrame)
-        self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
-        self.plot2.setObjectName("plot2")
         self.variablesFrame = QtWidgets.QFrame(StatusWindow)
-        self.variablesFrame.setGeometry(QtCore.QRect(5, 310, 450, 490))
+        self.variablesFrame.setGeometry(QtCore.QRect(510, 5, 400, 800))
         self.variablesFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.variablesFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.variablesFrame.setObjectName("variablesFrame")
+        self.ManualWidgetFrame = QtWidgets.QFrame(StatusWindow)
+        self.ManualWidgetFrame.setGeometry(QtCore.QRect(5, 30, 500, 750))
+        self.ManualWidgetFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.ManualWidgetFrame.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.ManualWidgetFrame.setObjectName("ManualWidgetFrame")
 
         self.retranslateUi(StatusWindow)
         QtCore.QMetaObject.connectSlotsByName(StatusWindow)
@@ -43,7 +37,6 @@ class Ui_StatusWindow(object):
     def retranslateUi(self, StatusWindow):
         _translate = QtCore.QCoreApplication.translate
         StatusWindow.setWindowTitle(_translate("StatusWindow", "Form"))
-from pyqtgraph import PlotWidget
 
 
 if __name__ == "__main__":
