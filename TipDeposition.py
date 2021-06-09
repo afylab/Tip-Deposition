@@ -70,7 +70,7 @@ class Process_Window(Ui_mainWindow):
         '''
         self.equip.commandSignal.emit('rvc_server', 'select_device', [])
         self.equip.trackSignal.emit('Pressure', 'rvc_server', 'get_pressure_mbar', 'mbar')
-        sleep(0.15)
+        sleep(0.25)
         self.equip.plotVariableSignal.emit('Pressure', True, True)
 
     def setupUi(self, mainWindow):

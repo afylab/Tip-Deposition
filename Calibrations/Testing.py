@@ -55,23 +55,23 @@ class Recipe_Test(Recipe):
         self.plotVariable("DummyOutput")
 
         # You can record a variable to the Data Vault using the recordVariable function
-        self.recordVariable("DummyVar")
-        self.recordVariable("DummyOutput")
+        #self.recordVariable("DummyVar")
+        #self.recordVariable("DummyOutput")
 
         ''' --- Main Operation --- '''
 
-        # Give instructions to the user and get feedback using the Step object. The first two arguments
-        # are Step(user_input, instructions) where user_input is a boolean which if True will cause
-        # the program to wait for user input (which can be as simple as pressing the proceed button)
-        # The instructions are displayed to the user in the process window.
-        step1 = Step(False, "Testing the timing code. Waiting for 6 s.")
-        # After the step is defined send it out for processing using the yield keyword. If a Step is
-        # not yielded it is not processed.
-        yield step1
-
-        # Wait for a specific amount of time using the wait_for function
-        # wait_for(minutes) where the interval is measured in minutes
-        self.wait_for(0.1)
+        # # Give instructions to the user and get feedback using the Step object. The first two arguments
+        # # are Step(user_input, instructions) where user_input is a boolean which if True will cause
+        # # the program to wait for user input (which can be as simple as pressing the proceed button)
+        # # The instructions are displayed to the user in the process window.
+        # step1 = Step(False, "Testing the timing code. Waiting for 6 s.")
+        # # After the step is defined send it out for processing using the yield keyword. If a Step is
+        # # not yielded it is not processed.
+        # yield step1
+        #
+        # # Wait for a specific amount of time using the wait_for function
+        # # wait_for(minutes) where the interval is measured in minutes
+        # self.wait_for(0.1)
 
         # Get parameters from the user using the Step.add_input_param function, each parameter
         # should have a unique name, and may have a default value (the parameters loaded from a
@@ -108,16 +108,16 @@ class Recipe_Test(Recipe):
         yield Step(False, "Wait until stable")
         self.wait_stable("DummyVar", setpoint, 1, window=20)
 
-        yield Step(False, "Pausing feedback, wait 30s")
+        yield Step(False, "Pausing feedback, wait 10s")
         self.pausePIDLoop("DummyVar")
-        self.wait_for(0.5)
+        self.wait_for(20.0/60)
 
         yield Step(False, "Resuming feedback after 20 seconds")
-        self.resumePIDLoop("DummyVar", 20.0)
-        self.wait_for(2.0/6)
+        self.resumePIDLoop("DummyVar", 30.0)
+        self.wait_for(30.0/60)
 
-        yield Step(False, "Output Resumed, wait 20s")
-        self.wait_for(2.0/6)
+        yield Step(False, "Output Resumed, wait 30s")
+        self.wait_for(30.0/60)
 
         yield Step(False, "Stopping Feedback")
         self.stopPIDLoop('DummyVar') # Stop the feedback on the varaible "DummyVar"
@@ -130,7 +130,8 @@ class Recipe_Test(Recipe):
         yield Step(False, "Waiting until DummyVar is below 5")
         self.wait_until('DummyVar', 5.0, conditional='less than')
 
-        self.stopRecordingVariable("DummyVar") # Stop recording the values of the varaible "DummyVar"
+        # self.stopRecordingVariable("DummyVar") # Stop recording the values of the varaible "DummyVar"
+        # self.stopRecordingVariable("DummyOutput")
 
         # Stop updating the plots of the tracked varaibles
         self.stopPlotting("DummyVar")

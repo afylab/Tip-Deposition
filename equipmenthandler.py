@@ -9,6 +9,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from datetime import datetime
 from time import sleep, perf_counter
 from os.path import join
+import numpy as np
 
 class PIDFeedbackController():
     def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, warmup, minMaxIntegral=None):
@@ -48,8 +49,8 @@ class PIDFeedbackController():
 
         if minMaxIntegral is None:
             if self.I != 0.0:
-                self.minIntegral = self.min/self.I
-                self.maxIntegral = self.max/self.I
+                self.maxIntegral = np.abs(self.max/self.I)
+                self.minIntegral = -1.0*self.maxIntegral
             else:
                 self.minIntegral = 0
                 self.maxIntegral = 0
@@ -76,6 +77,8 @@ class PIDFeedbackController():
         if not self.paused:
             self.paused = True
             self.function(0.0)
+            self.integral = 0.0
+            self.offset = self.output
         #
     #
 
@@ -90,10 +93,10 @@ class PIDFeedbackController():
         '''
         if self.paused:
             self.paused = False
-            self.function(self.output)
+            self.waiting = True
+            self.function(self.offset)
             self.wait_time = float(wait)
             self.wait_start = datetime.now()
-            self.waiting = True
         #
     #
 
@@ -104,7 +107,7 @@ class PIDFeedbackController():
         if self.paused:
             self.paused = False
             self.waiting = False
-            self.function(self.output)
+            self.function(self.offset)
             self.prev_time = (datetime.now()-self.t0).total_seconds()
         #
     #
@@ -151,7 +154,8 @@ class PIDFeedbackController():
             output = self.min
         self.output = output
 
-        self.function(self.output) # Set the output
+        if not self.paused: # Here for safety, incase pasued is called in this function
+            self.function(self.output) # Set the output
         self.prev_time = time
         self.prev_error = error
     #

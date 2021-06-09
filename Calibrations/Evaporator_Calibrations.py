@@ -70,7 +70,7 @@ class Evaporation_Test(CalibrationRecipe):
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
-        self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
+        self.trackVariable('Voltage', 'power_supply_server', 'act_volt', units='V')
         self.wait_for(0.01) # Here because it threw an error one time
         self.plotVariable("Pressure", logy=True)
         self.plotVariable('Deposition Rate')
@@ -282,7 +282,7 @@ class Single_Evaporation(CalibrationRecipe):
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
-        self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
+        self.trackVariable('Voltage', 'power_supply_server', 'act_volt', units='V')
         self.wait_for(0.01) # Here because it threw an error one time
         self.plotVariable("Pressure", logy=True)
         self.plotVariable('Deposition Rate')
@@ -353,7 +353,7 @@ class Single_Evaporation(CalibrationRecipe):
         setpoint = int(params['Deposition Rate (A/s)'])
 
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        # self.wait_until('Deposition Rate', setpoint, "greater than", timeout=5)
+        self.wait_until('Deposition Rate', setpoint, "greater than", timeout=10)
         # self.pausePIDLoop('Deposition Rate')
         # self.shutter("evaporator", False)
 

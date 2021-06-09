@@ -174,7 +174,7 @@ class RVCServer(DeviceServer):
         """Queries the PRS=x.xxEsxx command and returns the response. Input requires string
         of the form x.xxEsxx, where x are digits and s is either + or -. Usage is set_nom_prs('1.00E+01')"""
         dev = self.selectedDevice(c)
-        nom_prs = "{:.2E}".format(nom_prs)
+        nom_prs = "{:.2E}".format(float(nom_prs))
         yield dev.write("PRS=" + nom_prs + "\r\n")
         ans = yield dev.read()
         self.state = True

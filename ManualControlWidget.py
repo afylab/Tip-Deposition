@@ -428,14 +428,21 @@ class Valve(QtWidgets.QPushButton):
                 if self.name == 'leak valve':
                     print(self.parent.equip[self.name].input.text())
                     if self.parent.equip[self.name].input.text() == '':
-                        self.parent.rvc.close_valve()
+                        ans = yield self.parent.rvc.close_valve()
+                        print(ans)
                         self.state = False
                         self.setToolTip('Closed')
                         self.parent.equip[self.name].status = False
                         print(self.name + " manually closed")
+                    elif (self.parent.equip[self.name].input.text() == 'vent') or \
+                         (self.parent.equip[self.name].input.text() == 'Vent'):
+                        self.parent.equip[self.name].input.clear()
+                        print('Venting')
+                        yield self.parent.rvc.set_mode_flo()
+                        yield self.parent.rvc.set_nom_flo('100.0')
                     else:
                         prs = self.parent.equip[self.name].input.text()
-                        prs = "{:.2E}".format(prs)
+                        # prs = "{:.2E}".format(prs)
                         self.parent.equip[self.name].input.clear()
                         yield self.parent.rvc.set_mode_prs()
 
@@ -476,12 +483,12 @@ class Valve(QtWidgets.QPushButton):
                     elif (self.parent.equip[self.name].input.text() == 'vent') or \
                          (self.parent.equip[self.name].input.text() == 'Vent'):
                         self.parent.equip[self.name].input.clear()
+                        print('Venting')
                         yield self.parent.rvc.set_mode_flo()
-
                         yield self.parent.rvc.set_nom_flo('100.0')
                     else:
                         prs = self.parent.equip[self.name].input.text()
-                        prs = "{:.2E}".format(prs)
+                        print(prs)
                         self.parent.equip[self.name].input.clear()
                         ans = yield self.parent.rvc.set_mode_prs()
                         print(ans)
