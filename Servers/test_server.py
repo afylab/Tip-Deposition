@@ -30,7 +30,6 @@ class TestServer(LabradServer):
 
 	@setting(10)
 	def set_output(self, c, val):
-		#print(datetime.now().strftime('%H:%M:%S'), " --- ", str(val))
 		try:
 			self.output = float(val)
 		except:

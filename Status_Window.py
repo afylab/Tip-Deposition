@@ -3,7 +3,7 @@ Window to display the current status of the equipment
 '''
 
 from Interfaces.Base_Status_Window import Ui_StatusWindow
-from customwidgets import VarEntry, BaseStatusWidget, CustomViewBox
+from customwidgets import VarEntry, CustomViewBox
 
 import numpy as np
 import pyqtgraph as pg
@@ -14,6 +14,11 @@ from PyQt5.QtWidgets import QComboBox
 
 from datetime import datetime
 from os.path import join
+
+# Unfortuantly pyqtgraph prints lots of warnings, becuase it's logarthmic plotting
+# Ignore the warnings here.
+import warnings
+warnings.filterwarnings("ignore")
 
 class Status_Window(Ui_StatusWindow):
     '''
@@ -31,7 +36,6 @@ class Status_Window(Ui_StatusWindow):
         self.equip = equipment
         self.equip.guiTrackedVarSignal.connect(self.trackedVariableSlot)
         self.equip.updateTrackedVarSignal.connect(self.updateTrackedVarSlot)
-        self.equip.plotVariableSignal.connect(self.plottingSlot)
 
         self.widget = widget
         self.gui = gui
@@ -45,6 +49,7 @@ class Status_Window(Ui_StatusWindow):
         self.t0 = datetime.now()
 
         self.trackedVarsWidgets = dict()
+        self.trackedVarsData = dict()
         self.trackedrow = 0
 
         # Setup plots
@@ -56,8 +61,11 @@ class Status_Window(Ui_StatusWindow):
             self.setupPlot(plot)
 
         # Open the default values
-        self.alwaysPlot = ["Pressure"] # If a varaible is in this it's always plotted and never deleted
-        # Generlly pressure will get added when the equipment handler starts up.
+        self.alwaysTrack = ["Pressure"] # If a varaible is in this it's always plotted and never deleted
+        # Generally pressure will get added when the equipment handler starts up.
+
+        # The variables that should be plotted on log scale
+        self.logPresets = ["Pressure"]
     #
 
     def setupUi(self, widget):
@@ -73,6 +81,7 @@ class Status_Window(Ui_StatusWindow):
         self.plot1comboBox = QComboBox(self.plotFrame)
         self.plot1comboBox.setGeometry(QtCore.QRect(450, 0, 100, 20))
         self.plot1comboBox.setObjectName("plot1comboBox")
+        self.plot1comboBox.currentTextChanged.connect(lambda s: self.startPlotting(self.plot1, s))
 
         self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
         self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
@@ -81,6 +90,7 @@ class Status_Window(Ui_StatusWindow):
         self.plot2comboBox = QComboBox(self.plotFrame)
         self.plot2comboBox.setGeometry(QtCore.QRect(450, 400, 100, 20))
         self.plot2comboBox.setObjectName("plot2comboBox")
+        self.plot2comboBox.currentTextChanged.connect(lambda s: self.startPlotting(self.plot2, s))
 
         self.widget.setWindowIcon(QIcon(join('Interfaces','images','squid_tip.png')))
     #
@@ -96,151 +106,6 @@ class Status_Window(Ui_StatusWindow):
         widget.setYRange(0,1)
     #
 
-    def reset(self):
-        '''
-        Restart the status window, normally used when re-loading a recipe
-        '''
-        if self.trackedVarsWidgets: # Dicitonaries evaluate to False if they are empty, True otherwise
-            for k in list(self.trackedVarsWidgets.keys()):
-                saveix = 0
-                if k not in self.alwaysPlot:
-                    widget = self.trackedVarsWidgets.pop(k)
-                    widget.deleteLater()
-                else:
-                    saveix += 1
-            self.trackedrow = saveix
-        self.t0 = datetime.now()
-        if self.plottedVars:
-            for k in list(self.plottedVars.keys()):
-                if k in self.alwaysPlot:
-                    self.zeroPlot(k)
-                else:
-                    plot = self.plottedVars.pop(k)
-                    plot[1].clear()
-        for plot in self.plots:
-            self.setupPlot(plot)
-        #self.default()
-    #
-
-    def plottingSlot(self, variable, start, logy):
-        '''
-        Plots a variable to an availible plot, or makes a new one if there is no
-        availible plot.
-
-        Args:
-            varaible (str) : The tracked varaible to plot
-            start (bool) : If True will start plotting, if False will stop.
-            logy (bool) : If True will make the y-axis logarithmic
-        '''
-        if start:
-            for plot in self.plots:
-                inuse = False
-                for k in list(self.plottedVars.keys()):
-                    if self.plottedVars[k][0] == plot:
-                        inuse = True
-                if not inuse:
-                    self.startPlotting(plot, variable, logy=logy)
-                    return
-            # If there is not availible plot, make one
-            base = BaseStatusWidget()
-            self.extraWindows.append(base)
-            newplot = pg.PlotWidget(base, viewBox=CustomViewBox())
-            newplot.setGeometry(QtCore.QRect(0, 0, 550, 400))
-            self.plots.append(newplot)
-            self.startPlotting(newplot, variable, logy=logy)
-            base.show()
-        else:
-            self.stopPlotting(variable)
-    #
-
-    def startPlotting(self, plotWidget, variable, logy=False):
-        '''
-        Starts plotting to a plot widget and creates and entry for it in self.plottedVars
-        Will overwrite a plot if it is already in use. If a varaible is already being
-        plotted will do nothing.
-
-        Args:
-            plot : The PlotWidget to plot onto.
-            variable (str) : The name of the tracked variable in self.equip.info to plot
-            logy (bool) : If True will make the y-axis logarithmic
-        '''
-        if variable in self.plottedVars: # If it's already plotted do nothing.
-            return
-        if variable not in self.equip.info:
-            raise ValueError("Cannot plot, variable " + str(variable) + " not tracked")
-        try:
-            val = float(self.equip.info[variable])
-        except:
-            raise ValueError("Cannot plot, variable " + str(variable) + " is not numeric.")
-        #
-
-        inuse = None # The plot is already in use, overwrite it
-        for k in list(self.plottedVars.keys()):
-            if self.plottedVars[k][0] == plotWidget:
-                inuse = k
-        if inuse is not None:
-            self.stopPlotting(inuse)
-        plotWidget.clear()
-        #
-        data = np.zeros((1,2))
-        data[0,0] = (datetime.now() - self.t0).total_seconds()
-        data[0,1] = val
-        curve = plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
-        if logy:
-            plotWidget.setLogMode(0, 1)
-        else:
-            plotWidget.setLogMode(None, None)
-        plotWidget.enableAutoRange()
-        plotWidget.setTitle(variable)
-        self.plottedVars[variable] = [plotWidget, curve, data]
-    #
-
-    def stopPlotting(self, variable):
-        '''
-        Stops plotting a variable, does not clear the plot. If a variable is not being
-        plotted nothing happens. Certain variables are always plotted, thus this is ignored
-        '''
-        if variable in self.alwaysPlot:
-            return
-        if variable in self.plottedVars:
-            self.plottedVars.pop(variable)
-    #
-
-    def updatePlot(self, variable):
-        '''
-        Updates a plotled with new data.
-
-        DEV NOTE: For now making axes time since the plot was started, may need to do some
-        more sophisticated timing later, especially when recording the data.
-
-        Args:
-            variable (str) : The name of the tracked variable to update. Must be a key of
-            self.plottedVars
-        '''
-        if variable not in self.plottedVars:
-            raise ValueError("Cannot update plot, variable " + str(variable) + " not being plotted")
-        widget, curve, data = self.plottedVars[variable]
-        t = (datetime.now() - self.t0).total_seconds()
-        data = np.append(data, np.array([t, self.equip.info[variable]]).reshape(1,2), axis=0)
-        curve.setData(x=data[:,0], y=data[:,1]) # Update the plot
-        self.plottedVars[variable][2] = data # Save the data
-    #
-
-    def zeroPlot(self, variable):
-        """
-        Resets the range of the plot, removing old data.
-        """
-        plotWidget, curve, data = self.plottedVars[variable]
-        newdata = np.zeros((1,2))
-        newdata[0,0] = (datetime.now() - self.t0).total_seconds()
-        newdata[0,1] = float(self.equip.info[variable])
-        curve.clear()
-        curve = plotWidget.plot(newdata[:,0], newdata[:,1], pen=self.pgPen)
-        plotWidget.enableAutoRange()
-        self.plottedVars[variable] = [plotWidget, curve, newdata]
-    #
-
-
     def trackedVariableSlot(self, create, name, units):
         '''
         Add or remove a tracked variable to the GUI. If a varaible is already
@@ -251,15 +116,30 @@ class Status_Window(Ui_StatusWindow):
             units (str) : The units of the tracked varaible, will display. Ignored if deleting.
         '''
         if create:
+            # Create the widget
             widget = VarEntry(self.variablesFrame, name, units)
             widget.move(10, 32*self.trackedrow)
             self.trackedVarsWidgets[name] = widget
             self.trackedrow += 1
+
+            # Create the data buffer
+            newdata = np.zeros((1,2))
+            newdata[0,0] = (datetime.now() - self.t0).total_seconds()
+            newdata[0,1] = float(self.equip.info[name])
+            self.trackedVarsData[name] = newdata
+
+            for plot in [self.plot1comboBox, self.plot2comboBox]:
+                plot.addItem(name)
+
+            self.plotIfAvailible(name)
         else:
-            if name in self.trackedVarsWidgets and (name not in self.alwaysPlot):
-                if name not in self.alwaysPlot:
+            if name in self.trackedVarsWidgets and (name not in self.alwaysTrack):
+                if name not in self.alwaysTrack:
                     widget = self.trackedVarsWidgets.pop(name)
                     widget.deleteLater()
+                    self.trackedVarsData.pop(name)
+                for cb in [self.plot1comboBox, self.plot2comboBox]:
+                    cb.removeItem(cb.findText(name))
     #
 
     def updateTrackedVarSlot(self, name):
@@ -274,9 +154,129 @@ class Status_Window(Ui_StatusWindow):
             if name in self.trackedVarsWidgets:
                 val = self.equip.info[name]
             self.trackedVarsWidgets[name].setValue(val)
+
+            # Update the data
+            t = (datetime.now() - self.t0).total_seconds()
+            self.trackedVarsData[name] = np.append(self.trackedVarsData[name], np.array([t, val]).reshape(1,2), axis=0)
+
             if name in self.plottedVars:
                 self.updatePlot(name)
         except KeyError:
             print("KeyError Could not update " + name)
+    #
+
+    def reset(self):
+        '''
+        Restart the status window, normally used when re-loading a recipe.
+        Zeros out the data buffers, removing old data.
+        '''
+        self.t0 = datetime.now()
+
+        # Clear the plots
+        if self.plottedVars:
+            for k in list(self.plottedVars.keys()):
+                plot = self.plottedVars.pop(k)
+                plot[1].clear()
+        for plot in self.plots:
+            self.setupPlot(plot)
+
+        if self.trackedVarsWidgets: # Dicitonaries evaluate to False if they are empty, True otherwise
+            for k in list(self.trackedVarsWidgets.keys()):
+                saveix = 0
+                if k not in self.alwaysTrack:
+                    widget = self.trackedVarsWidgets.pop(k)
+                    widget.deleteLater()
+                    self.trackedVarsData.pop(k)
+                    for cb in [self.plot1comboBox, self.plot2comboBox]:
+                        cb.removeItem(cb.findText(k))
+                else:
+                    saveix += 1
+                    self.trackedVarsData.pop(k)
+                    newdata = np.zeros((1,2))
+                    newdata[0,0] = (datetime.now() - self.t0).total_seconds()
+                    newdata[0,1] = float(self.equip.info[k])
+                    self.trackedVarsData[k] = newdata
+                    self.plotIfAvailible(k)
+            self.trackedrow = saveix
+    #
+
+    def plotIfAvailible(self, variable):
+        '''
+        Plots a variable to a new plot, if one it availible.
+
+        Args:
+            varaible (str) : The tracked varaible to plot
+            start (bool) : If True will start plotting, if False will stop.
+            logy (bool) : If True will make the y-axis logarithmic
+        '''
+        for plot in self.plots:
+            inuse = False
+            for k in list(self.plottedVars.keys()):
+                if self.plottedVars[k][0] == plot:
+                    inuse = True
+            if not inuse:
+                self.startPlotting(plot, variable)
+                return
+    #
+
+    def startPlotting(self, plotWidget, variable):
+        '''
+        Starts plotting to a plot widget and creates and entry for it in self.plottedVars
+        Will overwrite a plot if it is already in use.
+
+        Args:
+            plot : The PlotWidget to plot onto.
+            variable (str) : The name of the tracked variable in self.equip.info to plot
+        '''
+        if variable in self.plottedVars: # If it's already plotted do nothing.
+            return
+        if variable not in self.equip.info:
+            raise ValueError("Cannot plot, variable " + str(variable) + " not tracked")
+        try:
+            float(self.equip.info[variable])
+        except:
+            raise ValueError("Cannot plot, variable " + str(variable) + " is not numeric.")
+        #
+
+        if variable in self.logPresets:
+            logy = True
+        else:
+            logy = False
+
+        inuse = None # The plot is already in use, overwrite it
+        for k in list(self.plottedVars.keys()):
+            if self.plottedVars[k][0] == plotWidget:
+                inuse = k
+        if inuse is not None:
+            self.plottedVars.pop(inuse)
+        plotWidget.clear()
+        #
+        data = self.trackedVarsData[variable]
+        curve = plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
+        if logy:
+            plotWidget.setLogMode(0, 1)
+        else:
+            plotWidget.setLogMode(None, None)
+            # Unfortunatly this will not set is back to linear mode if it was previously log mode
+            # The way pyqtgraph does this is buggy, there may be a convoluted way to do it
+            # but it's too much work for now
+        plotWidget.enableAutoRange()
+        plotWidget.setTitle(variable)
+        self.plottedVars[variable] = [plotWidget, curve]
+    #
+
+    def updatePlot(self, variable):
+        '''
+        Updates a plot with new data.
+
+        Args:
+            variable (str) : The name of the tracked variable to update. Must be a key of
+            self.plottedVars
+        '''
+        if variable not in self.plottedVars:
+            raise ValueError("Cannot update plot, variable " + str(variable) + " not being plotted")
+        widget, curve = self.plottedVars[variable]
+        data = self.trackedVarsData[variable]
+        curve.setData(x=data[:,0], y=data[:,1]) # Update the plot
     #
 #

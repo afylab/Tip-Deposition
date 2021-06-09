@@ -55,8 +55,8 @@ class PIDFeedbackController():
                 self.minIntegral = 0
                 self.maxIntegral = 0
         else:
-            self.maxIntegral = MaxIntegral
-            self.minIntegral = -1.0*MaxIntegral
+            self.maxIntegral = np.abs(MaxIntegral)
+            self.minIntegral = -1.0*self.maxIntegral
         #
         self.paused = False
         if warmup == 0.0:
@@ -215,7 +215,6 @@ class EquipmentHandler(QThread):
     serverNotFoundSignal = pyqtSignal(str) # Indicates an equipment error that is fatal to the process
     guiTrackedVarSignal = pyqtSignal(bool, str, str) # Add/Remove a tracked variable entry on status window
     updateTrackedVarSignal = pyqtSignal(str)
-    plotVariableSignal = pyqtSignal(str, bool, bool)
     timerSignal = pyqtSignal(str)
 
     # Primary Signals
@@ -368,6 +367,14 @@ class EquipmentHandler(QThread):
                     return
                 if hasattr(self.servers[server], accessor):
                     self.trackedVarsAccess[name] = getattr(self.servers[server], accessor)
+
+                    try: # Try to get a starting value
+                        val = self.trackedVarsAccess[name]()
+                        self.info[name] = float(val)
+                    except:
+                        print("Warning: Couldn't get starting value of " + str(name) + ", starting from zero.")
+                        self.info[name] = 0.0
+
                     self.guiTrackedVarSignal.emit(True, name, units)
                 else:
                     raise ValueError("Server " + str(server) + " does not have " + str(accessor))
@@ -475,7 +482,7 @@ class EquipmentHandler(QThread):
         '''
         if variable in self.recordedVars:
             self.recordedVars[variable][0] = False
-        if variable == "ALL":
+        if variable.lower() == "all":
             for k in self.recordedVars:
                 self.recordedVars[k][0] = False
     #

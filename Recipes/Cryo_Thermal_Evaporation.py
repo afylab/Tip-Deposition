@@ -52,11 +52,6 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.trackVariable('Voltage Setpoint', 'power_supply_server', 'volt_read', units='V')
         self.trackVariable('Current', 'power_supply_server', 'act_cur', units='A')
         self.wait_for(0.01) # Here because it threw an error one time
-        self.plotVariable("Pressure", logy=True)
-        self.plotVariable('Deposition Rate')
-        self.plotVariable('Voltage')
-        self.plotVariable('Voltage Setpoint')
-        self.plotVariable('Current')
 
         self.recordVariable("Pressure")
         self.recordVariable("Deposition Rate")
@@ -236,11 +231,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         # self.wait_for(0.1)
         # self.pump('scroll', False) # Turn off the scroll pump
 
-        # Stop updating the plots of the tracked varaibles
-        # self.stopPlotting("Pressure")
-        self.stopPlotting('Deposition Rate')
-        self.stopRecordingVariable("Pressure")
-        self.stopRecordingVariable("Deposition Rate")
+        self.stopRecordingVariable("all")
         self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Vent the chamber and retreive your SQUID!")
@@ -299,11 +290,11 @@ class Single_Evap(Recipe):
         '''
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
-        self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness')
+        self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
         self.trackVariable('Voltage', 'power_supply_server', 'act_volt', units='V')
+        self.trackVariable('Voltage Setpoint', 'power_supply_server', 'volt_read', units='V')
+        self.trackVariable('Current', 'power_supply_server', 'act_cur', units='A')
         self.wait_for(0.01) # Here because it threw an error one time
-        self.plotVariable("Pressure", logy=True)
-        self.plotVariable('Deposition Rate')
 
         self.recordVariable("Pressure")
         self.recordVariable("Deposition Rate")
@@ -366,17 +357,17 @@ class Single_Evap(Recipe):
         Pump out complete, calibrate the evaporation voltage
         '''
 
-        # Calibrate the voltage needed to reach set deposition rate
-        yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
-
-        yield Step(False, "Beginning thermalization, waiting " + str(params["Therm. Time"]) + " minutes")
-
-        # Open the helium at ~1e-3 Torr for 20 min to thermalize tip
-        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
-        self.wait_for(params["Therm. Time"])
-        self.leakvalve(False)
-        # self.wait_for(0.5)
-        yield Step(True, "Ready to begin first contact deposition. Rotate Tip to desired angle.")
+        # # Calibrate the voltage needed to reach set deposition rate
+        # yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
+        #
+        # yield Step(False, "Beginning thermalization, waiting " + str(params["Therm. Time"]) + " minutes")
+        #
+        # # Open the helium at ~1e-3 Torr for 20 min to thermalize tip
+        # self.leakvalve(True, pressure=params["He Pressure (mbar)"])
+        # self.wait_for(params["Therm. Time"])
+        # self.leakvalve(False)
+        # # self.wait_for(0.5)
+        # yield Step(True, "Ready to begin first contact deposition. Rotate Tip to desired angle.")
 
         yield Step(True, "Press proceed to begin deposition.")
 
@@ -394,9 +385,8 @@ class Single_Evap(Recipe):
 
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
         self.wait_until("Thickness", params["Thickness (A)"], conditional="greater than")
-        #yield Step(True, "Once deposition rate appears stable press proceed to pause evaporation.")
-        self.stopPIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
+        self.stopPIDLoop('Deposition Rate')
 
         '''
         Shutdown sequence
@@ -412,10 +402,7 @@ class Single_Evap(Recipe):
         # self.pump('scroll', False) # Turn off the scroll pump
 
         # Stop updating the plots of the tracked varaibles
-        # self.stopPlotting("Pressure")
-        self.stopPlotting('Deposition Rate')
-        self.stopRecordingVariable("Pressure")
-        self.stopRecordingVariable("Deposition Rate")
+        self.stopRecordingVariable("all")
         self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Vent the chamber and retreive your SQUID!")

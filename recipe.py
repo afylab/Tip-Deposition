@@ -564,27 +564,6 @@ class Recipe():
         self.equip.stopTrackingSignal.emit(variable)
     #
 
-    def plotVariable(self, variable, logy=False):
-        '''
-        Begin plotting a tracked varaible.
-
-        Args:
-            variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
-            logy (bool) : If True will make the y-axis logarithmic
-        '''
-        self.equip.plotVariableSignal.emit(variable, True, logy)
-    #
-
-    def stopPlotting(self, variable):
-        '''
-        Stop plotting a tracked varaible.
-
-        Args:
-            variable (str) : The tracked variable to plot, must be a tracked variable in self.equip.info
-        '''
-        self.equip.plotVariableSignal.emit(variable, False, False)
-    #
-
     def recordVariable(self, variable):
         '''
         Begin recording a tracked varaible to data vault

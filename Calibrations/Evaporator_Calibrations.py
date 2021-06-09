@@ -72,8 +72,6 @@ class Evaporation_Test(CalibrationRecipe):
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
         self.trackVariable('Voltage', 'power_supply_server', 'act_volt', units='V')
         self.wait_for(0.01) # Here because it threw an error one time
-        self.plotVariable("Pressure", logy=True)
-        self.plotVariable('Deposition Rate')
 
         '''
         Get parameters from the user
@@ -228,10 +226,6 @@ class Evaporation_Test(CalibrationRecipe):
         # self.wait_for(0.1)
         # # self.pump('scroll', False) # Turn off the scroll pump
         #
-        # # Stop updating the plots of the tracked quantities
-        # self.stopPlotting("Pressure")
-        # self.stopTracking('all')
-        #
         # finalstep = Step(False, "All Done. Leak valve open, ready to vent the chamber.")
         # yield finalstep
 
@@ -284,8 +278,6 @@ class Single_Evaporation(CalibrationRecipe):
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
         self.trackVariable('Voltage', 'power_supply_server', 'act_volt', units='V')
         self.wait_for(0.01) # Here because it threw an error one time
-        self.plotVariable("Pressure", logy=True)
-        self.plotVariable('Deposition Rate')
 
         '''
         Get parameters from the user
@@ -354,43 +346,35 @@ class Single_Evaporation(CalibrationRecipe):
 
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
         self.wait_until('Deposition Rate', setpoint, "greater than", timeout=10)
-        # self.pausePIDLoop('Deposition Rate')
-        # self.shutter("evaporator", False)
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
 
-        # yield Step(True, "Rotate Tip to 345&deg;.")
-        # yield Step(False, "Beginning deposition. Waiting 1 min for evaporator to heat up")
-        #
-        # # First Contact Depositon
-        # self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        # self.resumePIDLoop('Deposition Rate', 60)
-        # self.wait_for(1)
-        #
-        # yield Step(False, "Starting evaporation")
-        #
-        # self.shutter("evaporator", True)
+        yield Step(True, "Rotate Tip to 345&deg;.")
+        yield Step(False, "Beginning deposition. Waiting 1 min for evaporator to heat up")
+
+        # First Contact Depositon
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.resumePIDLoop('Deposition Rate', 60)
+        self.wait_for(0.95)
+
+        yield Step(False, "Starting evaporation")
+
+        self.shutter("evaporator", True)
         self.wait_until('Thickness', cal_thickness, conditional='greater than', timeout=60)
 
         yield Step(False, "Desired thickness reached, stopping PID loop.")
         self.stopPIDLoop('Deposition Rate')
 
-
-        # finalstep = Step(False, "All Done. Chamber still being pumped on.")
-        # yield finalstep
-
         '''
         Finishing process
         '''
-        yield Step(True, "Press proceed to close valves and prepare to vent.")
-        self.valve('all', False) # close all valves
-        self.wait_for(0.2)
-        self.pump('turbo', False) # Turn off the turbo pump
-        yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
-
-        #self.pump('scroll', False) # Turn off the scroll pump
-
-        # Stop updating the plots of the tracked quantities
-        #self.stopPlotting("Pressure")
-        #self.stopTracking('all')
+        # yield Step(True, "Press proceed to close valves and prepare to vent.")
+        # self.valve('all', False) # close all valves
+        # self.wait_for(0.2)
+        # self.pump('turbo', False) # Turn off the turbo pump
+        # yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
+        #
+        # #self.pump('scroll', False) # Turn off the scroll pump
 
         finalstep = Step(True, "All Done. Ready to vent the chamber. Press proceed to end.")
         yield finalstep

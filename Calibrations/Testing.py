@@ -51,8 +51,8 @@ class Recipe_Test(Recipe):
 
         # Variables can be plotted on the interface using the plotVariable function, but they need
         # to be tracked first
-        self.plotVariable("DummyVar")
-        self.plotVariable("DummyOutput")
+        # self.plotVariable("DummyVar")
+        # self.plotVariable("DummyOutput")
 
         # You can record a variable to the Data Vault using the recordVariable function
         #self.recordVariable("DummyVar")
@@ -134,8 +134,8 @@ class Recipe_Test(Recipe):
         # self.stopRecordingVariable("DummyOutput")
 
         # Stop updating the plots of the tracked varaibles
-        self.stopPlotting("DummyVar")
-        self.stopPlotting("DummyOutput")
+        # self.stopPlotting("DummyVar")
+        # self.stopPlotting("DummyOutput")
 
         finalstep = Step(False, "All Done.")
         yield finalstep
@@ -182,14 +182,14 @@ class Timing_Test(CalibrationRecipe): # A simple class for debugging timing issu
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
         self.trackVariable('Voltage', 'power_supply_server', 'volt_read', units='V')
         self.wait_for(0.01) # Here because it threw an error one time
-        self.plotVariable("Pressure", logy=True)
-        self.plotVariable('Deposition Rate')
+        # self.plotVariable("Pressure", logy=True)
+        # self.plotVariable('Deposition Rate')
         #
         yield Step(True, "Testing update timing")
 
         # Stop updating the plots of the tracked varaibles
-        self.stopPlotting("Pressure")
-        self.stopPlotting('Deposition Rate')
+        # self.stopPlotting("Pressure")
+        # self.stopPlotting('Deposition Rate')
 
         finalstep = Step(False, "All Done.")
         yield finalstep
@@ -212,7 +212,7 @@ class Vacuum_Test(CalibrationRecipe):
 
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.wait_for(0.01)
-        self.plotVariable("Pressure", logy=True)
+        # self.plotVariable("Pressure", logy=True)
 
         """
         Pump out process
@@ -256,8 +256,8 @@ class Vacuum_Test(CalibrationRecipe):
         # self.wait_for(0.1)
 
         # Stop updating the plots of the tracked quantities
-        self.stopPlotting("Pressure")
-        self.stopTracking('all')
+        # self.stopPlotting("Pressure")
+        # self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Leak valve open, vent the chamber and retreive your SQUID!")
         yield finalstep
@@ -278,12 +278,12 @@ class Pressure_Test(CalibrationRecipe): # A simple class for viewing pressure
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
 
         self.wait_for(0.01) # Here because it threw an error one time
-        self.plotVariable("Pressure", logy=True)
+        # self.plotVariable("Pressure", logy=True)
         #
         yield Step(True, "Press proceed to end.")
 
         # Stop updating the plots of the tracked varaibles
-        self.stopPlotting("Pressure")
+        # self.stopPlotting("Pressure")
 
         finalstep = Step(False, "All Done.")
         yield finalstep

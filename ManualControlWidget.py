@@ -42,7 +42,7 @@ class EvaporatorWidget(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(join('Interfaces','images','squid_tip.png')))
 
         self.isConnected = False
-        #self.connect()
+        self.connect()
         self.show()
     #
 
