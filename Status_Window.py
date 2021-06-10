@@ -54,18 +54,14 @@ class Status_Window(Ui_StatusWindow):
 
         # Setup plots
         self.extraWindows = []
-        self.plots = [self.plot1, self.plot2] # Add more plots later maybe
+        self.plots = [self.plot0, self.plot1, self.plot2] # Add more plots later maybe
         self.plottedVars = dict()
         self.pgPen = pg.mkPen(41, 128, 185)
         for plot in self.plots:
             self.setupPlot(plot)
 
         # Open the default values
-        self.alwaysTrack = ["Pressure"] # If a varaible is in this it's always plotted and never deleted
-        # Generally pressure will get added when the equipment handler starts up.
-
-        # The variables that should be plotted on log scale
-        self.logPresets = ["Pressure"]
+        self.defaultVar = "Pressure" # We always want to plot pressure
     #
 
     def setupUi(self, widget):
@@ -74,6 +70,10 @@ class Status_Window(Ui_StatusWindow):
         widget.setGUIRef(self.gui) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
 
         # Initlize the plotting widgets
+        self.plot0 = pg.PlotWidget(self.defaultPlotFrame, viewBox=CustomViewBox())
+        self.plot0.setGeometry(QtCore.QRect(0, 0, 550, 400))
+        self.plot0.setObjectName("plot0")
+
         self.plot1 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
         self.plot1.setGeometry(QtCore.QRect(0, 0, 550, 400))
         self.plot1.setObjectName("plot1")
@@ -84,11 +84,11 @@ class Status_Window(Ui_StatusWindow):
         self.plot1comboBox.currentTextChanged.connect(lambda s: self.startPlotting(self.plot1, s))
 
         self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
-        self.plot2.setGeometry(QtCore.QRect(0, 400, 550, 400))
+        self.plot2.setGeometry(QtCore.QRect(550, 0, 550, 400))
         self.plot2.setObjectName("plot2")
 
         self.plot2comboBox = QComboBox(self.plotFrame)
-        self.plot2comboBox.setGeometry(QtCore.QRect(450, 400, 100, 20))
+        self.plot2comboBox.setGeometry(QtCore.QRect(1000, 0, 100, 20))
         self.plot2comboBox.setObjectName("plot2comboBox")
         self.plot2comboBox.currentTextChanged.connect(lambda s: self.startPlotting(self.plot2, s))
 
@@ -129,12 +129,13 @@ class Status_Window(Ui_StatusWindow):
             self.trackedVarsData[name] = newdata
 
             for plot in [self.plot1comboBox, self.plot2comboBox]:
-                plot.addItem(name)
+                if name != self.defaultVar:
+                    plot.addItem(name)
 
             self.plotIfAvailible(name)
         else:
-            if name in self.trackedVarsWidgets and (name not in self.alwaysTrack):
-                if name not in self.alwaysTrack:
+            if name in self.trackedVarsWidgets and (name != self.defaultVar):
+                if name != self.defaultVar:
                     widget = self.trackedVarsWidgets.pop(name)
                     widget.deleteLater()
                     self.trackedVarsData.pop(name)
@@ -183,7 +184,7 @@ class Status_Window(Ui_StatusWindow):
         if self.trackedVarsWidgets: # Dicitonaries evaluate to False if they are empty, True otherwise
             for k in list(self.trackedVarsWidgets.keys()):
                 saveix = 0
-                if k not in self.alwaysTrack:
+                if k != self.defaultVar:
                     widget = self.trackedVarsWidgets.pop(k)
                     widget.deleteLater()
                     self.trackedVarsData.pop(k)
@@ -209,7 +210,9 @@ class Status_Window(Ui_StatusWindow):
             start (bool) : If True will start plotting, if False will stop.
             logy (bool) : If True will make the y-axis logarithmic
         '''
-        for plot in self.plots:
+        if variable == self.defaultVar:
+            self.startPlotting(self.plot0, variable)
+        for plot in [self.plot1, self.plot2]:
             inuse = False
             for k in list(self.plottedVars.keys()):
                 if self.plottedVars[k][0] == plot:
@@ -238,11 +241,6 @@ class Status_Window(Ui_StatusWindow):
             raise ValueError("Cannot plot, variable " + str(variable) + " is not numeric.")
         #
 
-        if variable in self.logPresets:
-            logy = True
-        else:
-            logy = False
-
         inuse = None # The plot is already in use, overwrite it
         for k in list(self.plottedVars.keys()):
             if self.plottedVars[k][0] == plotWidget:
@@ -253,13 +251,8 @@ class Status_Window(Ui_StatusWindow):
         #
         data = self.trackedVarsData[variable]
         curve = plotWidget.plot(data[:,0], data[:,1], pen=self.pgPen)
-        if logy:
+        if variable == self.defaultVar:
             plotWidget.setLogMode(0, 1)
-        else:
-            plotWidget.setLogMode(None, None)
-            # Unfortunatly this will not set is back to linear mode if it was previously log mode
-            # The way pyqtgraph does this is buggy, there may be a convoluted way to do it
-            # but it's too much work for now
         plotWidget.enableAutoRange()
         plotWidget.setTitle(variable)
         self.plottedVars[variable] = [plotWidget, curve]

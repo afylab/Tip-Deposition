@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1470</width>
+    <width>1615</width>
     <height>810</height>
    </rect>
   </property>
@@ -16,10 +16,10 @@
   <widget class="QFrame" name="plotFrame">
    <property name="geometry">
     <rect>
-     <x>915</x>
-     <y>5</y>
-     <width>550</width>
-     <height>800</height>
+     <x>510</x>
+     <y>405</y>
+     <width>1100</width>
+     <height>400</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -34,8 +34,8 @@
     <rect>
      <x>510</x>
      <y>5</y>
-     <width>400</width>
-     <height>800</height>
+     <width>550</width>
+     <height>400</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -52,6 +52,22 @@
      <y>30</y>
      <width>500</width>
      <height>750</height>
+    </rect>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Raised</enum>
+   </property>
+  </widget>
+  <widget class="QFrame" name="defaultPlotFrame">
+   <property name="geometry">
+    <rect>
+     <x>1060</x>
+     <y>5</y>
+     <width>550</width>
+     <height>400</height>
     </rect>
    </property>
    <property name="frameShape">

@@ -90,7 +90,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         Pump out sequence
         '''
-        yield Step(False, "Beginning pump out sequence, waiting until pressure falls below 5E-6 mbar.")
+        yield Step(False, "Begin pump out sequence, waiting until pressure falls below 5E-6 mbar.")
 
         # First rough out the chamber with the scroll pump
         # self.valve('all', True) # Open all the valves
@@ -133,13 +133,10 @@ class Cryo_Thermal_Evaporation(Recipe):
         D = params['D']
         Voffset = params['Voffset']
         Vmax = params['Vmax']
-        #print(params["Deposition Rate (A/s)"])
         setpoint = float(params["Deposition Rate (A/s)"])
 
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        #self.wait_until('Deposition Rate', 4, conditional="greater than")
         self.wait_stable('Deposition Rate', setpoint, 0.5, window=30)
-        #yield Step(True, "Once deposition rate appears stable press proceed to pause evaporation.")
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
 
@@ -350,26 +347,20 @@ class Single_Evap(Recipe):
         # yield Step(True, "Close external Helium line valve 5.")
         # yield Step(False, "Pumping down to base pressure.")
         # self.leakvalve(False)
-        # self.wait_until('Pressure', 5e-6, "less than")
+
+        self.wait_until('Pressure', 5e-6, "less than")
         #
         # yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
         # self.leakvalve(True, pressure=5e-3)
         # self.wait_for(5)
 
         '''
-        Pump out complete, calibrate the evaporation voltage
+        Pump out complete, thermalize then evaporate
         '''
-
-        # # Calibrate the voltage needed to reach set deposition rate
-        # yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
-        #
-        # yield Step(False, "Beginning thermalization, waiting " + str(params["Therm. Time"]) + " minutes")
-        #
         # # Open the helium at ~1e-3 Torr for 20 min to thermalize tip
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(params["Therm. Time"])
         self.leakvalve(False)
-        self.wait_for(0.5)
         yield Step(True, "Ready to begin contact deposition. Rotate Tip to desired angle.")
 
         yield Step(True, "Press proceed to begin deposition.")

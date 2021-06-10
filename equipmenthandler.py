@@ -82,7 +82,7 @@ class PIDFeedbackController():
             self.function(0.0)
             self.integral = 0.0
             self.offset = self.output
-            print("Paused ", str(self.offset))
+            #print("Paused ", str(self.offset))
         #
     #
 
@@ -98,7 +98,7 @@ class PIDFeedbackController():
         if self.paused:
             self.wait_time = float(wait)
             self.wait_start = datetime.now()
-            print("Resuming at ", str(self.offset), " After " + str(self.wait_time))
+            #print("Resuming at ", str(self.offset), " After " + str(self.wait_time))
             self.function(self.offset)
             self.waiting = True
             self.paused = False # Do this last in case update is called while self.function is executing, it's happened before!
@@ -110,10 +110,10 @@ class PIDFeedbackController():
         Immediately resumes both the output and the loop to the prior settings.
         '''
         if self.paused:
-            self.paused = False
-            self.waiting = False
             self.function(self.offset)
             self.prev_time = (datetime.now()-self.t0).total_seconds()
+            self.paused = False
+            self.waiting = False
         #
     #
 
@@ -124,7 +124,7 @@ class PIDFeedbackController():
         if self.paused:
             return
         elif self.waiting:
-            print((datetime.now()-self.wait_start).total_seconds(), self.wait_time)
+            # print((datetime.now()-self.wait_start).total_seconds(), self.wait_time)
             if (datetime.now()-self.wait_start).total_seconds() >= self.wait_time:
                 self.prev_time = (datetime.now()-self.t0).total_seconds() # reset the timing
                 self.waiting = False

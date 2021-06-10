@@ -83,8 +83,8 @@ class Evaporation_Test(CalibrationRecipe):
         instruct += "\n Confirm parameters below and press proceed to begin pumping out."
         step1 = Step(True, instruct)
         step1.add_input_param("Deposition Rate (A/s)", default=self.default("Deposition Rate (A/s)"), limits=(0,10))
-        # step1.add_input_param("Contact Thickness (A)", default=self.default("Contact Thickness (A)"), limits=(10,500))
-        # step1.add_input_param("Head Thickness (A)", default=self.default("Head Thickness (A)"), limits=(10,500))
+        step1.add_input_param("Contact Thickness (A)", default=self.default("Contact Thickness (A)"), limits=(10,500))
+        step1.add_input_param("Head Thickness (A)", default=self.default("Head Thickness (A)"), limits=(10,500))
 
         step1.add_input_param("P", default=self.default("P"), limits=(0,1))
         step1.add_input_param("I", default=self.default("I"), limits=(0,1))
@@ -111,9 +111,13 @@ class Evaporation_Test(CalibrationRecipe):
         # self.leakvalve(False)
         # self.pump('turbo', True)
 
-        yield Step(False, "Pumping down to base pressure.")
+        yield Step(False, "Waiting untill pressure <5e-6 mbar")
 
         self.wait_until('Pressure', 5e-6, "less than")
+        #
+        # yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
+        # self.leakvalve(True, pressure=5e-3)
+        # self.wait_for(5)
 
         '''
         Evaporation test
@@ -153,17 +157,17 @@ class Evaporation_Test(CalibrationRecipe):
         # # self.leakvalve(True, pressure=1e-3)
         # self.wait_for(10)
 
-        #yield Step(True, "Rotate Tip to 90&deg;.")
+        yield Step(True, "Rotate Tip to 90&deg;.")
 
         yield Step(False, "Beginning first contact deposition. Waiting 2 min for evaporator to heat up")
 
         # First Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
         self.resumePIDLoop('Deposition Rate', 120)
-        self.wait_for(2)
+        self.wait_for(1.95)
         self.shutter("evaporator", True)
 
-        self.wait_until('Thickness', 200, conditional='greater than', timeout=5)
+        self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
 
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
@@ -173,61 +177,44 @@ class Evaporation_Test(CalibrationRecipe):
         yield Step(False, "Beginning thermalization, waiting 10 min")
         self.wait_for(10)
 
-        #yield Step(True, "Rotate Tip to 345&deg;.")
+        yield Step(True, "Rotate Tip to 345&deg;.")
 
         yield Step(False, "Beginning head deposition.")
 
         # SQUID Head Deposition
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
         self.resumePIDLoop('Deposition Rate', 120)
-        self.wait_for(2)
+        self.wait_for(1.95)
         self.shutter("evaporator", True)
 
-        self.wait_until('Thickness', 150, conditional='greater than', timeout=5)
+        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
 
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
         yield Step(False, "Head deposition finished")
 
-        # # Deposit the second contact
-        # yield Step(False, "Beginning thermalization, waiting 10 min")
-        # self.wait_for(10)
-        #
-        # yield Step(True, "Rotate Tip to 240&deg;.")
-        #
-        # yield Step(False, "Beginning second contact deposition.")
-        #
-        # # First Contact Depositon
-        # self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        # self.resumePIDLoop('Deposition Rate', 120)
-        # self.wait_for(2)
-        # self.shutter("evaporator", True)
-        #
-        # self.wait_until('Thickness', 'greater than', 200, timeout=5)
-        #
-        # self.pausePIDLoop('Deposition Rate')
-        # self.shutter("evaporator", False)
-        #
-        # yield Step(False, "Second contact deposition finished")
+        # Deposit the second contact
+        yield Step(False, "Beginning thermalization, waiting 10 min")
+        self.wait_for(10)
+
+        yield Step(True, "Rotate Tip to 240&deg;.")
+
+        yield Step(False, "Beginning second contact deposition.")
+
+        # First Contact Depositon
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.resumePIDLoop('Deposition Rate', 120)
+        self.wait_for(1.95)
+        self.shutter("evaporator", True)
+
+        self.wait_until('Thickness', 'greater than', params["Contact Thickness (A)"])
+        self.pausePIDLoop('Deposition Rate')
+        self.shutter("evaporator", False)
+
+        yield Step(False, "Second contact deposition finished")
 
         finalstep = Step(False, "All Done. Chamber still being pumped on.")
         yield finalstep
-
-        '''
-        Finishing process
-        '''
-        # yield Step(True, "Press proceed to close valves and prepare to vent.")
-        # self.valve('all', False) # close all valves
-        # self.wait_for(0.1)
-        # self.pump('turbo', False) # Turn off the turbo pump
-        # yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
-        #
-        # self.leakvalve(True)
-        # self.wait_for(0.1)
-        # # self.pump('scroll', False) # Turn off the scroll pump
-        #
-        # finalstep = Step(False, "All Done. Leak valve open, ready to vent the chamber.")
-        # yield finalstep
 
     def shutdown(self):
         try:

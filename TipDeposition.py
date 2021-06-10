@@ -19,6 +19,7 @@ from recipe import CalibrationRecipe
 from customwidgets import BaseMainWindow, BaseStatusWidget, CustomSpinBox
 from customwidgets import RecipeDialog, TipSelectionDialog
 
+from datetime import datetime
 import sys
 from traceback import format_exc
 from queue import Queue
@@ -67,8 +68,11 @@ class Process_Window(Ui_mainWindow):
         '''
         By default display the pressure
         '''
-        self.equip.commandSignal.emit('rvc_server', 'select_device', [])
-        self.equip.trackSignal.emit('Pressure', 'rvc_server', 'get_pressure_mbar', 'mbar')
+        try:
+            self.equip.commandSignal.emit('rvc_server', 'select_device', [])
+            self.equip.trackSignal.emit('Pressure', 'rvc_server', 'get_pressure_mbar', 'mbar')
+        except:
+            print("Warning! Could not tracked pressure. Is the server working?")
 
     def setupUi(self, mainWindow):
         super(Process_Window, self).setupUi(mainWindow)
@@ -386,6 +390,7 @@ class Process_Window(Ui_mainWindow):
         '''
         Add text to the instructions browser
         '''
+        txt = datetime.now().strftime("[%m/%d %H:%M:%S] ") + txt
         self.ins_text += txt.replace('\n', '<br>')+"<br>"
         self.insDisplay.setHtml(self.ins_text)
         self.insDisplay.moveCursor(QtGui.QTextCursor.End)
@@ -395,6 +400,7 @@ class Process_Window(Ui_mainWindow):
         '''
         Add text to the instructions browser, highligted in red
         '''
+        txt = datetime.now().strftime("[%m/%d %H:%M:%S] ") + txt
         self.ins_text += "<font color=red>"+txt+"</font><br>"
         self.insDisplay.setHtml(self.ins_text)
         self.insDisplay.moveCursor(QtGui.QTextCursor.End)

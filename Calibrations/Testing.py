@@ -49,29 +49,24 @@ class Recipe_Test(Recipe):
         self.trackVariable('DummyVar', 'testserver', 'query')
         self.trackVariable('DummyOutput', 'testserver', 'get_output')
 
-        # Variables can be plotted on the interface using the plotVariable function, but they need
-        # to be tracked first
-        # self.plotVariable("DummyVar")
-        # self.plotVariable("DummyOutput")
-
         # You can record a variable to the Data Vault using the recordVariable function
-        #self.recordVariable("DummyVar")
-        #self.recordVariable("DummyOutput")
+        self.recordVariable("DummyVar")
+        self.recordVariable("DummyOutput")
 
         ''' --- Main Operation --- '''
 
-        # # Give instructions to the user and get feedback using the Step object. The first two arguments
-        # # are Step(user_input, instructions) where user_input is a boolean which if True will cause
-        # # the program to wait for user input (which can be as simple as pressing the proceed button)
-        # # The instructions are displayed to the user in the process window.
-        # step1 = Step(False, "Testing the timing code. Waiting for 6 s.")
-        # # After the step is defined send it out for processing using the yield keyword. If a Step is
-        # # not yielded it is not processed.
-        # yield step1
-        #
-        # # Wait for a specific amount of time using the wait_for function
-        # # wait_for(minutes) where the interval is measured in minutes
-        # self.wait_for(0.1)
+        # Give instructions to the user and get feedback using the Step object. The first two arguments
+        # are Step(user_input, instructions) where user_input is a boolean which if True will cause
+        # the program to wait for user input (which can be as simple as pressing the proceed button)
+        # The instructions are displayed to the user in the process window.
+        step1 = Step(False, "Testing the timing code. Waiting for 6 s.")
+        # After the step is defined send it out for processing using the yield keyword. If a Step is
+        # not yielded it is not processed.
+        yield step1
+
+        # Wait for a specific amount of time using the wait_for function
+        # wait_for(minutes) where the interval is measured in minutes
+        self.wait_for(0.1)
 
         # Get parameters from the user using the Step.add_input_param function, each parameter
         # should have a unique name, and may have a default value (the parameters loaded from a
@@ -99,19 +94,15 @@ class Recipe_Test(Recipe):
         yield step3
         setpoint = step3.get_param('setpoint')
 
-        self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 10.0, (0,100), 20)
-
-        # yield Step(False, "Wait 15s")
-        # self.wait_for(0.25)
+        self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 10.0, (0,100), warmup=20)
 
         # We can wait until the output is stable.
         yield Step(False, "Wait until stable")
         self.wait_stable("DummyVar", setpoint, 1, window=20)
 
-        yield Step(False, "Pausing feedback, wait 10s")
+        yield Step(False, "Pausing feedback, wait 20s")
         self.pausePIDLoop("DummyVar")
-        self.wait_for(5.0)
-        #self.wait_for(20.0/60)
+        self.wait_for(20.0/60)
 
         yield Step(False, "Resuming feedback after 20 seconds")
         self.resumePIDLoop("DummyVar", 60.0)
@@ -131,12 +122,7 @@ class Recipe_Test(Recipe):
         yield Step(False, "Waiting until DummyVar is below 5")
         self.wait_until('DummyVar', 5.0, conditional='less than')
 
-        # self.stopRecordingVariable("DummyVar") # Stop recording the values of the varaible "DummyVar"
-        # self.stopRecordingVariable("DummyOutput")
-
-        # Stop updating the plots of the tracked varaibles
-        # self.stopPlotting("DummyVar")
-        # self.stopPlotting("DummyOutput")
+        self.stopRecordingVariable("All") # Stop recording the values of the varaible "DummyVar"
 
         finalstep = Step(False, "All Done.")
         yield finalstep
@@ -261,31 +247,5 @@ class Vacuum_Test(CalibrationRecipe):
         # self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Leak valve open, vent the chamber and retreive your SQUID!")
-        yield finalstep
-    #
-
-class Pressure_Test(CalibrationRecipe): # A simple class for viewing pressure
-    def __init__(self, equip, updateSig):
-        super().__init__(equip, updateSig, required_servers=['data_vault', 'rvc_server'], version="1.0.1")
-    #
-
-    def proceed(self):
-        """
-        Below add all the servers and plots you would in a normal evaporation, but don't atually do
-        anything with the equipment. Timing information will be printed out to the terminal by the equipment handler
-        """
-        self.command('rvc_server', 'select_device')
-
-        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
-
-        self.wait_for(0.01) # Here because it threw an error one time
-        # self.plotVariable("Pressure", logy=True)
-        #
-        yield Step(True, "Press proceed to end.")
-
-        # Stop updating the plots of the tracked varaibles
-        # self.stopPlotting("Pressure")
-
-        finalstep = Step(False, "All Done.")
         yield finalstep
     #
