@@ -407,7 +407,7 @@ class Process_Window(Ui_mainWindow):
         self.processQueuedStep()
         self.proceedButton.setEnabled(False)
         self.proceedButton.setText("Proceed")
-        self.pauseButton.setEnabled(True)
+        self.pauseButton.setEnabled(False) # True
         self.proceedButton.clicked.disconnect()
         self.proceedButton.clicked.connect(self.proceedCallback)
         self.sequencer.canAdvanceSignal.emit()
@@ -429,6 +429,7 @@ class Process_Window(Ui_mainWindow):
         DEV Note: Need to call the equipment handler somewhere to make sure the equipment is in a good state?
         '''
         print("Maybe we need to pause the equipment handler too?")
+        return # Can't pause
         if self.paused: # un-pause
             self.set_status("active")
             self.pauseButton.setText("Pause")

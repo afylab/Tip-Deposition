@@ -92,7 +92,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         yield Step(False, "Beginning pump out sequence, waiting until pressure falls below 5E-6 mbar.")
 
-        ## First rough out the chamber with the scroll pump
+        # First rough out the chamber with the scroll pump
         # self.valve('all', True) # Open all the valves
         # self.pump('scroll', True)
         # self.wait_until('Pressure', 1e-1, "less than")
@@ -104,17 +104,19 @@ class Cryo_Thermal_Evaporation(Recipe):
         # self.wait_until('Pressure', 1e-2, "less than")
         #
         # yield Step(True, "Close external Helium line valve 5.")
-        # yield Step(False, "Pumping down to base pressure.")
         # self.leakvalve(False)
-        # self.wait_until('Pressure', 5e-6, "less than")
+        # yield Step(False, "Pumping down to base pressure.")
+        #
+        '''
+        Pump out complete, calibrate the evaporation voltage
+        '''
+
+        self.wait_until('Pressure', 5e-6, "less than")
         #
         # yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
         # self.leakvalve(True, pressure=5e-3)
         # self.wait_for(5)
-
-        '''
-        Pump out complete, calibrate the evaporation voltage
-        '''
+        # self.leakvalve(False)
 
         # Calibrate the voltage needed to reach set deposition rate
         yield Step(True, "Rotate Tip to 165&deg;.")
@@ -134,9 +136,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         #print(params["Deposition Rate (A/s)"])
         setpoint = float(params["Deposition Rate (A/s)"])
 
-        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax), 30)
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
         #self.wait_until('Deposition Rate', 4, conditional="greater than")
-        self.wait_stable('Deposition Rate', setpoint, 1, window=30)
+        self.wait_stable('Deposition Rate', setpoint, 0.5, window=30)
         #yield Step(True, "Once deposition rate appears stable press proceed to pause evaporation.")
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
@@ -219,7 +221,8 @@ class Cryo_Thermal_Evaporation(Recipe):
         yield Step(True, "Deposition Finished. Follow warm up procedure.")
 
         '''
-        Shutdown sequence
+        Venting sequence, normally this would be done manually after the system
+        has warmed up.
         '''
         # yield Step(True, "Press proceed to shut down vacuum system.")
         # self.valve('all', False) # close all valves
@@ -234,7 +237,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.stopRecordingVariable("all")
         self.stopTracking('all')
 
-        finalstep = Step(False, "All Done. Vent the chamber and retreive your SQUID!")
+        finalstep = Step(False, "All Done. Let the system warm up and retreive your SQUID!")
         yield finalstep
     #
 
@@ -363,11 +366,11 @@ class Single_Evap(Recipe):
         # yield Step(False, "Beginning thermalization, waiting " + str(params["Therm. Time"]) + " minutes")
         #
         # # Open the helium at ~1e-3 Torr for 20 min to thermalize tip
-        # self.leakvalve(True, pressure=params["He Pressure (mbar)"])
-        # self.wait_for(params["Therm. Time"])
-        # self.leakvalve(False)
-        # # self.wait_for(0.5)
-        # yield Step(True, "Ready to begin first contact deposition. Rotate Tip to desired angle.")
+        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
+        self.wait_for(params["Therm. Time"])
+        self.leakvalve(False)
+        self.wait_for(0.5)
+        yield Step(True, "Ready to begin contact deposition. Rotate Tip to desired angle.")
 
         yield Step(True, "Press proceed to begin deposition.")
 
@@ -389,7 +392,8 @@ class Single_Evap(Recipe):
         self.stopPIDLoop('Deposition Rate')
 
         '''
-        Shutdown sequence
+        Venting sequence, normally this would be done manually after the system
+        has warmed up.
         '''
         # yield Step(True, "Press proceed to shut down vacuum system.")
         # self.valve('all', False) # close all valves
@@ -405,7 +409,7 @@ class Single_Evap(Recipe):
         self.stopRecordingVariable("all")
         self.stopTracking('all')
 
-        finalstep = Step(False, "All Done. Vent the chamber and retreive your SQUID!")
+        finalstep = Step(False, "All Done. Time to let the system warm up.")
         yield finalstep
     #
 

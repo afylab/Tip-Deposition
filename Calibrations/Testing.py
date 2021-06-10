@@ -110,14 +110,15 @@ class Recipe_Test(Recipe):
 
         yield Step(False, "Pausing feedback, wait 10s")
         self.pausePIDLoop("DummyVar")
-        self.wait_for(20.0/60)
+        self.wait_for(5.0)
+        #self.wait_for(20.0/60)
 
         yield Step(False, "Resuming feedback after 20 seconds")
-        self.resumePIDLoop("DummyVar", 30.0)
-        self.wait_for(30.0/60)
+        self.resumePIDLoop("DummyVar", 60.0)
+        self.wait_for(60.0/60)
 
         yield Step(False, "Output Resumed, wait 30s")
-        self.wait_for(30.0/60)
+        self.wait_for(60.0/60)
 
         yield Step(False, "Stopping Feedback")
         self.stopPIDLoop('DummyVar') # Stop the feedback on the varaible "DummyVar"

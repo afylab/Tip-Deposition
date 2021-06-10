@@ -82,6 +82,7 @@ class PIDFeedbackController():
             self.function(0.0)
             self.integral = 0.0
             self.offset = self.output
+            print("Paused ", str(self.offset))
         #
     #
 
@@ -95,11 +96,12 @@ class PIDFeedbackController():
             wait (float) : The number of second to wait after resetting the output
         '''
         if self.paused:
-            self.paused = False
-            self.waiting = True
-            self.function(self.offset)
             self.wait_time = float(wait)
             self.wait_start = datetime.now()
+            print("Resuming at ", str(self.offset), " After " + str(self.wait_time))
+            self.function(self.offset)
+            self.waiting = True
+            self.paused = False # Do this last in case update is called while self.function is executing, it's happened before!
         #
     #
 
@@ -122,6 +124,7 @@ class PIDFeedbackController():
         if self.paused:
             return
         elif self.waiting:
+            print((datetime.now()-self.wait_start).total_seconds(), self.wait_time)
             if (datetime.now()-self.wait_start).total_seconds() >= self.wait_time:
                 self.prev_time = (datetime.now()-self.t0).total_seconds() # reset the timing
                 self.waiting = False
@@ -185,13 +188,6 @@ class PIDFeedbackController():
         self.P = float(P)
         self.I = float(I)
         self.D = float(D)
-    #
-
-    def resetIntegral(self):
-        '''
-        Resets the integral used to calculate the I-term.
-        '''
-        self.integral = 0
     #
 
     def __del__(self):
@@ -287,7 +283,7 @@ class EquipmentHandler(QThread):
         # update drequency that will attempt to match by sleeping the main loop for an
         # interval after all serial communications are made. If serial communictions are
         # too slow then it will not wait.
-        self.targetUpdateFrequency = 5 # Hz
+        self.targetUpdateFrequency = 4 # Hz
         self.targetUpdatePeriod = 1.0/self.targetUpdateFrequency
 
         self.debugmode = debug
@@ -534,6 +530,7 @@ class EquipmentHandler(QThread):
         '''
         if variable in self.feedbackLoops:
             if wait > 0:
+                print("Waiting for ", wait)
                 self.feedbackLoops[variable].resume_after(wait)
             else:
                 self.feedbackLoops[variable].resume()
