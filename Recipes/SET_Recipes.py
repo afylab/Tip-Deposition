@@ -2,44 +2,10 @@
 Recipies for making SETs
 '''
 
-from recipe import Recipe, Step
+from recipe import SET_Recipe, Step
 
-class Base_SET_Recipe(Recipe):
-    def setup(self, defaults):
-        '''
-        Setup the recipe by loading defaults or information from previous depositions and getting user
-        input. This function returns a Step object which is used to get the initial parameters in the
-        user interface. Add parameter to it using Step.add_input_param then at startup the sequencer
-        will automatically pass this step to the user interface and subsequently load the values into
-        Recipe.parameters, a dictionary containg the parameters as {name:value}.  Use limits on
-        numerical values to make sure no equipment breaking values are entered.
 
-        To preserve insertion order and load in defaults when overloading, always call the superclass
-        constructor before adding any parameters, i.e. the first line should be super().__init__(step, defaults)
-
-        Args:
-            defaults (dict) : a dictionary containg the previous parameters as {name:value}, to use as
-                defaults. This dictionary is loaded and default values can be accessed using
-                Recipe.default("Param Name") which will return the default or None if there is no such
-                default parameter.
-        '''
-        if defaults is None:
-            self.defaultParams = {}
-        else:
-            self.defaultParams = defaults
-        setupstep = Step(instructions="Enter Tip and Deposition parameters")
-
-        # Basic paramters that should be included for all recipies
-        setupstep.add_input_param("SET Num.")
-        setupstep.add_input_param("Person Evaporating")
-        setupstep.add_input_param("Metal", default=self.default("Metal") )
-        setupstep.add_input_param("SEM Diameter")
-        setupstep.add_input_param("Tip to Leads Distance")
-        setupstep.add_input_param("TF Aligned")
-        return setupstep
-    #
-
-class Oxidized_SETs(Base_SET_Recipe):
+class Oxidized_SETs(SET_Recipe):
     def __init__(self, *args):
         # Add all the hardwave servers needed for evaporation
 
@@ -199,7 +165,6 @@ class Oxidized_SETs(Base_SET_Recipe):
 
         # Deposit the second contact
         yield Step(True, "Rotate Tip to 240&deg;.")
-        yield Step(True, "Ready to begin second contact deposition.")
 
         # Second Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
@@ -261,7 +226,7 @@ class Oxidized_SETs(Base_SET_Recipe):
         self.stopRecordingVariable("all")
         self.stopTracking('all')
 
-        finalstep = Step(False, "All Done. Let the system warm up and retreive your SQUID!")
+        finalstep = Step(False, "All Done. Let the system warm up and retreive your SET!")
         yield finalstep
     #
 

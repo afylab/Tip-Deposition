@@ -734,3 +734,56 @@ class CalibrationRecipe(Recipe):
         #     err += "Likely the starting parameters were not setup correctly."
         #     raise ValueError(err)
     #
+
+class SET_Recipe(Recipe):
+    def setup(self, defaults):
+        '''
+        Setup the recipe by loading defaults or information from previous depositions and getting user
+        input. This function returns a Step object which is used to get the initial parameters in the
+        user interface. Add parameter to it using Step.add_input_param then at startup the sequencer
+        will automatically pass this step to the user interface and subsequently load the values into
+        Recipe.parameters, a dictionary containg the parameters as {name:value}.  Use limits on
+        numerical values to make sure no equipment breaking values are entered.
+
+        To preserve insertion order and load in defaults when overloading, always call the superclass
+        constructor before adding any parameters, i.e. the first line should be super().__init__(step, defaults)
+
+        Args:
+            defaults (dict) : a dictionary containg the previous parameters as {name:value}, to use as
+                defaults. This dictionary is loaded and default values can be accessed using
+                Recipe.default("Param Name") which will return the default or None if there is no such
+                default parameter.
+        '''
+        if defaults is None:
+            self.defaultParams = {}
+        else:
+            self.defaultParams = defaults
+        setupstep = Step(instructions="Enter Tip and Deposition parameters")
+
+        # Basic paramters that should be included for all recipies
+        setupstep.add_input_param("SET Num.")
+        setupstep.add_input_param("Person Evaporating")
+        setupstep.add_input_param("Metal", default=self.default("Metal") )
+        setupstep.add_input_param("SEM Diameter")
+        setupstep.add_input_param("Tip to Leads Distance")
+        setupstep.add_input_param("TF Aligned")
+        return setupstep
+    #
+
+    def _process_startup(self, startupstep):
+        """
+        Loads the startup parameters into Recipe.parameters and initilizes recording in the equipment
+        handeler.
+        """
+        self.parameters = dict()
+        for k in startupstep.input_param_values.keys():
+            self.parameters[k] = startupstep.input_param_values[k]
+
+        try:
+            self.equip.initRecordSignal.emit(self.savedir, self.get_name(), self.parameters["SET Num."])
+        except:
+            err = "Cannot initilize files for recording variables. "
+            err += "Likely the starting parameters were not setup correctly."
+            raise ValueError(err)
+    #
+#
