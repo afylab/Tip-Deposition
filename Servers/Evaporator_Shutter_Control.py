@@ -37,8 +37,10 @@ serial_server_name = (platform.node() + '_serial_server').replace('-','_').lower
 from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
+import labrad.units as units
 from labrad.types import Value
 from collections import deque
+import time
 
 TIMEOUT = Value(5,'s')
 BAUD    = 9600
@@ -49,7 +51,7 @@ PARITY = 0
 class EvaporatorShutterWrapper(DeviceWrapper):
 
     @inlineCallbacks
-    def connect(self, server, port):
+    def connect(self, server, port='COM8'):
         """Connect to a device."""
         print('connecting to "%s" on port "%s"...' % (server.name, port), end=' ')
         self.server = server
@@ -116,7 +118,8 @@ class EvaporatorShutter(DeviceServer):
         print(self.serialLinks)
         yield DeviceServer.initServer(self)
         self.stack  = deque([])
-        self.open = False
+        self.evap_open = False
+        self.effusion_open = False
 
     @inlineCallbacks
     def loadConfigInfo(self):
@@ -174,7 +177,7 @@ class EvaporatorShutter(DeviceServer):
             if stat.startswith('stationary'):
                 command = self.stack.popleft()
                 yield dev.write(command)
-                yield dev.read()
+                ans = yield dev.read()
                 yield self.empty_stack(c)
 
     @setting(508, degrees = 's', direction = 's', returns='s')
@@ -204,9 +207,9 @@ class EvaporatorShutter(DeviceServer):
     @setting(509,returns = 's')
     def open_shutter(self,c):
         """Opens the shutter, does nothing if the shutter is already open"""
-        if not self.open:
+        if not self.evap_open:
             ret = yield self.rot(c, "35", "A")
-            self.open = True
+            self.evap_open = True
             return ret
         return "No change"
     #
@@ -214,20 +217,53 @@ class EvaporatorShutter(DeviceServer):
     @setting(510,returns = 's')
     def close_shutter(self,c):
         """Closes the shutter, does nothing if the shutter is already closed"""
-        if self.open:
+        if self.evap_open:
             ret = yield self.rot(c, "35", "C")
-            self.open = False
+            self.evap_open = False
             return ret
         return "No change"
     #
 
-    @setting(511,returns = 's')
+    @setting(511,returns = '')
+    def open_effusion_shutter(self,c):
+        """Opens the shutter, does nothing if the shutter is already open"""
+        if len(self.stack) == 0:
+            dev = self.selectedDevice(c)
+            yield dev.write('eor')
+            ans = yield dev.read()
+            self.effusion_open = True
+            print('Effusion shutter open')
+        else:
+            self.stack.append('eor')
+            if len(self.stack) == 1:
+                self.empty_stack(c)
+            self.effusion_open = True
+            print('Effusion shutter open')
+
+    @setting(512,returns = '')
+    def close_effusion_shutter(self,c):
+        """Closes the shutter, does nothing if the shutter is already closed"""
+        if len(self.stack) == 0:
+            dev = self.selectedDevice(c)
+            yield dev.write('ecr')
+            ans = yield dev.read()
+            self.effusion_open = False
+            print('Effusion shutter closed')
+        else:
+            self.stack.append('ecr')
+            if len(self.stack) == 1:
+                self.empty_stack(c)
+            self.effusion_open = False
+            print('Effusion shutter closed')
+    #
+
+    @setting(513,returns = 's')
     def manual_reset_close(self,c):
         """Closes the shutter, does nothing if the shutter is already closed"""
         self.open = False
         return "Manually set state to close"
     #
-    @setting(512,returns = 'b')
+    @setting(514,returns = 's')
     def returnstate(self,c):
         return self.open
 

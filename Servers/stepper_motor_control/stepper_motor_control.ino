@@ -1,6 +1,9 @@
-String m = ""; String d = "";
+
+String m = "";
+String d = "";
 int A[] = {3,5,7}; //Pin Order: {Step, Direction, Enable)}, A[] is Shutter Blade and B[] is Tip Rotator
 int B[] = {31, 35, 39};
+int C = 52;
 char rotstat;
 
 void setup(){
@@ -17,14 +20,17 @@ int state=LOW;
   pinMode(B[0], OUTPUT);
   pinMode(B[1], OUTPUT);
   pinMode(B[2], OUTPUT);
+  pinMode(C, OUTPUT);
   digitalWrite(A[2], LOW);
   digitalWrite(B[2], LOW);
+  digitalWrite(C, LOW);
   Serial.begin(9600);
 }
 
 void loop(){
   if(Serial.available()){
-    char rec;
+    char rec ="";
+    String m = "";
     while (rec != 'r'){
       if(Serial.available()){
         rec = Serial.read();
@@ -32,8 +38,10 @@ void loop(){
           m += rec;
         }
         else if(rec == 'r'){
+          Serial.print("m = " + m + "\r\n");
+          Serial.print(String(m));
           if(m.endsWith("C") || m.endsWith("A")){ 
-            Serial.print("turning\r\n");
+            Serial.print("turning evaporator shutter\r\n");
             turn();
             m="";
           }
@@ -45,6 +53,16 @@ void loop(){
             Serial.print("stationary\r\n");
             m="";
           }
+          else if(m.startsWith("eo")){
+            Serial.print("open effusion cell shutter\r\n");
+            open_effusion();
+            m="";
+          }
+          else if(m.startsWith("ec")){
+            Serial.print("close effusion cell shutter\r\n");
+            close_effusion();
+            m="";
+          }
           else {
             Serial.print("Invalid entry.\r\n");
             m = "";
@@ -53,6 +71,16 @@ void loop(){
       }
     }
   }
+}
+
+void open_effusion(){
+  digitalWrite(C, HIGH);
+  Serial.print("m = " + m + "\r\n");
+}
+
+void close_effusion(){
+  digitalWrite(C, LOW);
+  Serial.print("m = " + m + "\r\n");
 }
 
 void turn(){
@@ -85,5 +113,3 @@ void turn(){
     Serial.read();
   }
 }
-
-
