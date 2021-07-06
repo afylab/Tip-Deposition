@@ -260,12 +260,12 @@ class EvaporatorShutter(DeviceServer):
     @setting(513,returns = 's')
     def manual_reset_close(self,c):
         """Closes the shutter, does nothing if the shutter is already closed"""
-        self.open = False
+        self.evap_open = False
         return "Manually set state to close"
     #
-    @setting(514,returns = 's')
+    @setting(514,returns = '?')
     def returnstate(self,c):
-        return self.open
+        return self.evap_open
 
 __server__ = EvaporatorShutter()
 if __name__ == '__main__':

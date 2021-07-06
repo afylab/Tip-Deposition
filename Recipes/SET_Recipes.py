@@ -135,7 +135,7 @@ class Oxidized_SETs(SET_Recipe):
         setpoint = float(params["Deposition Rate (A/s)"])
 
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        self.wait_stable('Deposition Rate', setpoint, 0.5, window=30)
+        self.wait_stable('Deposition Rate', setpoint, 0.5, window=60)
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
 

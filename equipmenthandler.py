@@ -59,6 +59,8 @@ class PIDFeedbackController():
             self.minIntegral = -1.0*self.maxIntegral
         #
         self.paused = False
+        self.ramping = False
+        self.ramp_to = 0.0
         if warmup == 0.0:
             self.output = 0.0
             self.waiting = False
@@ -72,21 +74,49 @@ class PIDFeedbackController():
             self.waiting = True
     #
 
-    def pause(self):
+    def pause(self, ramptime=0.0):
         '''
         Pauses the feedback loop, retaining all relevant parameters. Zeros the output
         while paused.
+
+        Args:
+            ramptime (float or None) : If not zero will ramp down the output to
+                zero over the given number of seconds.
         '''
         if not self.paused:
             self.paused = True
-            self.function(0.0)
             self.integral = 0.0
             self.offset = self.output
-            #print("Paused ", str(self.offset))
+            if ramptime == 0.0:
+                self.function(0.0)
+            else:
+                self.rampdown(ramptime)
         #
     #
 
-    def resume_after(self, wait):
+    def rampdown(self, time):
+        '''
+        Linearly ramps down the output over some time interval
+        '''
+        if not self.paused:
+            self.paused = True
+        self.ramp_time = time
+        self.ramp_to = 0.0
+        self.ramp_start = datetime.now()
+        self.ramping = True
+    #
+
+    def rampto(self, time, value):
+        '''
+        Linearly ramps up to some value over some time interval
+        '''
+        self.ramp_time = time
+        self.ramp_to = value
+        self.ramp_start = datetime.now()
+        self.ramping = True
+    #
+
+    def resume_after(self, wait, ramptime=None):
         '''
         Resumes the output of the loop after waiting a certain period. The output
         is restored to the previous setting immediatly, then the loop waits a
@@ -94,23 +124,35 @@ class PIDFeedbackController():
 
         Args:
             wait (float) : The number of second to wait after resetting the output
+            ramptime (float or None) : If not None will ramp up the output over the
+            given amount of time, this will be counted as part of the wait time.
         '''
         if self.paused:
             self.wait_time = float(wait)
             self.wait_start = datetime.now()
             #print("Resuming at ", str(self.offset), " After " + str(self.wait_time))
-            self.function(self.offset)
+            if ramptime is None or ramptime == 0:
+                self.function(self.offset)
+            else:
+                self.rampto(ramptime, self.offset)
             self.waiting = True
             self.paused = False # Do this last in case update is called while self.function is executing, it's happened before!
         #
     #
 
-    def resume(self):
+    def resume(self, ramptime=None):
         '''
         Immediately resumes both the output and the loop to the prior settings.
+
+        Args:
+            ramptime (float or None) : If not None will ramp up the output over the
+            given amount of time.
         '''
         if self.paused:
-            self.function(self.offset)
+            if ramptime is None or ramptime == 0:
+                self.function(self.offset)
+            else:
+                self.rampto(ramptime, self.offset)
             self.prev_time = (datetime.now()-self.t0).total_seconds()
             self.paused = False
             self.waiting = False
@@ -121,6 +163,22 @@ class PIDFeedbackController():
         '''
         Update the output based on current values.
         '''
+        if self.ramping:
+            t = (datetime.now()-self.ramp_start).total_seconds()
+            if self.ramp_to == 0.0:
+                out = self.output - self.output*t/(self.ramp_time)
+            else:
+                out = self.ramp_to*t/(self.ramp_time)
+
+            if self.ramp_to == 0.0 and out <= 0.0:
+                self.function(0.0)
+                self.ramping = False
+            elif self.ramp_to > 0.0 and out > self.ramp_to:
+                self.function(self.ramp_to)
+                self.ramping = False
+            else:
+                self.function(out)
+
         if self.paused:
             return
         elif self.waiting:
@@ -222,8 +280,10 @@ class EquipmentHandler(QThread):
     stopRecordSignal = pyqtSignal(str)
     verifySignal = pyqtSignal(list)
     feedbackPIDSignal = pyqtSignal(str, str, list)
-    pauseFeedbackPIDSignal = pyqtSignal(str)
-    resumeFeedbackPIDSignal = pyqtSignal(str, float)
+    pauseFeedbackPIDSignal = pyqtSignal(str, float)
+    resumeFeedbackPIDSignal = pyqtSignal(str, float, float)
+    changePIDSetpointSignal = pyqtSignal(str, float)
+    rampdownPIDSignal = pyqtSignal(str, float)
     stopFeedbackPIDSignal = pyqtSignal(str)
     stopAllFeedbackSignal = pyqtSignal()
 
@@ -277,6 +337,8 @@ class EquipmentHandler(QThread):
         self.pauseFeedbackPIDSignal.connect(self.pauseFeedbackPIDSlot)
         self.resumeFeedbackPIDSignal.connect(self.resumeFeedbackPIDSlot)
         self.stopFeedbackPIDSignal.connect(self.stopFeedbackPIDSlot)
+        self.changePIDSetpointSignal.connect(self.changePIDSetpointSlot)
+        self.rampdownPIDSignal.connect(self.rampdownPIDSlot)
         self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
 
         # To ensure that data is recored and updated at regular intervals have a target
@@ -513,16 +575,21 @@ class EquipmentHandler(QThread):
             self.errorSignal.emit()
     #
 
-    def pauseFeedbackPIDSlot(self, variable):
+    def pauseFeedbackPIDSlot(self, variable, ramptime):
         '''
         Pause a PID feedback loop on a given variable, setting the output equal
         to zero but retaining the previous output
+
+        Args:
+            variable : The tracked variable, needs to be an established loop
+            ramptime: If non-zero will ramp down the output to zero over a given
+                number of seconds.
         '''
         if variable in self.feedbackLoops:
-            self.feedbackLoops[variable].pause()
+            self.feedbackLoops[variable].pause(ramptime)
     #
 
-    def resumeFeedbackPIDSlot(self, variable, wait):
+    def resumeFeedbackPIDSlot(self, variable, wait, ramptime):
         '''
         Resume a PID feedback loop on a given variable, setting the output equal
         to zero the previous output then waiting a certain amount of time before
@@ -530,8 +597,11 @@ class EquipmentHandler(QThread):
         '''
         if variable in self.feedbackLoops:
             if wait > 0:
-                print("Waiting for ", wait)
-                self.feedbackLoops[variable].resume_after(wait)
+                # print("Waiting for ", wait)
+                if ramptime > 0:
+                    self.feedbackLoops[variable].resume_after(wait, ramptime)
+                else:
+                    self.feedbackLoops[variable].resume_after(wait)
             else:
                 self.feedbackLoops[variable].resume()
     #
@@ -542,6 +612,22 @@ class EquipmentHandler(QThread):
         '''
         if variable in self.feedbackLoops:
             del self.feedbackLoops[variable]
+    #
+
+    def changePIDSetpointSlot(self, variable, setpoint):
+        '''
+        Change the setpoint on a given PID loop.
+        '''
+        if variable in self.feedbackLoops:
+            self.feedbackLoops[variable].changeSetpoint(setpoint)
+    #
+
+    def rampdownPIDSlot(self, variable, time):
+        '''
+        Ramps down the output of a PID loop linearly over some time interval
+        '''
+        if variable in self.feedbackLoops:
+            self.feedbackLoops[variable].rampdown(time)
     #
 
     def stopAllFeedback(self):

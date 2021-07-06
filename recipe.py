@@ -610,6 +610,40 @@ class Recipe():
         self.updateSig.emit()
     #
 
+    def changePIDSetpoint(self, trackedVar, setpoint, wait=True):
+        '''
+        Changes the PID setpoint for an existing PID loop. The PID loop on trackedVar
+        must have been stated before (this can be called on a paused or stopped loop.)
+
+        Args:
+            trackedVar (str) : The tracked variable to feedback on, must be a tracked variable in self.equip.info
+            setpoint (float) : The initial setpoint of the loop
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
+        '''
+        self.equip.changePIDSetpointSignal.emit(trackedVar, setpoint)
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
+    #
+
+    def rampdownPID(self, trackedVar, time, wait=True):
+        '''
+        Takes the output of the PID loop and ramps it down to zero. The ramp is linear
+        taking some time given in the function.
+
+        Args:
+            trackedVar (str) : The tracked variable to feedback on, must be a tracked variable in self.equip.info
+            time (float) : The time over which to ramp down in minutes
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
+        '''
+        self.equip.rampdownPIDSignal.emit(trackedVar, float(60*time))
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
+    #
+
     def stopPIDLoop(self, trackedVar, wait=True):
         '''
         Stops feedback on the given tracked variable.
@@ -638,21 +672,23 @@ class Recipe():
         self.updateSig.emit()
     #
 
-    def pausePIDLoop(self, trackedVar, wait=True):
+    def pausePIDLoop(self, trackedVar, ramptime=0.0, wait=True):
         '''
         Stops feedback on the given tracked variable.
 
         Args:
+            ramptime (float): If non-zero will ramp down the output to zero over a given
+                number of seconds.
             wait (bool) : If True will wait 0.1 seconds after sending the
                 signal to allow the equipment handler and servers to catch up.
         '''
-        self.equip.pauseFeedbackPIDSignal.emit(trackedVar)
+        self.equip.pauseFeedbackPIDSignal.emit(trackedVar, ramptime)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()
     #
 
-    def resumePIDLoop(self, trackedVar, wait, updateWait=True):
+    def resumePIDLoop(self, trackedVar, wait, ramptime=0.0, updateWait=True):
         '''
         Resumes a paused PID loop. Sets the output to the previous value immediatly
         the resumes the loop after a certain amount of time.
@@ -660,10 +696,12 @@ class Recipe():
         Args:
             wait (flaot) : The number of seconds to wait before resuming the loop,
                 to allow the systme to stabilize.
+            ramptime (float) : If nonzero will ramp up the output over the
+                given amount of seconds, this time will be counted as part of the wait time.
             updateWait (bool) : If True will wait 0.1 seconds after sending the
                 signal to allow the equipment handler and servers to catch up.
         '''
-        self.equip.resumeFeedbackPIDSignal.emit(trackedVar, wait)
+        self.equip.resumeFeedbackPIDSignal.emit(trackedVar, wait, ramptime)
         if updateWait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()

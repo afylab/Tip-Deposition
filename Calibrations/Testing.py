@@ -97,16 +97,30 @@ class Recipe_Test(Recipe):
         self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 10.0, (0,100), warmup=20)
 
         # We can wait until the output is stable.
-        yield Step(False, "Wait until stable")
-        self.wait_stable("DummyVar", setpoint, 1, window=20)
-
-        yield Step(False, "Pausing feedback, wait 20s")
-        self.pausePIDLoop("DummyVar")
-        self.wait_for(20.0/60)
-
-        yield Step(False, "Resuming feedback after 20 seconds")
-        self.resumePIDLoop("DummyVar", 60.0)
+        # yield Step(False, "Wait until stable")
+        # self.wait_stable("DummyVar", setpoint, 1, window=20)
         self.wait_for(60.0/60)
+
+        # FOR TESTING
+        # yield Step(False, "Decreasing setpoint by 5")
+        # self.changePIDSetpoint("DummyVar", setpoint-5)
+        # self.wait_for(20.0/60)
+
+        yield Step(False, "Ramping down over 1 minute")
+        self.pausePIDLoop("DummyVar", 60.)
+        self.wait_until("DummyOutput", 0.0, conditional="equal")
+        self.wait_for(5.0/60)
+        yield Step(False, "Resuming feedback ramping up over 30 seconds, waiting 1 min")
+        self.resumePIDLoop("DummyVar", 60.0, ramptime=30.0)
+        self.wait_for(60.0/60)
+
+        # yield Step(False, "Pausing feedback, wait 20s")
+        # self.pausePIDLoop("DummyVar")
+        # self.wait_for(20.0/60)
+        #
+        # yield Step(False, "Resuming feedback after 20 seconds")
+        # self.resumePIDLoop("DummyVar", 60.0)
+        # self.wait_for(60.0/60)
 
         yield Step(False, "Output Resumed, wait 30s")
         self.wait_for(60.0/60)
