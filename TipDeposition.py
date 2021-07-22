@@ -341,10 +341,19 @@ class Process_Window(Ui_mainWindow):
                         val = widget.value()
                     else: # if it is a simple label
                         val = widget.text()
-                    step.input_param_values[k] = val
-                    widget.setEnabled(False)
+                    if val == "":
+                        error_dialog = QMessageBox()
+                        error_dialog.setIcon(QMessageBox.Warning)
+                        error_dialog.setText('A value is required for ' + str(k))
+                        error_dialog.exec_()
+                        self.stepQueue.put(step)
+                        return False
+                    else:
+                        step.input_param_values[k] = val
+                        widget.setEnabled(False)
                 except RuntimeError: # To prevent issues when reloading after an abort
                     pass
+        return True
     #
 
     def clear(self):
@@ -410,24 +419,26 @@ class Process_Window(Ui_mainWindow):
     Callback Functions
     '''
     def startCallback(self):
-        self.processQueuedStep()
-        self.proceedButton.setEnabled(False)
-        self.proceedButton.setText("Proceed")
-        self.pauseButton.setEnabled(False) # True
-        self.proceedButton.clicked.disconnect()
-        self.proceedButton.clicked.connect(self.proceedCallback)
-        self.sequencer.canAdvanceSignal.emit()
+        success = self.processQueuedStep()
+        if success:
+            self.proceedButton.setEnabled(False)
+            self.proceedButton.setText("Proceed")
+            self.pauseButton.setEnabled(False) # True
+            self.proceedButton.clicked.disconnect()
+            self.proceedButton.clicked.connect(self.proceedCallback)
+            self.sequencer.canAdvanceSignal.emit()
     #
 
     def proceedCallback(self):
         '''
         Callback function for the proceed button
         '''
-        self.proceedButton.setEnabled(False)
-        self.step_cnt += 1
-        self.stepLabel.setText(str(self.step_cnt))
-        self.processQueuedStep()
-        self.sequencer.canAdvanceSignal.emit()
+        success = self.processQueuedStep()
+        if success:
+            self.proceedButton.setEnabled(False)
+            self.step_cnt += 1
+            self.stepLabel.setText(str(self.step_cnt))
+            self.sequencer.canAdvanceSignal.emit()
     #
 
     def pauseCallback(self):

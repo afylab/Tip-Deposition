@@ -19,7 +19,7 @@ from labrad.server import setting
 from labrad.devices import DeviceServer, DeviceWrapper
 from twisted.internet.defer import inlineCallbacks
 from labrad.types import Value
-import time
+# import time
 
 TIMEOUT = Value(2, 's')
 BAUD = 38400

@@ -29,7 +29,7 @@ int state=LOW;
 
 void loop(){
   if(Serial.available()){
-    char rec ="";
+    char rec; //="";
     String m = "";
     while (rec != 'r'){
       if(Serial.available()){

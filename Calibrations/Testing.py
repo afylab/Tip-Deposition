@@ -4,7 +4,7 @@ Generic recipes for testing and calibration of equipment.
 
 from recipe import CalibrationRecipe, Recipe, Step
 
-class Recipe_Test(Recipe):
+class Recipe_Test_MOD(Recipe):
     '''
     A simple recipe to test the core functions of the Recipe. Generally when making a new type of
     nanoSQUID tip the workflow is as follows:
@@ -67,6 +67,10 @@ class Recipe_Test(Recipe):
         # Wait for a specific amount of time using the wait_for function
         # wait_for(minutes) where the interval is measured in minutes
         self.wait_for(0.1)
+
+        steptest= Step(True, "Record Test Value")
+        steptest.add_input_param("testval")
+        yield steptest
 
         # Get parameters from the user using the Step.add_input_param function, each parameter
         # should have a unique name, and may have a default value (the parameters loaded from a
