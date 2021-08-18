@@ -117,6 +117,8 @@ class FTMServer(DeviceServer):
         print(self.serialLinks)
         yield DeviceServer.initServer(self)
         self.busy = False
+        self.sensor = 1 # The sensor that you are reading from
+        print("Sensor " + str(self.sensor) + " Selected by default")
 
     @inlineCallbacks
     def loadConfigInfo(self):
@@ -274,6 +276,12 @@ class FTMServer(DeviceServer):
             yield self.sleep(0.1)
             #print "Sleeping"
 
+    @setting(107, sensor='i')
+    def select_sensor(self, c, sensor):
+        self.sensor = sensor
+        print("Sensor " + str(self.sensor) + " Selected")
+        #returnValue(self.sensor)
+
     def sleep(self,secs):
         """Asynchronous compatible sleep command. Sleeps for given time in seconds, but allows
         other operations to be done elsewhere while paused."""
@@ -339,22 +347,21 @@ class FTMServer(DeviceServer):
         returnValue(ans)
 
     @setting(209,returns='s')
-    def get_sensor_rate(self,c,sensor=1):
+    def get_sensor_rate(self,c):
         """Queries the L command and returns the response. Usage is get_rate()"""
-        ans = yield self.read(c,'L'+str(sensor)+'?')
+        ans = yield self.read(c,'L'+str(self.sensor)+'?')
         returnValue(ans)
 
-    @setting(210,returns='s')
-    def get_avg_rate(self,c,sensor):
-        """Queries the L command and returns the response. Usage is get_rate()"""
-        ans = yield self.read(c,'M')
-        returnValue(ans)
+    # @setting(210,returns='s')
+    # def get_avg_rate(self,c):
+    #     """Queries the L command and returns the response. Usage is get_rate()"""
+    #     ans = yield self.read(c,'M')
+    #     returnValue(ans)
 
-    #@setting(211,sensor = 'i',returns='s')
     @setting(211,returns='v')
-    def get_sensor_thickness(self,c,sensor=1):
+    def get_sensor_thickness(self,c):
         """Queries the N command and returns the response. Usage is get_sensor_thickness()"""
-        ans = yield self.read(c,'N'+str(sensor)+'?')
+        ans = yield self.read(c,'N'+str(self.sensor)+'?')
         ans = float(ans)*1e3 # Resturns units of kA, convert to A
         returnValue(ans)
 
@@ -364,16 +371,16 @@ class FTMServer(DeviceServer):
         ans = yield self.read(c,'O')
         returnValue(ans)
 
-    @setting(213,sensor = 'i',returns='s')
+    @setting(213,returns='s')
     def get_sensor_freq(self,c,sensor):
         """Queries the L command and returns the response. Usage is get_rate()"""
-        ans = yield self.read(c,'P'+str(sensor))
+        ans = yield self.read(c,'P'+str(self.sensor))
         returnValue(ans)
 
-    @setting(214,sensor = 'i', returns='s')
-    def get_sensor_life(self,c,sensor):
+    @setting(214, returns='s')
+    def get_sensor_life(self,c):
         """Queries the L command and returns the response. Usage is get_rate()"""
-        ans = yield self.read(c,'R'+str(sensor))
+        ans = yield self.read(c,'R'+str(self.sensor))
         returnValue(ans)
 
     @setting(215,returns='s')

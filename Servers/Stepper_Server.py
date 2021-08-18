@@ -37,10 +37,10 @@ serial_server_name = (platform.node() + '_serial_server').replace('-','_').lower
 from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
-import labrad.units as units
+# import labrad.units as units
 from labrad.types import Value
 from collections import deque
-import time
+# import time
 
 TIMEOUT = Value(5,'s')
 BAUD    = 9600

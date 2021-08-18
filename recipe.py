@@ -373,7 +373,7 @@ class Recipe():
         '''
         if args is None:
             self.equip.commandSignal.emit(server, command, [])
-        elif isinstance(args, float) or isinstance(args, str):
+        elif isinstance(args, float) or isinstance(args, str) or isinstance(args, int):
             self.equip.commandSignal.emit(server, command, [args])
         else:
             self.equip.commandSignal.emit(server, command, args)
@@ -522,12 +522,17 @@ class Recipe():
             else:
                 self.equip.commandSignal.emit('evaporator_shutter_server', 'close_shutter', [])
         elif shutter == "effusion":
-            print("Warning, effusion cell shutter not implemented yet")
+            if open:
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'open_effusion_shutter', [])
+            else:
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'close_effusion_shutter', [])
         elif shutter == 'all':
             if open:
                 self.equip.commandSignal.emit('evaporator_shutter_server', 'open_shutter', [])
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'open_effusion_shutter', [])
             else:
                 self.equip.commandSignal.emit('evaporator_shutter_server', 'close_shutter', [])
+                self.equip.commandSignal.emit('evaporator_shutter_server', 'close_effusion_shutter', [])
         else:
             print("WARNNG invalid shutter command, no change", shutter)
         if wait:
@@ -585,7 +590,7 @@ class Recipe():
         self.equip.stopRecordSignal.emit(variable)
     #
 
-    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, warmup=0.0, wait=True):
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime=0.0, wait=True):
         '''
         Begin plotting a tracked varaible.
 
@@ -598,12 +603,12 @@ class Recipe():
             setpoint (float) : The initial setpoint of the loop
             offset (float) : The offset for the output.
             minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
-            warmup (float) : If nonzero will set the output to the offset then wait for
-                the given number of seconds to warmup the output.
+            ramptime (float) : If nonzero will ramp up the output over the
+                given amount of seconds before starting the loop.
             wait (bool) : If True will wait 0.1 seconds after sending the
                 signal to allow the equipment handler and servers to catch up.
         '''
-        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), float(warmup)]
+        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), float(ramptime)]
         self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up

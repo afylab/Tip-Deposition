@@ -4,7 +4,7 @@ Generic recipes for testing and calibration of equipment.
 
 from recipe import CalibrationRecipe, Recipe, Step
 
-class Recipe_Test_MOD(Recipe):
+class Recipe_Test(Recipe):
     '''
     A simple recipe to test the core functions of the Recipe. Generally when making a new type of
     nanoSQUID tip the workflow is as follows:
@@ -68,10 +68,6 @@ class Recipe_Test_MOD(Recipe):
         # wait_for(minutes) where the interval is measured in minutes
         self.wait_for(0.1)
 
-        steptest= Step(True, "Record Test Value")
-        steptest.add_input_param("testval")
-        yield steptest
-
         # Get parameters from the user using the Step.add_input_param function, each parameter
         # should have a unique name, and may have a default value (the parameters loaded from a
         # previous run are accessible using the default function) or numerical limits that the
@@ -98,12 +94,12 @@ class Recipe_Test_MOD(Recipe):
         yield step3
         setpoint = step3.get_param('setpoint')
 
-        self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 10.0, (0,100), warmup=20)
+        self.PIDLoop('DummyVar', 'testserver', 'set_output', step3.get_param('P'), step3.get_param('I'), step3.get_param('D'), setpoint, 20.0, (0,100), ramptime=30)
 
         # We can wait until the output is stable.
-        # yield Step(False, "Wait until stable")
-        # self.wait_stable("DummyVar", setpoint, 1, window=20)
-        self.wait_for(60.0/60)
+        yield Step(False, "Wait until stable")
+        self.wait_stable("DummyVar", setpoint, 1, window=20)
+        #self.wait_for(60.0/60)
 
         # FOR TESTING
         # yield Step(False, "Decreasing setpoint by 5")
@@ -111,7 +107,7 @@ class Recipe_Test_MOD(Recipe):
         # self.wait_for(20.0/60)
 
         yield Step(False, "Ramping down over 1 minute")
-        self.pausePIDLoop("DummyVar", 60.)
+        self.pausePIDLoop("DummyVar", 60.0)
         self.wait_until("DummyOutput", 0.0, conditional="equal")
         self.wait_for(5.0/60)
         yield Step(False, "Resuming feedback ramping up over 30 seconds, waiting 1 min")
@@ -176,6 +172,7 @@ class Timing_Test(CalibrationRecipe): # A simple class for debugging timing issu
 
         self.command('evaporator_shutter_server', 'select_device')
         self.command('ftm_server', 'select_device')
+        self.command('ftm_server', 'select_sensor', 1) # Ensure the user has the right crystal selected, in this case 1
         #
         # # Setup the power supply server
         self.command('power_supply_server', 'select_device')
@@ -197,73 +194,5 @@ class Timing_Test(CalibrationRecipe): # A simple class for debugging timing issu
         # self.stopPlotting('Deposition Rate')
 
         finalstep = Step(False, "All Done.")
-        yield finalstep
-    #
-
-class Vacuum_Test(CalibrationRecipe):
-    """
-    Tests the pump out sequence of the vacuum system.
-    """
-    def __init__(self, *args):
-        super().__init__(*args, required_servers=['data_vault','valve_relay_server','rvc_server'])
-    #
-
-    def proceed(self):
-        self.command('rvc_server', 'select_device')
-        self.command('valve_relay_server', 'select_device')
-        # #Iden command added so that arduino will respond to first command given from GUI.
-        # #Lack of response is somehow connected to dsrdtr port connection, but not yet sure how...
-        self.command('valve_relay_server', 'iden')
-
-        self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
-        self.wait_for(0.01)
-        # self.plotVariable("Pressure", logy=True)
-
-        """
-        Pump out process
-        """
-        yield Step(True, "Ready for pump out.")
-
-        ## First rough out the chamber with the scroll pump
-        self.valve('all', True) # Open all the valves
-
-        yield Step(True, "Valves opened, ready for rough-out")
-
-        self.leakvalve(True)
-        self.pump('scroll', True)
-        self.wait_until('Pressure', 6e-2, "less than")
-
-        ## Close the Chamber valve
-        self.valve('chamber', False)
-        self.pump('turbo', True)
-
-        self.wait_until('Pressure', 1e-2, "less than")
-
-        yield Step(True, "Close external Helium line valve 5.")
-        yield Step(False, "Pumping down to base pressure.")
-        self.leakvalve(False)
-        self.wait_until('Pressure', 5e-6, "less than")
-
-        # yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
-        # self.leakvalve(True, pressure=5e-3)
-        # self.wait_for(5)
-
-        '''
-        Pump out complete, uncomment to include spin-down
-        '''
-        # yield Step(True, "Press proceed to close valves.")
-        # self.valve('all', False) # close all valves
-        # self.wait_for(0.1)
-        # self.pump('all', False) # Turn off all the pumps
-        # yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down.")
-        #
-        # self.leakvalve(True)
-        # self.wait_for(0.1)
-
-        # Stop updating the plots of the tracked quantities
-        # self.stopPlotting("Pressure")
-        # self.stopTracking('all')
-
-        finalstep = Step(False, "All Done. Leak valve open, vent the chamber and retreive your SQUID!")
         yield finalstep
     #

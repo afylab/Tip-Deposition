@@ -34,12 +34,13 @@ void loop(){
     while (rec != 'r'){
       if(Serial.available()){
         rec = Serial.read();
+        //Serial.print("m = " + m + "\r\n");
         if(rec != 'r'){
           m += rec;
         }
         else if(rec == 'r'){
-          Serial.print("m = " + m + "\r\n");
-          Serial.print(String(m));
+          //Serial.print("process m = " + m + "\r\n");
+          m.trim(); // Removes any leading or trailing whitespace
           if(m.endsWith("C") || m.endsWith("A")){ 
             Serial.print("turning evaporator shutter\r\n");
             turn();
@@ -65,6 +66,7 @@ void loop(){
           }
           else {
             Serial.print("Invalid entry.\r\n");
+            Serial.print("m = " + m + "\r\n");
             m = "";
           }
         }

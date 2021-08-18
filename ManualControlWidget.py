@@ -94,7 +94,7 @@ class EvaporatorWidget(QtWidgets.QWidget):
 
         name = 'effusion shutter'
         self.equip[name] = Shutter(self, 350-50, 190, 'ver', QtGui.QColor(20, 30, 30), name)
-        # self.equip[name].clicked.connect(self.equip[name].toggle)
+        self.equip[name].clicked.connect(self.equip[name].toggle)
         self.equip[name].label = QtWidgets.QLabel('effusion\nshutter', self)
         self.equip[name].label.move(285-50, 190)
         self.equip[name].label.setStyleSheet('font-size: 16px; qproperty-alignment: AlignJustify;')
@@ -755,13 +755,19 @@ class Shutter(QtWidgets.QPushButton):
             self.setToolTip('Closed')
             if self.name == 'evaporator shutter':
                 self.parent.evss.close_shutter()
-                print('close shutter')
+                print('closed evaporator shutter')
+            elif self.name == 'effusion shutter':
+                self.parent.evss.close_effusion_shutter()
+                print('closed evaporator shutter')
         else:
             self.state = True
             self.setToolTip('Open')
             if self.name == 'evaporator shutter':
                 self.parent.evss.open_shutter()
-                print('open shutter')
+                print('opened evaporator shutter')
+            elif self.name == 'effusion shutter':
+                self.parent.evss.open_effusion_shutter()
+                print('opened evaporator shutter')
         self.update()
 
 

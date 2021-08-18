@@ -1,16 +1,17 @@
 '''
-A simple thermal evaporation using only the thermal evaporator and the cryogenic insert.
+Recipes using the effusion cell
 '''
 
 from recipe import Recipe, Step
 
-class Cryo_Thermal_Evaporation(Recipe):
+class Cryogenic_Effusion_Evap(Recipe):
     def __init__(self, *args):
         # Add all the hardwave servers needed for evaporation
-
         # Starting with the servers you always need, including 'data_vault'
-        servers = ['data_vault', 'rvc_server', 'valve_relay_server', 'ftm_server', 'power_supply_server', 'evaporator_shutter_server']
+        servers = ['data_vault', 'rvc_server', 'valve_relay_server', 'ftm_server', 'evaporator_shutter_server']
 
+        # Then process specific servers
+        servers.append('eurotherm_server')
 
         super().__init__(*args, required_servers=servers, version="1.0.0")
     #
@@ -33,14 +34,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.command('ftm_server', 'select_device')
 
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.command('ftm_server', 'select_sensor', 1) # Ensure the user has the right crystal selected, in this case 1
+        self.command('ftm_server', 'select_sensor', 2) # Ensure the user has the right crystal selected, in this case 2
 
-        #
-        # # Setup the power supply server
-        self.command('power_supply_server', 'select_device')
-        self.command('power_supply_server', 'adr', '6')
-        self.command('power_supply_server', 'rmt_set', 'REM')
-        #
+        self.command('eurotherm_server', 'set_ramprate', 60) # 60 C/Min, don't go far above.
 
         '''
         Track the variables
@@ -48,12 +44,11 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.trackVariable('Pressure', 'rvc_server', 'get_pressure_mbar', units='mbar')
         self.trackVariable('Deposition Rate', 'ftm_server', 'get_sensor_rate', units='(A/s)')
         self.trackVariable('Thickness', 'ftm_server', 'get_sensor_thickness', units='A')
-        self.trackVariable('Voltage', 'power_supply_server', 'act_volt', units='V')
-        self.trackVariable('Voltage Setpoint', 'power_supply_server', 'volt_read', units='V')
-        self.trackVariable('Current', 'power_supply_server', 'act_cur', units='A')
+        self.trackVariable('Temperature', 'eurotherm_server', 'get_temperature', units='C')
         self.wait_for(0.01) # Here because it threw an error one time
 
         self.recordVariable("Pressure")
+        self.recordVariable("Temperature")
         self.recordVariable("Deposition Rate")
 
         '''
@@ -61,27 +56,24 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         instruct = "Follow instructions for tip loading, confirm that:"
         instruct += "\n 1. The tip is loaded"
-        instruct += "\n 2. The evaporation boat has been loaded with 6-7 pellets of superconductor."
-        instruct += "\n 3. The evaporator is sealed and being pumped on."
-        instruct += "\n 4. The correct film has been selected on the FTM-2400."
+        instruct += "\n 2. the evaporator is sealed and being pumped on."
+        instruct += "\n 3. The correct film has been selected on the FTM-2400."
         instruct += "\n Confirm parameters below and press proceed to begin."
         step1 = Step(True, instruct)
-        step1.add_input_param("Deposition Rate (A/s)", default=self.default("Deposition Rate (A/s)"), limits=(0,10))
+        step1.add_input_param("Deposition Temp. (C)", default=self.default("Deposition Temp. (C)"), limits=(0,1400))
+        step1.add_input_param("Idle Temp. (C)", default=self.default("Idle Temp. (C)"), limits=(0,700))
         step1.add_input_param("Therm. Time 1", default=self.default("Therm. Time 1"), limits=(0,100))
         step1.add_input_param("Therm. Time 2", default=self.default("Therm. Time 2"), limits=(0,100))
         step1.add_input_param("He Pressure (mbar)", default=self.default("He Pressure (mbar)"), limits=(1e-9,1000))
         step1.add_input_param("Contact Thickness (A)", default=self.default("Contact Thickness (A)"), limits=(1,5000))
         step1.add_input_param("Head Thickness (A)", default=self.default("Head Thickness (A)"), limits=(1,500))
-
-        step1.add_input_param("P", default=self.default("P"), limits=(0,1))
-        step1.add_input_param("I", default=self.default("I"), limits=(0,1))
-        step1.add_input_param("D", default=self.default("D"), limits=(0,1))
-
-        step1.add_input_param("Vmax", default=self.default("Vmax"), limits=(0,10))
-        step1.add_input_param("Voffset", default=self.default("Voffset"), limits=(0,10))
         yield step1
 
         params = step1.get_all_params()
+        setpoint = float(params["Deposition Temp. (C)"])
+        idle_temp = float(params["Idle Temp. (C)"])
+
+        # Not setting this as a parameter for now.
         #print(params['Deposition Rate (A/s)'])
 
         step2 = Step(True, "Record the Crystal Life")
@@ -89,36 +81,18 @@ class Cryo_Thermal_Evaporation(Recipe):
         yield step2
 
         '''
-        Pump out sequence
+        Startup by ramping the temperature up to the idle temperture (is pressure is below 1e-3 mbar)
         '''
-        yield Step(False, "Begin pump out sequence, waiting until pressure falls below 5E-6 mbar.")
+        self.wait_until('Pressure', 1e-3, "less than") # For safe effusion cell operation
+        yield Step(False, "Ramping Temperature up to idle temperature.")
+        self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
+        self.wait_until('Temperature', idle_temp, "greater than")
 
+        yield Step(False, "Waiting until pressure falls below 5E-6 mbar.")
         self.wait_until('Pressure', 5e-6, "less than")
 
-        # Calibrate the voltage needed to reach set deposition rate
-        yield Step(True, "Rotate Tip to 165&deg;.")
-
-        yield Step(False, "Calibrating voltage to reach deposition rate.")
-
-        # Voltage calibration step, to get the voltage that gives hte deposition
-        # rate we want, as a starting point for later evaporations.
-        self.command('power_supply_server', 'switch', 'on')
-        self.shutter("evaporator", True)
-
-        P = params['P']
-        I = params['I']
-        D = params['D']
-        Voffset = params['Voffset']
-        Vmax = params['Vmax']
-        setpoint = float(params["Deposition Rate (A/s)"])
-
-        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        self.wait_stable('Deposition Rate', setpoint, 1, window=30)
-        self.pausePIDLoop('Deposition Rate')
-        self.shutter("evaporator", False)
-
         self.wait_for(0.5)
-        yield Step(False, "Flashing He line for 2 minutes.")
+        yield Step(False, "Flushing He line for 2 minutes.")
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(2)
         self.leakvalve(False)
@@ -126,79 +100,92 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
-        yield Step(True, "Wait until stable cryostat temperature is reached. Adjust the liquid helium flow to acheive desired stability.")
+        yield Step(True, "Wait until stable cryostat temperature is reached. Adjust the cryogen flow to achieve desired stability.")
 
-        yield Step(True, "Rotate Tip to 90&deg;.")
         # Deposit the first contact
-        yield Step(False, "Beginning thermalization, waiting " + str(params["Therm. Time 1"]) + " minutes")
+        yield Step(True, "Rotate Tip to 90&deg;.")
 
         # Open the helium at ~1e-3 Torr to thermalize tip
+        yield Step(False, "Beginning thermalization, waiting " + str(params["Therm. Time 1"]) + " minutes")
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(params["Therm. Time 1"])
         self.leakvalve(False)
         self.wait_for(0.5)
-        yield Step(True, "Ready to begin first contact deposition. Will wait 1 min for evaporator to heat up")
+
+        # The PID loop will overshoot significantly if you go diretly to the setpoint from idle temeprature and it will take
+        # longer to stabalize. To avoid this go to 15C below the setpoint the go the final distance.
+        yield Step(True, "Ready to begin first contact deposition. Press proceed to heat up the effusion cell to the deposition temperature.")
+        self.command('eurotherm_server', 'set_setpoint', setpoint-15)
+        self.wait_until('Temperature', setpoint-15, "greater than")
+        self.wait_for(1)
+        self.command('eurotherm_server', 'set_setpoint', setpoint)
+        self.wait_stable('Temperature', setpoint, 1, window=30)
 
         # First Contact Depositon
+        yield Step(False, "Depositing first contact.")
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 60)
-        self.wait_for(0.95)
-        self.shutter("evaporator", True)
-
+        self.shutter("effusion", True)
         self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
+        self.shutter("effusion", False)
 
-        self.pausePIDLoop('Deposition Rate')
-        self.shutter("evaporator", False)
-        yield Step(False, "First contact deposition finished")
+        yield Step(False, "First contact deposition finished, returning to idle temp.")
+        self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
+        self.wait_until('Temperature', idle_temp+5, "less than")
 
         # Deposit the SQUID head
         yield Step(True, "Rotate Tip to 345&deg;.")
 
         yield Step(False, "Beginning second thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
-
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(params["Therm. Time 2"])
         self.leakvalve(False)
         self.wait_for(0.5)
-        yield Step(True, "Ready to begin head deposition.")
+
+        yield Step(True, "Ready to begin head deposition. Press proceed to heat up the effusion cell to the deposition temperature.")
+        self.command('eurotherm_server', 'set_setpoint', setpoint-15)
+        self.wait_until('Temperature', setpoint-15, "greater than")
+        self.wait_for(1)
+        self.command('eurotherm_server', 'set_setpoint', setpoint)
+        self.wait_stable('Temperature', setpoint, 1, window=30)
 
         # SQUID Head Deposition
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 60)
-        self.wait_for(0.95)
         self.shutter("evaporator", True)
-
         self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
-
-        self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
-        yield Step(False, "Head deposition finished")
+
+        yield Step(False, "Head deposition finished, returning to idle temp.")
+        self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
+        self.wait_until('Temperature', idle_temp+5, "less than")
 
         # Deposit the second contact
         yield Step(True, "Rotate Tip to 240&deg;.")
 
         yield Step(False, "Beginning third thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
-
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(params["Therm. Time 2"])
         self.leakvalve(False)
         self.wait_for(0.5)
-        yield Step(True, "Ready to begin second contact deposition.")
+
+        yield Step(True, "Ready to begin second contact deposition. Press proceed to heat up the effusion cell to the deposition temperature")
+        self.command('eurotherm_server', 'set_setpoint', setpoint-15)
+        self.wait_until('Temperature', setpoint-15, "greater than")
+        self.wait_for(1)
+        self.command('eurotherm_server', 'set_setpoint', setpoint)
+        self.wait_stable('Temperature', setpoint, 1, window=30)
 
         # Second Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 60)
-        self.wait_for(0.95)
         self.shutter("evaporator", True)
-
         self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
-
-        self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
 
         yield Step(False, "Second contact deposition finished")
 
-        yield Step(True, "Deposition Finished. Follow warm up procedure.")
+        yield Step(False, "Deposition Finished. Ramping the effusion cell down to room temperature. Remove cryogen and start warming up the SQUID.")
+
+        self.command('eurotherm_server', 'ramp_to_room')
+        self.wait_until('Temperature', 100, "less than")
 
         self.stopRecordingVariable("all")
         self.stopTracking('all')

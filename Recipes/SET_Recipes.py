@@ -4,16 +4,15 @@ Recipies for making SETs
 
 from recipe import SET_Recipe, Step
 
-
 class Oxidized_SETs(SET_Recipe):
     def __init__(self, *args):
         # Add all the hardwave servers needed for evaporation
 
-        # Starting iwth the servers you always need, including 'data_vault'
+        # Starting with the servers you always need, including 'data_vault'
         servers = ['data_vault', 'rvc_server', 'valve_relay_server', 'ftm_server', 'power_supply_server', 'evaporator_shutter_server']
 
 
-        super().__init__(*args, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.0.1")
     #
 
     def proceed(self):
@@ -34,6 +33,7 @@ class Oxidized_SETs(SET_Recipe):
         self.command('ftm_server', 'select_device')
 
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.command('ftm_server', 'select_sensor', 1) # Ensure the user has the right crystal selected, in this case 1
 
         #
         # # Setup the power supply server
@@ -61,15 +61,18 @@ class Oxidized_SETs(SET_Recipe):
         '''
         instruct = "Follow instructions for tip loading, confirm that:"
         instruct += "\n 1. The tip is loaded"
-        instruct += "\n 2. The evaporation boat has been loaded with 6-7 pellets of superconductor."
-        instruct += "\n 3. the evaporator is sealed and ready for pump out."
-        instruct += "\n Confirm parameters below and press proceed to begin pumping out."
+        instruct += "\n 2. The evaporation boat has been loaded with 6-7 pellets of evaporant."
+        instruct += "\n 3. The evaporator is sealed and being pumped on."
+        instruct += "\n 4. The correct film has been selected on the FTM-2400."
+        instruct += "\n Confirm parameters below and press proceed to begin."
         step1 = Step(True, instruct)
         step1.add_input_param("Deposition Rate (A/s)", default=self.default("Deposition Rate (A/s)"), limits=(0,10))
         step1.add_input_param("Oxidation Time", default=self.default("Oxidation Time"), limits=(0,100))
         step1.add_input_param("O2 Pressure (mbar)", default=self.default("O2 Pressure (mbar)"), limits=(1e-9,1000))
         step1.add_input_param("Contact Thickness (A)", default=self.default("Contact Thickness (A)"), limits=(1,5000))
         step1.add_input_param("Head Thickness (A)", default=self.default("Head Thickness (A)"), limits=(1,500))
+        step1.add_input_param("Ramp Time (s)", default=self.default("Ramp Time (s)"), limits=(1,5000))
+
 
         step1.add_input_param("P", default=self.default("P"), limits=(0,1))
         step1.add_input_param("I", default=self.default("I"), limits=(0,1))
@@ -91,38 +94,23 @@ class Oxidized_SETs(SET_Recipe):
         '''
         yield Step(False, "Begin pump out sequence, waiting until pressure falls below 5E-6 mbar.")
 
-        # First rough out the chamber with the scroll pump
-        # self.valve('all', True) # Open all the valves
-        # self.pump('scroll', True)
-        # self.wait_until('Pressure', 1e-1, "less than")
-        #
-        # ## Close the Chamber valve
-        # self.valve('chamber', False)
-        # self.pump('turbo', True)
-        #
-        # self.wait_until('Pressure', 1e-2, "less than")
-        #
-        # yield Step(True, "Close external Helium line valve 5.")
-        # self.leakvalve(False)
-        # yield Step(False, "Pumping down to base pressure.")
-        #
         '''
         Pump out complete, calibrate the evaporation voltage
         '''
 
         self.wait_until('Pressure', 5e-6, "less than")
         #
-        # yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
-        # self.leakvalve(True, pressure=5e-3)
-        # self.wait_for(5)
-        # self.leakvalve(False)
+        yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
+        self.leakvalve(True, pressure=5e-3)
+        self.wait_for(5)
+        self.leakvalve(False)
 
         # Calibrate the voltage needed to reach set deposition rate
         yield Step(True, "Rotate Tip to 165&deg;.")
 
         yield Step(False, "Calibrating voltage to reach deposition rate.")
 
-        # Voltage calibration step, to get the voltage that gives hte deposition
+        # Voltage calibration step, to get the voltage that gives the deposition
         # rate we want, as a starting point for later evaporations.
         self.command('power_supply_server', 'switch', 'on')
         self.shutter("evaporator", True)
@@ -134,29 +122,34 @@ class Oxidized_SETs(SET_Recipe):
         Vmax = params['Vmax']
         setpoint = float(params["Deposition Rate (A/s)"])
 
-        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax), ramptime=params["Ramp Time (s)"])
         self.wait_stable('Deposition Rate', setpoint, 0.5, window=60)
-        self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
+        self.pausePIDLoop('Deposition Rate', ramptime=params["Ramp Time (s)"])
+        yield Step(False, "Ramping down the output")
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
 
         # Deposit the first contact
         yield Step(True, "Rotate Tip to 90&deg;.")
-        yield Step(True, "Ready to begin first contact deposition. Will wait 1 min for evaporator to heat up")
+        yield Step(True, "Ready to begin first contact deposition. Will ramp up power supply output.")
 
         # First Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 60)
-        #self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        self.wait_for(0.95)
+        self.resumePIDLoop('Deposition Rate', params["Ramp Time (s)"]+1, ramptime=params["Ramp Time (s)"])
+        yield Step(False, "Ramping up the output")
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
+
         self.shutter("evaporator", True)
-
         self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
-
-        self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
+
+        yield Step(False, "Ramping down the output")
+        self.pausePIDLoop('Deposition Rate', ramptime=params["Ramp Time (s)"])
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
+
         yield Step(False, "First contact deposition finished")
 
-        # First Oxidation
+        # First Oxidation Step
         yield Step(False, "Beginning first oxidation, waiting " + str(params["Oxidation Time"]) + " minutes")
         self.leakvalve(True, pressure=params["O2 Pressure (mbar)"])
         self.wait_for(params["Oxidation Time"])
@@ -168,65 +161,56 @@ class Oxidized_SETs(SET_Recipe):
 
         # Second Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 60)
-        self.wait_for(0.95)
+        self.resumePIDLoop('Deposition Rate', params["Ramp Time (s)"]+1, ramptime=params["Ramp Time (s)"])
+        yield Step(False, "Ramping up the output")
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
+
         self.shutter("evaporator", True)
-
         self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
-
-        self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
+
+        yield Step(False, "Ramping down the output")
+        self.pausePIDLoop('Deposition Rate', ramptime=params["Ramp Time (s)"])
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
 
         yield Step(False, "Second contact deposition finished")
 
-        # Second Oxidation
+        # Second Oxidation Step
         yield Step(False, "Beginning first oxidation, waiting " + str(params["Oxidation Time"]) + " minutes")
         self.leakvalve(True, pressure=params["O2 Pressure (mbar)"])
         self.wait_for(params["Oxidation Time"])
         self.leakvalve(False)
         yield Step(True, "Ready to begin head on deposition.")
 
-        # Deposit the SQUID head
+        # Head-on Evaporation
         yield Step(True, "Rotate Tip to 345&deg;.")
 
         yield Step(True, "Ready to begin head on deposition.")
 
-        # SQUID Head Deposition
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 60)
-        self.wait_for(0.95)
+        self.resumePIDLoop('Deposition Rate', params["Ramp Time (s)"]+1, ramptime=params["Ramp Time (s)"])
+        yield Step(False, "Ramping up the output")
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
+
         self.shutter("evaporator", True)
-
         self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
-
-        self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
-        yield Step(False, "Head on deposition finished")
 
-        # Second Oxidation
+        self.pausePIDLoop('Deposition Rate', ramptime=params["Ramp Time (s)"])
+        yield Step(False, "Head on deposition finished. Ramping down the output.")
+        self.wait_for((params["Ramp Time (s)"]+1)/60)
+        self.stopPIDLoop('Deposition Rate')
+
+        # Third Oxidation Step
         yield Step(False, "Beginning third oxidation, waiting " + str(params["Oxidation Time"]) + " minutes")
         self.leakvalve(True, pressure=params["O2 Pressure (mbar)"])
         self.wait_for(params["Oxidation Time"])
         self.leakvalve(False)
 
-        '''
-        Venting sequence, normally this would be done manually after the system
-        has warmed up.
-        '''
-        # yield Step(True, "Press proceed to shut down vacuum system.")
-        # self.valve('all', False) # close all valves
-        # self.wait_for(0.2)
-        # self.pump('turbo', False) # Turn off the turbo pump
-        # yield Step(True, "Turbo spinning down, gently open turbo vent bolt for proper spin-down. Press proceed after spin-down.")
-        #
-        # self.leakvalve(True)
-        # self.wait_for(0.1)
-        # self.pump('scroll', False) # Turn off the scroll pump
-
         self.stopRecordingVariable("all")
         self.stopTracking('all')
 
-        finalstep = Step(False, "All Done. Let the system warm up and retreive your SET!")
+        finalstep = Step(False, "All Done. Vent the system and retreive your SET!")
         yield finalstep
     #
 

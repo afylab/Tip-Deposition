@@ -12,7 +12,7 @@ from os.path import join
 import numpy as np
 
 class PIDFeedbackController():
-    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, warmup, MaxIntegral=None):
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, ramptime, MaxIntegral=None):
         '''
         Controller to run a PID loop on the data.
 
@@ -26,7 +26,7 @@ class PIDFeedbackController():
             D (float) : The derivative term, must be positive
             setpoint (float) : The setpoint for calculating error signal.
             minMaxOutput (tuple) : A tuple of (minimum_output, maximum_output)
-            warmup (float) : If nonzero will turn the output to the offset value and wait a given number of seconds before starting the loop.
+            ramptime (float) : If nonzero will linearly ramp the output to the offset value over a given number of seconds before starting the loop.
             minMaxIntegral (float) : The maximum absolute value of the integral, if None will be set
                 such that I*maximum_integral = maximum_output, i.e.
                 values such that the integral term can drive to the maximum output by itself.
@@ -61,17 +61,16 @@ class PIDFeedbackController():
         self.paused = False
         self.ramping = False
         self.ramp_to = 0.0
-        if warmup == 0.0:
-            self.output = 0.0
+        self.output = 0.0
+        if ramptime == 0.0:
             self.waiting = False
             self.wait_time = 0
             self.wait_start = datetime.now()
         else:
-            self.output = self.offset
-            self.function(self.output)
-            self.wait_time = float(warmup)
+            self.wait_time = float(ramptime)
             self.wait_start = datetime.now()
             self.waiting = True
+            self.rampto(float(ramptime), self.offset)
     #
 
     def pause(self, ramptime=0.0):
@@ -96,7 +95,7 @@ class PIDFeedbackController():
 
     def rampdown(self, time):
         '''
-        Linearly ramps down the output over some time interval
+        Linearly ramps down the output over some time interval. Pauses the loop.
         '''
         if not self.paused:
             self.paused = True
@@ -108,7 +107,7 @@ class PIDFeedbackController():
 
     def rampto(self, time, value):
         '''
-        Linearly ramps up to some value over some time interval
+        Linearly ramps the output some value over some time interval.
         '''
         self.ramp_time = time
         self.ramp_to = value
@@ -146,7 +145,7 @@ class PIDFeedbackController():
 
         Args:
             ramptime (float or None) : If not None will ramp up the output over the
-            given amount of time.
+            given amount of time before resuming.
         '''
         if self.paused:
             if ramptime is None or ramptime == 0:
@@ -176,13 +175,14 @@ class PIDFeedbackController():
             elif self.ramp_to > 0.0 and out > self.ramp_to:
                 self.function(self.ramp_to)
                 self.ramping = False
+                self.prev_time = (datetime.now()-self.t0).total_seconds() # reset the timing. In case it as called without waiting the loop as well.
             else:
                 self.function(out)
+                return # In case it as called without waiting the loop as well.
 
         if self.paused:
             return
         elif self.waiting:
-            # print((datetime.now()-self.wait_start).total_seconds(), self.wait_time)
             if (datetime.now()-self.wait_start).total_seconds() >= self.wait_time:
                 self.prev_time = (datetime.now()-self.t0).total_seconds() # reset the timing
                 self.waiting = False
@@ -367,6 +367,9 @@ class EquipmentHandler(QThread):
                             if self.debugmode:
                                 print("Warning " + str(k) + " timed out, value not updated")
                         elif val == "ChecksumError": # Common error from power supply server
+                            if self.debugmode:
+                                print("Warning " + str(k) + " had a serial error, value not updated")
+                        elif val == "INVALID": # Common error from Eurotherm
                             if self.debugmode:
                                 print("Warning " + str(k) + " had a serial error, value not updated")
                         else:
@@ -557,16 +560,16 @@ class EquipmentHandler(QThread):
                 First is the name of the command to set the output, (accessible by getattr).
                 Must accept one floating point argument. The subsequent parameters are
                 numerical positional arguments to the constructor the PIDFeedbackController
-                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput, warmup]
+                object, i.e. [outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime]
         '''
         try:
             if server in self.servers:
                 if variable not in self.info:
                     raise ValueError("Cannot feedback, variable " + str(variable) + " not tracked.")
-                outputFunc, P, I, D, setpoint, offset, minMaxOutput, warmup = feedbackParams
+                outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime = feedbackParams
                 if hasattr(self.servers[server], outputFunc):
                     command = getattr(self.servers[server], outputFunc)
-                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, warmup)
+                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, ramptime)
                 else:
                     raise ValueError("Server " + str(server) + " does not have function" + str(outputFunc))
             else:
