@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Interfaces\Base_Status_Window.ui'
+# Form implementation generated from reading ui file 'Base_Status_Window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
 #
@@ -35,6 +35,19 @@ class Ui_StatusWindow(object):
         self.defaultPlotFrame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.defaultPlotFrame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.defaultPlotFrame.setObjectName("defaultPlotFrame")
+        self.timerLabel = QtWidgets.QLabel(StatusWindow)
+        self.timerLabel.setGeometry(QtCore.QRect(60, 0, 201, 31))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.timerLabel.setFont(font)
+        self.timerLabel.setText("")
+        self.timerLabel.setObjectName("timerLabel")
+        self.timerStaticLabel = QtWidgets.QLabel(StatusWindow)
+        self.timerStaticLabel.setGeometry(QtCore.QRect(0, 0, 71, 31))
+        font = QtGui.QFont()
+        font.setPointSize(14)
+        self.timerStaticLabel.setFont(font)
+        self.timerStaticLabel.setObjectName("timerStaticLabel")
 
         self.retranslateUi(StatusWindow)
         QtCore.QMetaObject.connectSlotsByName(StatusWindow)
@@ -42,6 +55,7 @@ class Ui_StatusWindow(object):
     def retranslateUi(self, StatusWindow):
         _translate = QtCore.QCoreApplication.translate
         StatusWindow.setWindowTitle(_translate("StatusWindow", "Form"))
+        self.timerStaticLabel.setText(_translate("StatusWindow", "Timer:"))
 
 
 if __name__ == "__main__":

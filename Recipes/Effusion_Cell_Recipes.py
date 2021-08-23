@@ -36,6 +36,7 @@ class Cryogenic_Effusion_Evap(Recipe):
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
         self.command('ftm_server', 'select_sensor', 2) # Ensure the user has the right crystal selected, in this case 2
 
+        self.command('eurotherm_server', 'set_auto_mode') # Change it into automatic mode, so you can change the setpoint.
         self.command('eurotherm_server', 'set_ramprate', 60) # 60 C/Min, don't go far above.
 
         '''

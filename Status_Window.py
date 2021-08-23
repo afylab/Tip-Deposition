@@ -1,5 +1,7 @@
 '''
 Window to display the current status of the equipment
+
+Load the base with: "pyuic5 -x Base_Status_Window.ui -o Base_Status_Window.py"
 '''
 
 from Interfaces.Base_Status_Window import Ui_StatusWindow
@@ -36,7 +38,7 @@ class Status_Window(Ui_StatusWindow):
         self.equip = equipment
         self.equip.guiTrackedVarSignal.connect(self.trackedVariableSlot)
         self.equip.updateTrackedVarSignal.connect(self.updateTrackedVarSlot)
-
+        self.equip.timerSignal.connect(self.timerSlot)
         self.widget = widget
         self.gui = gui
 
@@ -93,7 +95,10 @@ class Status_Window(Ui_StatusWindow):
         self.plot2comboBox.currentTextChanged.connect(lambda s: self.startPlotting(self.plot2, s))
 
         self.widget.setWindowIcon(QIcon(join('Interfaces','images','squid_tip.png')))
+        self.timerLabel.setText("")
     #
+    def timerSlot(self, s):
+        self.timerLabel.setText(s)
 
     def setupPlot(self, widget):
         for k in list(self.plottedVars.keys()): # The plot is already in use, overwrite it

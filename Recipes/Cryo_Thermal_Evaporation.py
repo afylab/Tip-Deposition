@@ -102,6 +102,7 @@ class Cryo_Thermal_Evaporation(Recipe):
 
         # Voltage calibration step, to get the voltage that gives hte deposition
         # rate we want, as a starting point for later evaporations.
+        self.leakvalve(False)
         self.command('power_supply_server', 'switch', 'on')
         self.shutter("evaporator", True)
 
