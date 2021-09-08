@@ -3,6 +3,7 @@ Recipies for making SETs
 '''
 
 from recipe import SET_Recipe, Step
+from traceback import format_exc
 
 class Oxidized_SETs(SET_Recipe):
     def __init__(self, *args):
@@ -99,8 +100,8 @@ class Oxidized_SETs(SET_Recipe):
         '''
 
         self.wait_until('Pressure', 5e-6, "less than")
-        #
-        yield Step(False, "Base pressure reached. Flowing Helium, wait 5 minutes for flow to stabalize.")
+        
+        yield Step(False, "Base pressure reached. Flowing O2, wait 5 minutes for flow to stabalize.")
         self.leakvalve(True, pressure=5e-3)
         self.wait_for(5)
         self.leakvalve(False)
@@ -216,10 +217,14 @@ class Oxidized_SETs(SET_Recipe):
 
     def shutdown(self):
         try:
-            self.command('power_supply_server', 'switch', 'off')
+            print("Attemping to ramp down the power output over 300s")
             self.shutter("evaporator", False)
+            self.rampdownAllFeedback(time=300, wait=False)
+            self.wait_for(301/60, shutdown=True)
+            self.command('power_supply_server', 'switch', 'off')
         except:
-            print("Warning could not shutdown the power supply.")
+            print("Warning could not rampdown the power supply.")
+            print(format_exc())
         super().shutdown()
     #
 #

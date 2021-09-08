@@ -182,7 +182,7 @@ class TipSelectionDialog(Ui_TipSelectionDialog):
         self.loadTips()
     #
 
-    def loadTips(self, directory='database'):
+    def loadTips(self, directory='..\database'):
         self.treeWidget.setHeaderLabels(["Select a Deposition"])
         for file in os.listdir(directory):
             if file.endswith(".csv"):

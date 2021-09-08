@@ -119,7 +119,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.shutter("evaporator", False)
 
         self.wait_for(0.5)
-        yield Step(False, "Flashing He line for 2 minutes.")
+        yield Step(False, "Flushing He line for 2 minutes.")
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(2)
         self.leakvalve(False)

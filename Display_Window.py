@@ -54,7 +54,7 @@ class Display_Window(Ui_DisplayWindow):
         database (str) : The root tip database, same as location where parameters are saved
         autosave (bool) : If True will automatically save the screenshot when loaded
     '''
-    def __init__(self, parent, version, squidname, database='..\database', autosave=False):
+    def __init__(self, parent, version, squidname, database='..\database', autosave=True):
         super().__init__()
         self.parent = parent
         self.version = version
@@ -120,12 +120,12 @@ class Display_Window(Ui_DisplayWindow):
             self.varsWidgets[name] = widget
             row += 1
 
-
         if self.autosave:
             svfl = join(self.home_dir, self.squidname+'.png')
             if not exists(svfl):
                 screenshot = self.parent.grab()
                 screenshot.save(svfl)
+                print("SQUID Data Saved to", svfl)
     #
 
     def saveCallback(self):

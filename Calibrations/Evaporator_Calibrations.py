@@ -1,5 +1,6 @@
 from recipe import CalibrationRecipe, Step
 from numpy import abs
+from traceback import format_exc
 
 class Calibrate_Evaporator_Shutter(CalibrationRecipe):
     def __init__(self, *args):
@@ -274,8 +275,8 @@ class Boat_Single_Evaporation(CalibrationRecipe):
         self.trackVariable('Current', 'power_supply_server', 'act_cur', units='A')
         self.wait_for(0.01) # Here because it threw an error one time
 
-        self.recordVariable("Pressure")
-        self.recordVariable("Deposition Rate")
+        # self.recordVariable("Pressure")
+        # self.recordVariable("Deposition Rate")
 
         '''
         Get parameters from the user
@@ -332,7 +333,7 @@ class Boat_Single_Evaporation(CalibrationRecipe):
         self.stopPIDLoop('Deposition Rate')
 
         # Stop updating the plots of the tracked varaibles
-        self.stopRecordingVariable("all")
+        #self.stopRecordingVariable("all")
         self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Time to let the system warm up.")
@@ -395,8 +396,8 @@ class Crucible_Single_Evaporation(CalibrationRecipe):
         self.trackVariable('Current', 'power_supply_server', 'act_cur', units='A')
         self.wait_for(0.01) # Here because it threw an error one time
 
-        self.recordVariable("Pressure")
-        self.recordVariable("Deposition Rate")
+        # self.recordVariable("Pressure")
+        # self.recordVariable("Deposition Rate")
 
         '''
         Get parameters from the user
@@ -458,7 +459,7 @@ class Crucible_Single_Evaporation(CalibrationRecipe):
         self.stopPIDLoop('Deposition Rate')
 
         # Stop updating the plots of the tracked varaibles
-        self.stopRecordingVariable("all")
+        #self.stopRecordingVariable("all")
         self.stopTracking('all')
 
         finalstep = Step(False, "All Done. Time to let the system warm up.")
@@ -466,9 +467,12 @@ class Crucible_Single_Evaporation(CalibrationRecipe):
 
     def shutdown(self):
         try:
-            self.command('power_supply_server', 'switch', 'off')
             self.shutter("evaporator", False)
+            self.rampdownAllFeedback(time=300, wait=False)
+            self.wait_for(301/60, shutdown=True)
+            self.command('power_supply_server', 'switch', 'off')
         except:
-            print("Warning could not shutdown the power supply.")
+            print("Warning could not rampdown the power supply.")
+            print(format_exc())
         super().shutdown()
     #

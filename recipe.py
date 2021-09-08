@@ -238,18 +238,20 @@ class Recipe():
             return None
     #
 
-    def wait_for(self, minutes):
+    def wait_for(self, minutes, shutdown=False):
         '''
         Sleep the recipe for a specified number of minutes. Still check for abort signals.
 
         Args:
             minutes (float) : Number of minutes to wait for, can be a fraction of a minute.
+            shutdown (bool) : Set to true if this is occuring at shutdown, otherwise it will
+                not wait due to the abort signal
         '''
         stoptime = datetime.now() + timedelta(minutes=minutes)
         while stoptime > datetime.now():
             self.equip.timerSignal.emit(timeformat(stoptime - datetime.now()))
             sleep(0.05)
-            if self.abort:
+            if self.abort and not shutdown:
                 raise ProcessInterruptionError
             elif self.pause: # If paused, wait
                 while self.pause:
@@ -639,11 +641,11 @@ class Recipe():
 
         Args:
             trackedVar (str) : The tracked variable to feedback on, must be a tracked variable in self.equip.info
-            time (float) : The time over which to ramp down in minutes
+            time (float) : The time over which to ramp down in seconds
             wait (bool) : If True will wait 0.1 seconds after sending the
                 signal to allow the equipment handler and servers to catch up.
         '''
-        self.equip.rampdownPIDSignal.emit(trackedVar, float(60*time))
+        self.equip.rampdownPIDSignal.emit(trackedVar, float(time))
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()
@@ -672,6 +674,21 @@ class Recipe():
                 signal to allow the equipment handler and servers to catch up.
         '''
         self.equip.stopAllFeedbackSignal.emit()
+        if wait:
+            sleep(self.wait_delay) # give the program a little time to catch up
+        self.updateSig.emit()
+    #
+
+    def rampdownAllFeedback(self, time=100, wait=True):
+        '''
+        Signals the equipment handler to rampdown all feedback loops.
+
+        Args:
+            time (float) : The time over which to ramp down in seconds
+            wait (bool) : If True will wait 0.1 seconds after sending the
+                signal to allow the equipment handler and servers to catch up.
+        '''
+        self.equip.rampdownAllFeedbackSignal.emit(float(time))
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up
         self.updateSig.emit()
@@ -768,14 +785,21 @@ class CalibrationRecipe(Recipe):
         for k in startupstep.input_param_values.keys():
             self.parameters[k] = startupstep.input_param_values[k]
 
-        # # Maybe put some calibration data somewhere in the future?
-        #
+        # Maybe put some calibration data somewhere in the future?
+
         # try:
         #     self.equip.initRecordSignal.emit(self.savedir, self.get_name(), self.parameters['SQUID Num.'])
         # except:
         #     err = "Cannot initilize files for recording variables. "
         #     err += "Likely the starting parameters were not setup correctly."
         #     raise ValueError(err)
+
+    def recordVariable(self, variable):
+        '''
+        Here for compatability
+        '''
+        print("Warning cannot record variabels in standard format in a calibration run")
+        print("Variable", variable, "not recorded.")
     #
 
 class SET_Recipe(Recipe):

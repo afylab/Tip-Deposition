@@ -99,7 +99,9 @@ class PIDFeedbackController():
         '''
         if not self.paused:
             self.paused = True
+        self.integral = 0.0
         self.ramp_time = time
+        self.ramp0 = self.output
         self.ramp_to = 0.0
         self.ramp_start = datetime.now()
         self.ramping = True
@@ -109,8 +111,10 @@ class PIDFeedbackController():
         '''
         Linearly ramps the output some value over some time interval.
         '''
+        self.integral = 0.0
         self.ramp_time = time
         self.ramp_to = value
+        self.ramp0 = self.output
         self.ramp_start = datetime.now()
         self.ramping = True
     #
@@ -164,21 +168,17 @@ class PIDFeedbackController():
         '''
         if self.ramping:
             t = (datetime.now()-self.ramp_start).total_seconds()
-            if self.ramp_to == 0.0:
-                out = self.output - self.output*t/(self.ramp_time)
-            else:
-                out = self.ramp_to*t/(self.ramp_time)
-
-            if self.ramp_to == 0.0 and out <= 0.0:
-                self.function(0.0)
-                self.ramping = False
-            elif self.ramp_to > 0.0 and out > self.ramp_to:
+            out = self.ramp0 - (self.ramp0 - self.ramp_to)*t/(self.ramp_time)
+            #print(out, self.ramp_to, self.ramp0, self.ramp_time)
+            if (self.ramp_to < self.ramp0 and out <= self.ramp_to) or (self.ramp_to >= self.ramp0 and out > self.ramp_to):
                 self.function(self.ramp_to)
+                self.output = self.ramp_to
                 self.ramping = False
                 self.prev_time = (datetime.now()-self.t0).total_seconds() # reset the timing. In case it as called without waiting the loop as well.
             else:
                 self.function(out)
-                return # In case it as called without waiting the loop as well.
+                self.output = out
+            return # In case it as called without waiting the loop as well.
 
         if self.paused:
             return
@@ -286,6 +286,7 @@ class EquipmentHandler(QThread):
     rampdownPIDSignal = pyqtSignal(str, float)
     stopFeedbackPIDSignal = pyqtSignal(str)
     stopAllFeedbackSignal = pyqtSignal()
+    rampdownAllFeedbackSignal = pyqtSignal(float)
 
     def __init__(self, servers=None, debug=False):
         '''
@@ -340,6 +341,7 @@ class EquipmentHandler(QThread):
         self.changePIDSetpointSignal.connect(self.changePIDSetpointSlot)
         self.rampdownPIDSignal.connect(self.rampdownPIDSlot)
         self.stopAllFeedbackSignal.connect(self.stopAllFeedback)
+        self.rampdownAllFeedbackSignal.connect(self.rampdownAllFeedback)
 
         # To ensure that data is recored and updated at regular intervals have a target
         # update drequency that will attempt to match by sleeping the main loop for an
@@ -630,6 +632,14 @@ class EquipmentHandler(QThread):
         Ramps down the output of a PID loop linearly over some time interval
         '''
         if variable in self.feedbackLoops:
+            self.feedbackLoops[variable].rampdown(time)
+    #
+
+    def rampdownAllFeedback(self, time):
+        '''
+        Rampdown all feedback loops
+        '''
+        for variable in list(self.feedbackLoops):
             self.feedbackLoops[variable].rampdown(time)
     #
 

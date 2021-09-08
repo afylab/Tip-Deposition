@@ -239,7 +239,8 @@ class Status_Window(Ui_StatusWindow):
         if variable in self.plottedVars: # If it's already plotted do nothing.
             return
         if variable not in self.equip.info:
-            raise ValueError("Cannot plot, variable " + str(variable) + " not tracked")
+            #raise ValueError("Cannot plot, variable " + str(variable) + " not tracked")
+            print("Cannot plot, variable " + str(variable) + " not tracked")
         try:
             float(self.equip.info[variable])
         except:
