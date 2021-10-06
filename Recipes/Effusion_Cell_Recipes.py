@@ -101,7 +101,7 @@ class Cryogenic_Effusion_Evap(Recipe):
         self.wait_for(0.5)
 
         yield Step(False, "Waiting until effusion cell reaches idle temperature.")
-        self.wait_until('Temperature', idle_temp, "greater than")
+        self.wait_until('Temperature', idle_temp-5, "greater than")
 
         yield Step(False, "Waiting until pressure falls below 5E-6 mbar.")
         self.wait_until('Pressure', 5e-6, "less than")
@@ -139,7 +139,7 @@ class Cryogenic_Effusion_Evap(Recipe):
 
         yield Step(False, "First contact deposition finished, returning to idle temp.")
         self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
-        self.wait_until('Temperature', idle_temp+5, "less than")
+        self.wait_until('Temperature', idle_temp+10, "less than")
 
         # Deposit the SQUID head
 
@@ -166,7 +166,7 @@ class Cryogenic_Effusion_Evap(Recipe):
 
         yield Step(False, "Head deposition finished, returning to idle temp.")
         self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
-        self.wait_until('Temperature', idle_temp+5, "less than")
+        self.wait_until('Temperature', idle_temp+10, "less than")
 
         # Deposit the second contact
 

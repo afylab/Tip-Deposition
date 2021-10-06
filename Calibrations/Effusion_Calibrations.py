@@ -96,13 +96,13 @@ class Effusion_Deposition_Test(CalibrationRecipe):
         '''
         Thermalization step to make sure the chip is thermalized when doing cryogenic deposition
         '''
-        # Step(True, "Press proceed thermalize the tip.")
-        # # Open the helium at ~1e-3 Torr for 10 min to make sure tip is cold
-        # self.leakvalve(True, pressure=params["He Pressure (mbar)"])
-        # self.wait_for(params["Therm. Time"])
-        # self.leakvalve(False)
-        # self.wait_for(0.5)
-        # yield Step(True, "Ready to begin deposition.")
+        Step(True, "Press proceed thermalize the tip.")
+        # Open the helium at ~1e-3 Torr for 10 min to make sure tip is cold
+        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
+        self.wait_for(params["Therm. Time"])
+        self.leakvalve(False)
+        self.wait_for(0.5)
+        yield Step(True, "Ready to begin deposition.")
 
 
         yield Step(True, "Press proceed to heat up the effusion cell to the Deposition temperature.")

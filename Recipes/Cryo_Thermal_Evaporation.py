@@ -91,9 +91,17 @@ class Cryo_Thermal_Evaporation(Recipe):
         '''
         Pump out sequence
         '''
+        self.leakvalve(False)
         yield Step(False, "Begin pump out sequence, waiting until pressure falls below 5E-6 mbar.")
 
         self.wait_until('Pressure', 5e-6, "less than")
+
+        yield Step(True, "Ready for He line flushing.")
+        yield Step(False, "Flushing He line for 2 minutes.")
+        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
+        self.wait_for(2)
+        self.leakvalve(False)
+        self.wait_for(0.5)
 
         # Calibrate the voltage needed to reach set deposition rate
         yield Step(True, "Rotate Tip to 165&deg;.")
@@ -114,16 +122,9 @@ class Cryo_Thermal_Evaporation(Recipe):
         setpoint = float(params["Deposition Rate (A/s)"])
 
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
-        self.wait_stable('Deposition Rate', setpoint, 1, window=30)
+        self.wait_stable('Deposition Rate', setpoint, 1, window=5)
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
-
-        self.wait_for(0.5)
-        yield Step(False, "Flushing He line for 2 minutes.")
-        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
-        self.wait_for(2)
-        self.leakvalve(False)
-        self.wait_for(0.5)
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
