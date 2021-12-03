@@ -1,5 +1,6 @@
 String m = "";
-int Controller[] = {2,3,4,5,6,7};
+int Controller[] = {3,4,14,15,16,17};
+//int Controller[] = {2,3,4,5,6,7};
 int valvestat[] = {0,0,0};
 
 void setup() {
@@ -81,6 +82,14 @@ void valve(){
     digitalWrite(4, LOW);
     Serial.print("Scroll Pump Off\r\n");
   } 
+  else if (m.startsWith("o") && m.endsWith("a")){
+    digitalWrite(17, HIGH);
+    Serial.print("Argon Valve Open\r\n");
+  }
+  else if (m.startsWith("c") && m.endsWith("a")){
+    digitalWrite(17, LOW);
+    Serial.print("Argon Valve Close\r\n");
+  }
   m = "";
       
   }  

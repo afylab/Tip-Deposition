@@ -213,21 +213,21 @@ class ValveRelayServer(DeviceServer):
         self.state['gate valve'] = False
         return ans
 
-    # @setting(411,returns='s')
-    # def valve_four_open(self,c):
-    #     """Opens valve 4."""
-    #     dev=self.selectedDevice(c)
-    #     yield dev.write("o4r")
-    #     ans = yield dev.read()
-    #     return ans
-    #
-    # @setting(412,returns='s')
-    # def valve_four_close(self,c):
-    #     """Closes valve 4."""
-    #     dev=self.selectedDevice(c)
-    #     yield dev.write("c4r")
-    #     ans = yield dev.read()
-    #     return ans
+    @setting(411,returns='s')
+    def argon_open(self,c):
+        """Opens valve 4."""
+        dev=self.selectedDevice(c)
+        yield dev.write("oar")
+        ans = yield dev.read()
+        return ans
+    
+    @setting(412,returns='s')
+    def argon_close(self,c):
+        """Closes valve 4."""
+        dev=self.selectedDevice(c)
+        yield dev.write("car")
+        ans = yield dev.read()
+        return ans
     #
     # @setting(413,returns='s')
     # def valve_five_open(self,c):

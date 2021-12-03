@@ -37,6 +37,7 @@ from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
 # import labrad.units as units
 from labrad.types import Value
+from time import sleep
 
 TIMEOUT = Value(5,'s')
 BAUD = 19200
@@ -108,6 +109,10 @@ class AlicatMCVServer(DeviceServer):
         print('done.')
         print(self.serialLinks)
         yield DeviceServer.initServer(self)
+        try:
+            yield self.poll()
+        except:
+            print("Error polling at startup")
 
     @inlineCallbacks
     def loadConfigInfo(self):
@@ -159,7 +164,11 @@ class AlicatMCVServer(DeviceServer):
         """
         try:
             dev=self.selectedDevice(c)
-            ans = yield dev.query("a\r")
+            # ans = yield dev.query("a\r")
+            # print(ans)
+            yield dev.write("a\r")
+            sleep(0.1)
+            ans = yield dev.read()
             ans = ans.split()
             self.pressure = float(ans[1])
             self.temperature = float(ans[2])
@@ -169,6 +178,8 @@ class AlicatMCVServer(DeviceServer):
             self.gas = str(ans[6])
         except:
             print("Could not read data")
+            from traceback import format_exc
+            print(format_exc())
         returnValue(str(ans))
 
     @setting(102, returns='?')
@@ -226,6 +237,8 @@ class AlicatMCVServer(DeviceServer):
         '''
         dev=self.selectedDevice(c)
         yield dev.write("as"+str(value)+"\r")
+        sleep(0.1)
+        ans = yield dev.read()
 
 __server__ = AlicatMCVServer()
 
