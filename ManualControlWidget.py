@@ -23,13 +23,16 @@ class EvaporatorWidget(QtWidgets.QWidget):
         #               'evaporator power', 'effusion power', 'sputterer power',
         #               'evaporator shutter', 'effusion shutter']
 
-        self.emergencystopbutton = QtWidgets.QPushButton('Emergency Stop', self)
-        self.emergencystopbutton.setToolTip('Valves will be closed and pumps will be turned off')
-        self.emergencystopbutton.setGeometry(225-50, 600, 150, 50)
-        self.emergencystopbutton.setStyleSheet("QPushButton{background-color : #cf0000;} "
-                                               "QPushButton::pressed{background-color : #b90000;}")
-        self.emergencystopbutton.setFont(QFont('Times', 15))
-        self.emergencystopbutton.clicked.connect(self.emergencystop)
+        # EMERGENCY STOP DEPRACATED as it doesn't add much, in any real situation we would deal with
+        # the valves/pumps in a better way and the turb would spin down automatically
+        # it only adds the potential of someone clicking it when they are not supposed to
+        # self.emergencystopbutton = QtWidgets.QPushButton('Emergency Stop', self)
+        # self.emergencystopbutton.setToolTip('Valves will be closed and pumps will be turned off')
+        # self.emergencystopbutton.setGeometry(225-50, 600, 150, 50)
+        # self.emergencystopbutton.setStyleSheet("QPushButton{background-color : #cf0000;} "
+        #                                        "QPushButton::pressed{background-color : #b90000;}")
+        # self.emergencystopbutton.setFont(QFont('Times', 15))
+        # self.emergencystopbutton.clicked.connect(self.emergencystop)
 
         self.refreshbutton = QtWidgets.QPushButton('Refresh', self)
         self.refreshbutton.setToolTip('Refresh the status of all components')
@@ -164,24 +167,25 @@ class EvaporatorWidget(QtWidgets.QWidget):
                 yield self.rvc.set_mode_prs()
                 yield self.rvc.set_nom_prs(prs)
 
-    def emergencystop(self):
-        """
-        Closes gate valve, chamber valve and turn off turbo pump. Turn on scroll pump and open turbo valve
-        to have the access to the pump outlet.
-
-        return: None
-        """
-        self.main.abort()
-
-        self.vrs.gate_close()
-        self.vrs.chamber_valve_close()
-        self.vrs.turbo_valve_close()
-        self.vrs.turbo_off()
-        #self.vrs.scroll_off()
-
-        self.rvc.close_valve()
-
-        self.refresh()
+    # DEPRECATED, see comment in initilizer
+    # def emergencystop(self):
+    #     """
+    #     Closes gate valve, chamber valve and turn off turbo pump. Turn on scroll pump and open turbo valve
+    #     to have the access to the pump outlet.
+    #
+    #     return: None
+    #     """
+    #     self.main.abort()
+    #
+    #     self.vrs.gate_close()
+    #     self.vrs.chamber_valve_close()
+    #     self.vrs.turbo_valve_close()
+    #     self.vrs.turbo_off()
+    #     #self.vrs.scroll_off()
+    #
+    #     self.rvc.close_valve()
+    #
+    #     self.refresh()
 
     def refresh(self):
         """

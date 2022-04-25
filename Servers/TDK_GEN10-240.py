@@ -42,7 +42,7 @@ from labrad.types import Value
 import time
 
 TIMEOUT = Value(2,'s')
-BAUD    = 9600
+BAUD    = 19200
 BYTESIZE = 8
 STOPBITS = 1
 PARITY = 0

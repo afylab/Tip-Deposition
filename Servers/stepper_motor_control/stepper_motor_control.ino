@@ -43,7 +43,8 @@ void loop(){
           m.trim(); // Removes any leading or trailing whitespace
           if(m.endsWith("C") || m.endsWith("A")){ 
             Serial.print("turning evaporator shutter\r\n");
-            turn();
+            turn(m);
+            Serial.print("evaporator has turned\r\n");
             m="";
           }
           else if(m == "i"){
@@ -85,23 +86,24 @@ void close_effusion(){
   Serial.print("m = " + m + "\r\n");
 }
 
-void turn(){
+void turn(String m){
   int stp; int dir; float x=0;
-  String d = m.substring(1,m.length());
+  String d = m.substring(1,m.length()-1);
+  Serial.print(d);
   String motor = ""; String direct = "";
   char stepper = m.charAt(0);
   if(stepper == 'A'){
     stp = (int)A[0]; dir = (int)A[1]; x = (d.toFloat() * 8) / 1.8;
   }
   else if (stepper == 'B') {
-    stp = (int)B[0]; dir = (int)B[1]; x = (d.toFloat() * 8 * 60) / 1.8; 
+    stp = (int)B[0]; dir = (int)B[1]; x = (d.toFloat() * 8) / 1.8; 
   }
   float y=1;
   if(m.endsWith("C")){digitalWrite(dir, HIGH);}
   else if(m.endsWith("A")){digitalWrite(dir,LOW); }
   for(y= 1; y<x;y++) {
     digitalWrite(stp,HIGH); 
-    delay(2);
+    delay(4);
     digitalWrite(stp,LOW); 
     delay(2);
     if(Serial.available()){

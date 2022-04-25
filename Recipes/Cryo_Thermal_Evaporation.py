@@ -88,20 +88,14 @@ class Cryo_Thermal_Evaporation(Recipe):
         step2.add_input_param("Crystal Life", limits=(0,100))
         yield step2
 
+        yield Step(True, "Turn on water cooling.")
         '''
         Pump out sequence
         '''
         self.leakvalve(False)
         yield Step(False, "Begin pump out sequence, waiting until pressure falls below 5E-6 mbar.")
 
-        self.wait_until('Pressure', 5e-6, "less than")
-
-        yield Step(True, "Ready for He line flushing.")
-        yield Step(False, "Flushing He line for 2 minutes.")
-        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
-        self.wait_for(2)
-        self.leakvalve(False)
-        self.wait_for(0.5)
+        self.wait_until('Pressure', 7e-6, "less than")
 
         # Calibrate the voltage needed to reach set deposition rate
         yield Step(True, "Rotate Tip to 165&deg;.")
@@ -125,6 +119,14 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.wait_stable('Deposition Rate', setpoint, 1, window=5)
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
+
+
+        yield Step(True, "Ready for He line flushing. Check that all the valves are opened!")
+        yield Step(False, "Flushing He line for 2 minutes.")
+        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
+        self.wait_for(2)
+        self.leakvalve(False)
+        self.wait_for(0.5)
 
         yield Step(True, "Ready for cooldown, follow cooldown instructions then press proceed.")
 
@@ -170,7 +172,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.wait_for(0.95)
         self.shutter("evaporator", True)
 
-        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
+        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than') 
 
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)

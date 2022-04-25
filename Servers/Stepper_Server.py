@@ -37,10 +37,10 @@ serial_server_name = (platform.node() + '_serial_server').replace('-','_').lower
 from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
-# import labrad.units as units
+import labrad.units as units
 from labrad.types import Value
 from collections import deque
-# import time
+import time
 
 TIMEOUT = Value(5,'s')
 BAUD    = 9600
@@ -101,9 +101,9 @@ class StepperWrapper(DeviceWrapper):
 
 
 class StepperServer(DeviceServer):
-    name             = 'Stepper_Server'
-    deviceName       = 'Evaporator Stepper Motor Controller'
-    deviceWrapper    = StepperWrapper
+    name = 'Stepper_Server'
+    deviceName = 'Stepper Motor Controller'
+    deviceWrapper = StepperWrapper
 
     @inlineCallbacks
     def initServer(self):
@@ -118,7 +118,7 @@ class StepperServer(DeviceServer):
     @inlineCallbacks
     def loadConfigInfo(self):
         reg = self.reg
-        yield reg.cd(['', 'Servers', 'Evaporator Stepper', 'Links'], True)
+        yield reg.cd(['', 'Servers', 'Stepper Motor', 'Links'], True)
         dirs, keys = yield reg.dir()
         p = reg.packet()
         print("Created packet")
@@ -127,7 +127,7 @@ class StepperServer(DeviceServer):
             print("k=",k)
             p.get(k, key=k)
         ans = yield p.send()
-        print("ans=",ans)
+        #print("ans=",ans)
         self.serialLinks = dict((k, ans[k]) for k in keys)
 
     @inlineCallbacks
@@ -136,7 +136,7 @@ class StepperServer(DeviceServer):
         for name, (serServer, port) in list(self.serialLinks.items()):
             if serServer not in self.client.servers:
                 print(serServer)
-                print(self.client.servers)
+                #print(self.client.servers)
                 continue
             server = self.client[serServer]
             ports = yield server.list_serial_ports()
@@ -150,7 +150,7 @@ class StepperServer(DeviceServer):
     def rot(self,c,stepper, degrees, direction):
         """Rotates stepper motor by the number of degrees in the specified direction. The shutter blade
         stepper motor is motor 'A'. The cryostat stepper motor is motor 'B'. Use C to move clockwise and
-        A to move anti-clockwise. Example command: A150C. This will turn stepper motor A 150 degrees
+        A to move anti-clockwise. Example command: .rot('A','150','C'). This will turn stepper motor A 150 degrees
         clockwise."""
         stat = yield self.status(c)
         command = stepper+degrees+direction+"r"

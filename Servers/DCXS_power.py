@@ -20,7 +20,8 @@ from labrad.devices import DeviceServer, DeviceWrapper
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor, defer
 from labrad.types import Value
-from time import sleep
+import numpy as np
+# from time import sleep
 import serial
 TIMEOUT = Value(2, 's')
 BAUD = 38400
@@ -64,24 +65,6 @@ class DCXSPowerWrapper(DeviceWrapper):
         """Write a data value to the device"""
         yield self.packet().write(code).send()
 
-    # @inlineCallbacks
-    # def read(self):
-    #     """Read a response line from the device"""
-    #     p = self.packet()
-    #     p.read()
-    #     ans = yield p.send()
-    #     return ans.read
-    #
-    # @inlineCallbacks
-    # def query(self, code):
-    #     """ Write, then read. """
-    #     p = self.packet()
-    #     p.timeout(TIMEOUT)
-    #     p.write(code)
-    #     p.read()
-    #     ans = yield p.send()
-    #     return ans.read
-
     @inlineCallbacks
     def read(self):
         """Read a response line from the device"""
@@ -108,6 +91,9 @@ class PowerSupplyServer(DeviceServer):
         super().__init__()
         self.state = False
         self.abort = False
+        self.setpoint = -1
+        self.output_power = 0
+        self.ramping = False
 
     @inlineCallbacks
     def initServer(self):
@@ -115,7 +101,7 @@ class PowerSupplyServer(DeviceServer):
         self.reg = self.client.registry()
         yield self.loadConfigInfo()
         print('done.')
-        print(self.serialLinks)
+        # print(self.serialLinks)
         yield DeviceServer.initServer(self)
         self.busy = False
 
@@ -131,7 +117,7 @@ class PowerSupplyServer(DeviceServer):
             print("k=", k)
             p.get(k, key=k)
         ans = yield p.send()
-        print("ans=", ans)
+        # print("ans=", ans)
         self.serialLinks = dict((k, ans[k]) for k in keys)
 
     @inlineCallbacks
@@ -150,93 +136,71 @@ class PowerSupplyServer(DeviceServer):
             devs += [(devName, (server, port))]
         return devs
 
-    @setting(10, state='s', start_setpoint='i', end_setpoint='i', ramprate='i', returns='?')
-    def switch(self, c, state, start_setpoint=10, end_setpoint=10, ramprate=10):
+    @setting(10, state='s', start_setpoint='i', returns='?')
+    def switch(self, c, state, start_setpoint=10):
         """Turn on or off a scope channel display.
-        State must be in [A - ON, B - OFF].
-        Channel must be int or string.
-        Setpoint is the power at which sputtering should happen.
-        Ramprate is in W/min, 10-20 W/min is recommended.
+        State must be in "ON" or "OFF".
+        start_setpoint is the power to spark the plasma with if turning on, usually
+        10 - 30 W (in power mode) is used. According to the manual more than 30 W
+        is not necessary to spark the plasma. Once the plasma is established ramp
+        to the desired rate for deposition.
         """
         dev = self.selectedDevice(c)
-        if state is not None:
-            if state not in ['A', 'B']:
-                raise Exception('state must be A - ON, B - OFF')
+        if state == "ON":
+            if start_setpoint >= 0 and start_setpoint <= 350:
+                yield self.set_setpoint(c, start_setpoint)
+                yield dev.write("A")
+                yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
+                self.state = True
             else:
-                cur_output = yield self.set_setpoint(c, start_setpoint)
-                yield dev.write(state.encode("ASCII", "ignore"))
-                yield self.sleep(0.1)
-                self.state = not self.state
-            if state == 'A':
-                self.state = not self.state
-                if end_setpoint != 10:
-                    yield self.sleep(2)
-                    output_quant = ramprate / 60
-                    cur_output_step = cur_output
-                    print(output_quant)
-                    print(cur_output)
-                    print((end_setpoint-cur_output)/ramprate)
-                    while (cur_output != end_setpoint) and not self.abort:
-                        cur_output_step = cur_output_step + output_quant * abs(end_setpoint-cur_output)/(end_setpoint-cur_output)
-                        if abs(cur_output_step - cur_output) >= 1:
-                            cur_output = yield self.set_setpoint(c, round(cur_output_step))
-                        print('cur_output = ', str(cur_output), ' cur_output_step = ', str(cur_output_step))
-                        yield self.sleep(1)
-                    if self.abort:
-                        yield dev.write('B'.encode("ASCII", "ignore"))
-                        self.abort = False
-            resp = state
-        return resp
+                raise Exception('setpoint should be 0 - 350')
+        elif state == "OFF":
+            yield dev.write("B")
+            yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
+            self.setpoint = -1
+            self.state = False
+        else:
+            raise Exception('state must be ON or OFF')
+        return self.state
 
     @setting(11, p='?')
     def mode(self, c, p=None):
-        """Get or set the regulation mode: 0 - Power, 1 - Voltage, 2 - Current"""
+        """
+        Get or set the regulation mode: 0 - Power, 1 - Voltage, 2 - Current.
+        If None will query the mode.
+        """
         dev = self.selectedDevice(c)
         if p is None:
-            mode = yield dev.query(b'c')
+            mode = yield dev.query('c')
         elif p in [0, 1, 2]:
-            yield dev.write(('D' + str(p)).encode("ASCII", "ignore"))
-            # yield self.sleep(0.1)
+            yield dev.write(('D' + str(p)))
             yield dev.write('c')
-            yield self.sleep(0.1)
+            yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
             mode = yield dev.read()
         else:
-            raise Exception('p should be 0, 1 or 2')
+            raise Exception('Mode should be 0, 1 or 2')
         return mode
 
-    @setting(12, p='?', returns='?')
-    def set_setpoint(self, c, p=None):
-        """Get or set the set point (not the actual!) power, voltage or
-        current (0 - 20) depending on what regime is chosen. It's the setpoint
-        right after the ignition, you will need to set the setpoint for
-        sputtering in the switch function."""
+    @setting(12, p='i', returns='?')
+    def set_setpoint(self, c, p):
+        """
+        Set the set point (not the actual!) power, voltage or
+        current (0 - 20) depending on what regime is chosen (normally power).
+        Setpoint should be an integer between 1 and 350
+        """
         dev = self.selectedDevice(c)
-        print('setpoint is ', p)
-        if isinstance(p, (bool, str, list, dict, tuple, float)):
+        if not isinstance(p, int):
             raise Exception('Incorrect format, must be integer')
-        if self.abort:
-            yield dev.write('B'.encode("ASCII", "ignore"))
-            self.abort = False
-        elif isinstance(p, int) and (p >= 0) and (p < 351) and not self.abort:
+        elif p >= 0 and p <= 350:
             dec = len(str(p))
+            self.setpoint = p
+            #print("Setpoint:", self.setpoint) # For Debugging
             out_p = '0' * (4 - dec) + str(p)
-            yield dev.write(('C' + out_p).encode("ASCII", "ignore"))
-            yield self.sleep(0.1)
+            yield dev.write(('C' + out_p))
+            yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
             yield dev.write('b')
-            yield self.sleep(0.1)
+            yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
             setpoint = yield dev.read()
-            try:
-                setpoint = int(setpoint)
-            except ValueError:
-                print('Something wrong with the output setpoint.')
-                print(setpoint)
-            return setpoint
-        elif p is None:
-            # setpoint = yield dev.query('b')
-            yield dev.write('b')
-            yield self.sleep(0.1)
-            setpoint = yield dev.read()
-            # setpoint = yield dev.query('b'.encode("ASCII", "ignore"))
             try:
                 setpoint = int(setpoint)
             except ValueError:
@@ -244,103 +208,140 @@ class PowerSupplyServer(DeviceServer):
                 print(setpoint)
             return setpoint
         else:
-            raise Exception('set point should be 0 - 350')
+            raise Exception('setpoint should be 0 - 350')
 
-    # @setting(13, returns='?')
-    # def output_act(self, c):
-    #     """Get the actual power, voltage or current (0 - 1000)
-    #     depending on what regime is chosen."""
-    #     dev = self.selectedDevice(c)
-    #     mode = yield dev.query('c'.encode("ASCII", "ignore"))
-    #     if mode == 0:
-    #         p = yield dev.query('d'.encode("ASCII", "ignore"))
-    #     elif mode == 1:
-    #         p = yield dev.query('e'.encode("ASCII", "ignore"))
-    #     else:
-    #         p = yield dev.query('f'.encode("ASCII", "ignore"))
-    #     try:
-    #         p = int(p)
-    #     except ValueError:
-    #         print('Something wrong with the output. Check the hardware display.')
-    #     return p
+    @setting(13, setpoint='i', ramprate='i', returns='?')
+    def ramp(self, c, setpoint, ramprate=10):
+        '''
+        Ramps from the current setpoint to the given setpoint at the given ramprate.
+        Will not ramp the setpoint below 10, if given setpoint is less than 10 will
+        ramp to 10.
 
-    @setting(13, returns='?')
-    def power(self, c):
-        """Get the actual power (0 - 1000)."""
+        Setpoint is the target setpoint
+        Ramprate is in W/min, 10-20 W/min is recommended (Watts in power mode).
+        '''
         dev = self.selectedDevice(c)
-        yield dev.write('d'.encode("ASCII", "ignore"))
-        yield self.sleep(0.1)
-        p = yield dev.read()
-        try:
-            p = int(p)
-        except ValueError:
-            print('Something wrong with the power reading. Check the hardware display.')
-        return p
+        if self.state and self.setpoint >= 0:
+            if self.setpoint == setpoint:
+                return "Already at setpoint"
+            if setpoint < 10:
+                setpoint = 10
+            print("Ramping from", self.setpoint, "to", setpoint)
+            delta = (setpoint - self.setpoint)
+            num_points = int(np.abs(delta)/(ramprate/60))
+            increment = delta/num_points
+            current = self.setpoint
+            self.ramping = True
+            while self.setpoint != setpoint:
+                if self.abort:
+                    yield self.switch("OFF")
+                    self.abort = False
+                    return "Ramp Aborted"
+                current += increment
+
+                # Set the setpoint, also updates the setpoint parameter
+                yield self.set_setpoint(c, int(current))
+
+                # Read out the power as it changes
+                yield dev.write('d')
+                yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
+                p = yield dev.read()
+                try:
+                    self.output_power = int(p)
+                except ValueError:
+                    print('Something wrong with the power reading.')
+
+                # important that the sleeptime equals one, throws off timing otherwise.
+                # set_setpoint has 2x0.05 sleep times and there is ne for reading out the power
+                yield self.sleep(1-3*0.05)
+            return "Ramp Complete"
+    #
 
     @setting(14, returns='?')
-    def voltage(self, c):
-        """Get the actual voltage (0 - 1000)."""
+    def get_setpoint(self, c):
+        """Get the setpoint value (0 - 1000)."""
+        if self.ramping: # If ramping don't try to read it out from the device
+            return self.setpoint
         dev = self.selectedDevice(c)
-        yield dev.write('e'.encode("ASCII", "ignore"))
-        yield self.sleep(0.1)
-        p = yield dev.read()
+        yield dev.write('b')
+        yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
+        setpoint = yield dev.read()
         try:
-            p = int(p)
+            setpoint = int(setpoint)
         except ValueError:
-            print('Something wrong with the voltage reading. Check the hardware display.')
-        return p
+            print('Something wrong with the setpoint reading.')
+        return setpoint
 
     @setting(15, returns='?')
-    def current(self, c):
-        """Get the actual current (0 - 1000)."""
+    def get_power(self, c):
+        """Get the actual power (0 - 1000)."""
+        if self.ramping: # If ramping don't try to read it out from the device
+            return self.output_power # Is set inside the ramp function
         dev = self.selectedDevice(c)
-        yield dev.write('f'.encode("ASCII", "ignore"))
-        yield self.sleep(0.1)
+        yield dev.write('d')
+        yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
+        p = yield dev.read()
+        try:
+            self.output_power = int(p)
+        except ValueError:
+            print('Something wrong with the power reading.')
+        return self.output_power
+
+    @setting(16, returns='?')
+    def get_voltage(self, c):
+        """
+        Get the actual voltage (0 - 1000).
+
+        May have communication issues if try to use while ramping
+        """
+        dev = self.selectedDevice(c)
+        yield dev.write('e')
+        yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
         p = yield dev.read()
         try:
             p = int(p)
         except ValueError:
-            print('Something wrong with the current reading. Check the hardware display.')
+            print('Something wrong with the voltage reading.')
         return p
 
-    # @setting(16, p='?', returns='?')
-    # def ramptime(self, c, p=None):
-    #     """Get or set (0 - 99s) the ramp time"""
-    #     dev = self.selectedDevice(c)
-    #     if p is None:
-    #         yield dev.write('g'.encode("ASCII", "ignore"))
-    #         # yield self.sleep(0.1)
-    #         ramp_time = yield dev.read()
-    #     elif isinstance(p, int) and (p >= 0) and (p < 100) and len(str(p)) < 3:
-    #         dec = len(str(p))
-    #         out_p = '0' * (2 - dec) + str(p)
-    #         yield dev.write(('E'+out_p).encode("ascii", "ignore"))
-    #         yield self.sleep(0.1)
-    #         ramp_time = yield dev.read()
-    #     else:
-    #         raise Exception('ramp time should be 0 - 99s')
-    #
-    #     return ramp_time
-
     @setting(17, returns='?')
-    def identification(self, c):
-        """Get or set (0 - 99s) the ramp time"""
+    def get_current(self, c):
+        """
+        Get the actual current (0 - 1000).
+
+        May have communication issues if try to use while ramping
+        """
         dev = self.selectedDevice(c)
-        yield dev.write('?'.encode("ASCII", "ignore"))
-        # yield self.sleep(0.1)
+        yield dev.write('f')
+        yield self.sleep(0.05) # Short delay is needed for slow, dumb DCXS to catch up
+        p = yield dev.read()
+        try:
+            p = int(p)
+        except ValueError:
+            print('Something wrong with the current reading.')
+        return p
+
+    @setting(18, returns='?')
+    def iden(self, c):
+        """Get the device identification."""
+        dev = self.selectedDevice(c)
+        yield dev.write('?')
         iden = yield dev.read()
         return iden
 
-    @setting(18, returns='b')
-    def returnstate(self, c):
+    @setting(19, returns='b')
+    def get_state(self, c):
+        '''
+        Returns the state of the server
+        '''
         return self.state
 
-    @setting(19, returns='?')
+    @setting(20, returns='?')
     def abort_ramp(self, c):
         self.abort = True
         return self.abort
 
-    @setting(20, returns='?')
+    @setting(21, returns='?')
     def unlock(self, c):
         self.abort = False
         return self.abort

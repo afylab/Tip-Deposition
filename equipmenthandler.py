@@ -374,11 +374,21 @@ class EquipmentHandler(QThread):
                         elif val == "INVALID": # Common error from Eurotherm
                             if self.debugmode:
                                 print("Warning " + str(k) + " had a serial error, value not updated")
+                        elif val == "BAD READING": # Common error from RVC
+                            if self.debugmode:
+                                print("Warning " + str(k) + " had a serial error, value not updated")
                         else:
+                            try:
+                                float(val)
+                            except:
+                                print("EquipmentHandler Warning: variable", k, "not numeric")
+                                continue
                             self.info[k] = float(val)
                             self.updateTrackedVarSignal.emit(k)
                     except KeyError: # Sometimes untracking variables will cause a key error
                         pass
+                    except ValueError: # Sometimes servers return the wrong value
+                        print("equipmenthandler loop: ValueError for", k)
                 tnow = datetime.now()
 
                 # Update any feedback loops

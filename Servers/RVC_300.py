@@ -275,6 +275,7 @@ class RVCServer(DeviceServer):
             return float(ans)
         except:
             print(format_exc())
+            return "BAD READING"
 
 
     @setting(217, returns='s')
