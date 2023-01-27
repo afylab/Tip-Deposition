@@ -72,11 +72,11 @@ class Status_Window(Ui_StatusWindow):
         widget.setGUIRef(self.gui) # IMPORTANT, to make window closing work due to convoluted nature of Qt Designer classes
 
         # Initlize the plotting widgets
-        self.plot0 = pg.PlotWidget(self.defaultPlotFrame, viewBox=CustomViewBox())
+        self.plot0 = pg.PlotWidget(self.defaultPlotFrame)
         self.plot0.setGeometry(QtCore.QRect(0, 0, 550, 400))
         self.plot0.setObjectName("plot0")
 
-        self.plot1 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
+        self.plot1 = pg.PlotWidget(self.plotFrame)
         self.plot1.setGeometry(QtCore.QRect(0, 0, 550, 400))
         self.plot1.setObjectName("plot1")
 
@@ -85,7 +85,7 @@ class Status_Window(Ui_StatusWindow):
         self.plot1comboBox.setObjectName("plot1comboBox")
         self.plot1comboBox.currentTextChanged.connect(lambda s: self.startPlotting(self.plot1, s))
 
-        self.plot2 = pg.PlotWidget(self.plotFrame, viewBox=CustomViewBox())
+        self.plot2 = pg.PlotWidget(self.plotFrame)
         self.plot2.setGeometry(QtCore.QRect(550, 0, 550, 400))
         self.plot2.setObjectName("plot2")
 

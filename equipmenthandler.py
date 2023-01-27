@@ -12,7 +12,7 @@ from os.path import join
 import numpy as np
 
 class PIDFeedbackController():
-    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, ramptime, MaxIntegral=None):
+    def __init__(self, info, variable, outputFunction, P, I, D, setpoint, offset, minMaxOutput, ramptime, heatup_time, MaxIntegral=None):
         '''
         Controller to run a PID loop on the data.
 
@@ -27,6 +27,7 @@ class PIDFeedbackController():
             setpoint (float) : The setpoint for calculating error signal.
             minMaxOutput (tuple) : A tuple of (minimum_output, maximum_output)
             ramptime (float) : If nonzero will linearly ramp the output to the offset value over a given number of seconds before starting the loop.
+            heatup_time (float) : If nonzero will heat up the boat at offset voltage over a given number of seconds before starting the loop.
             minMaxIntegral (float) : The maximum absolute value of the integral, if None will be set
                 such that I*maximum_integral = maximum_output, i.e.
                 values such that the integral term can drive to the maximum output by itself.
@@ -46,7 +47,7 @@ class PIDFeedbackController():
         self.input = input
         self.min = minMaxOutput[0]
         self.max = minMaxOutput[1]
-
+        self.heatup_time = heatup_time
         if MaxIntegral is None:
             if self.I != 0.0:
                 self.maxIntegral = np.abs(self.max/self.I)
@@ -61,7 +62,7 @@ class PIDFeedbackController():
         self.paused = False
         self.ramping = False
         self.ramp_to = 0.0
-        self.output = 0.0
+        self.output = self.min
         if ramptime == 0.0:
             self.waiting = False
             self.wait_time = 0
@@ -71,6 +72,10 @@ class PIDFeedbackController():
             self.wait_start = datetime.now()
             self.waiting = True
             self.rampto(float(ramptime), self.offset)
+            self.wait_time = float(ramptime+heatup_time)
+            self.wait_start = datetime.now()
+            self.waiting = True
+            self.paused = False
     #
 
     def pause(self, ramptime=0.0):
@@ -578,10 +583,10 @@ class EquipmentHandler(QThread):
             if server in self.servers:
                 if variable not in self.info:
                     raise ValueError("Cannot feedback, variable " + str(variable) + " not tracked.")
-                outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime = feedbackParams
+                outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime, heatup_time = feedbackParams
                 if hasattr(self.servers[server], outputFunc):
                     command = getattr(self.servers[server], outputFunc)
-                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, ramptime)
+                    self.feedbackLoops[variable] = PIDFeedbackController(self.info, variable, command, P, I, D, setpoint, offset, minMaxOutput, ramptime, heatup_time)
                 else:
                     raise ValueError("Server " + str(server) + " does not have function" + str(outputFunc))
             else:

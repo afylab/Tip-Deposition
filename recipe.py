@@ -592,7 +592,7 @@ class Recipe():
         self.equip.stopRecordSignal.emit(variable)
     #
 
-    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime=0.0, wait=True):
+    def PIDLoop(self, trackedVar, server, outputFunc, P, I, D, setpoint, offset, minMaxOutput, ramptime=0.0, heatup_time=0.0, wait=True):
         '''
         Begin plotting a tracked varaible.
 
@@ -607,10 +607,11 @@ class Recipe():
             minMaxOutput (tuple) : A tuple containing the minimum and maximum outputs values.
             ramptime (float) : If nonzero will ramp up the output over the
                 given amount of seconds before starting the loop.
+            heatup_time (float) : If nonzero will heat up the boat at offset voltage over a given number of seconds before starting the loop.
             wait (bool) : If True will wait 0.1 seconds after sending the
                 signal to allow the equipment handler and servers to catch up.
         '''
-        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), float(ramptime)]
+        args = [outputFunc, float(P), float(I), float(D), float(setpoint), float(offset), (float(minMaxOutput[0]), float(minMaxOutput[1])), float(ramptime), float(heatup_time)]
         self.equip.feedbackPIDSignal.emit(server, trackedVar, args)
         if wait:
             sleep(self.wait_delay) # give the program a little time to catch up

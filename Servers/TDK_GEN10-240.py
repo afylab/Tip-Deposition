@@ -118,7 +118,7 @@ class PowerSupplyServer(DeviceServer):
     @inlineCallbacks
     def loadConfigInfo(self):
         reg = self.reg
-        yield reg.cd(['', 'Servers', 'Power Supply', 'Links'], True)
+        yield reg.cd(['', 'Servers', 'TDK Power Supply', 'Links'], True)
         dirs, keys = yield reg.dir()
         p = reg.packet()
         print("Created packet")

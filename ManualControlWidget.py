@@ -55,6 +55,22 @@ class EvaporatorWidget(QtWidgets.QWidget):
 
         returns: None
         """
+
+        name = 'Heater'
+        self.heaterbutton = QtWidgets.QPushButton('Heater', self)
+        self.heaterbutton.setCheckable(True)
+        self.heaterbutton.setToolTip('Toggle the heater')
+        self.heaterbutton.setGeometry(280-50, 600, 75, 25)
+        self.heaterbutton.setStyleSheet("QPushButton{background-color : #ffffff;} "
+                                         "QPushButton::pressed{background-color : #eeeeee;}")
+        self.heaterbutton.setFont(QFont('Times', 12))
+        self.heaterbutton.clicked.connect(self.heater)
+
+        # self.setpointinput = QtWidgets.QLineEdit(self)
+        # self.equip[name].input.setReadOnly(False) # Until we implement a way for it to display the setpoint
+        # self.equip[name].input.setPlaceholderText('Pressure')
+        # self.equip[name].input.setGeometry(85-50, 310, 50, 20
+
         name = 'leak valve'
         self.equip[name] = Valve(self, 80-50, 358, 'hor', 'blue', name)
         self.equip[name].clicked.connect(self.equip[name].toggle)
@@ -186,6 +202,39 @@ class EvaporatorWidget(QtWidgets.QWidget):
     #     self.rvc.close_valve()
     #
     #     self.refresh()
+    @inlineCallbacks
+    def heater(self, c):
+        """
+        toggle the heater between off and high heat range.
+        Active only if the leak valve is open.
+
+        """
+        if self.heaterbutton.isChecked():
+            if self.equip['leak valve'].state:
+                yield self.lakeshore.ramp(1, 0, 0)
+                print('flag 1')
+                yield self.lakeshore.read()
+                cur_temp = yield self.lakeshore.read_temp()
+                cur_temp = cur_temp.split(';')[0]
+                print('Temperature is ', cur_temp)
+                yield self.lakeshore.set_p(1, cur_temp)
+                print('flag 2')
+                yield self.lakeshore.set_heater_range(1,4)
+                yield self.lakeshore.ramp(1, 1, 5)
+                setp = yield self.lakeshore.read_p(1)
+                print(setp)
+                yield self.lakeshore.set_p(1, 300)
+                print('flag 4')
+            else:
+                print('Leak valve is closed')
+        else:
+            yield self.lakeshore.set_heater_range(1,0)
+            cur_temp = yield self.lakeshore.read_temp()
+            cur_temp = cur_temp.split(';')[0]
+            print('Temperature is ', cur_temp)
+
+            yield self.lakeshore.set_p(1, cur_temp)
+            yield self.lakeshore.ramp(1, 0, 0)
 
     def refresh(self):
         """
@@ -306,11 +355,14 @@ class EvaporatorWidget(QtWidgets.QWidget):
 
         self.tdk = self.cxn.power_supply_server
         self.tdk.select_device()
-        # self.tdk.adr('6')
-        # self.tdk.rmt_set('REM')
+        self.tdk.adr('6')
+        self.tdk.rmt_set('REM')
 
         self.ftm = self.cxn.ftm_server
         self.ftm.select_device()
+
+        self.lakeshore = self.cxn.lakeshore_336
+        self.lakeshore.select_device()
 
         '''
         Other Servers we may integrate later
@@ -409,95 +461,95 @@ class Valve(QtWidgets.QPushButton):
 
         return: None
         """
-        if self.parent.main.status == "active":
-            msg = QtWidgets.QMessageBox()
-            msg.setWindowTitle("System is active")
-            msg.setText("Please pause or stop the recipe before activating the manual control.")
-
-            msg.setIcon(QtWidgets.QMessageBox.Critical)
-
-            stop = QtWidgets.QPushButton("Stop")
-            msg.addButton(stop, QtWidgets.QMessageBox.YesRole)
-            stop.clicked.connect(self.parent.stopprocess)
-
-            cancel = QtWidgets.QPushButton("Cancel")
-            msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
-            msg.setDefaultButton(cancel)
-            msg.exec_()
-        else:
-            if self.state:
-                if self.name == 'leak valve':
-                    print(self.parent.equip[self.name].input.text())
-                    if self.parent.equip[self.name].input.text() == '':
-                        ans = yield self.parent.rvc.close_valve()
-                        print(ans)
-                        self.state = False
-                        self.setToolTip('Closed')
-                        self.parent.equip[self.name].status = False
-                        print(self.name + " manually closed")
-                    elif (self.parent.equip[self.name].input.text() == 'vent') or \
-                         (self.parent.equip[self.name].input.text() == 'Vent'):
-                        self.parent.equip[self.name].input.clear()
-                        print('Venting')
-                        yield self.parent.rvc.set_mode_flo()
-                        yield self.parent.rvc.set_nom_flo('100.0')
-                    else:
-                        prs = self.parent.equip[self.name].input.text()
-                        # prs = "{:.2E}".format(prs)
-                        self.parent.equip[self.name].input.clear()
-                        yield self.parent.rvc.set_mode_prs()
-
-                        yield self.parent.rvc.set_nom_prs(prs)
-                else:
+        # if self.parent.main.status == "active":
+        #     msg = QtWidgets.QMessageBox()
+        #     msg.setWindowTitle("System is active")
+        #     msg.setText("Please pause or stop the recipe before activating the manual control.")
+        #
+        #     msg.setIcon(QtWidgets.QMessageBox.Critical)
+        #
+        #     stop = QtWidgets.QPushButton("Stop")
+        #     msg.addButton(stop, QtWidgets.QMessageBox.YesRole)
+        #     stop.clicked.connect(self.parent.stopprocess)
+        #
+        #     cancel = QtWidgets.QPushButton("Cancel")
+        #     msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
+        #     msg.setDefaultButton(cancel)
+        #     msg.exec_()
+        # else:
+        if self.state:
+            if self.name == 'leak valve':
+                print(self.parent.equip[self.name].input.text())
+                if self.parent.equip[self.name].input.text() == '':
+                    ans = yield self.parent.rvc.close_valve()
+                    print(ans)
                     self.state = False
                     self.setToolTip('Closed')
                     self.parent.equip[self.name].status = False
                     print(self.name + " manually closed")
-                    if self.name == 'gate valve':
-                        yield self.parent.vrs.gate_close()
-                    elif self.name == 'chamber valve':
-                        yield self.parent.vrs.chamber_valve_close()
-                    elif self.name == 'turbo valve':
-                        yield self.parent.vrs.turbo_valve_close()
-                    else:
-                        print('Incorrect name')
-            else:
-                self.state = True
-                self.setToolTip('Open')
-                self.parent.equip[self.name].status = True
-                print(self.name + " manually opened")
-                if self.name == 'gate valve':
-                    yield self.parent.vrs.gate_open()
-                elif self.name == 'chamber valve':
-                    yield self.parent.vrs.chamber_valve_open()
-                elif self.name == 'turbo valve':
-                    yield self.parent.vrs.turbo_valve_open()
-                elif self.name == 'leak valve':
-                    if self.parent.equip[self.name].input.text() == '':
-                        prs = str('5.00E-03')
-                        print(prs)
-                        ans = yield self.parent.rvc.set_mode_prs()
-                        print(ans)
+                elif (self.parent.equip[self.name].input.text() == 'vent') or \
+                     (self.parent.equip[self.name].input.text() == 'Vent'):
+                    self.parent.equip[self.name].input.clear()
+                    print('Venting')
+                    yield self.parent.rvc.set_mode_flo()
+                    yield self.parent.rvc.set_nom_flo('100.0')
+                else:
+                    prs = self.parent.equip[self.name].input.text()
+                    # prs = "{:.2E}".format(prs)
+                    self.parent.equip[self.name].input.clear()
+                    yield self.parent.rvc.set_mode_prs()
 
-                        ans = yield self.parent.rvc.set_nom_prs(prs)
-                        print(ans)
-                    elif (self.parent.equip[self.name].input.text() == 'vent') or \
-                         (self.parent.equip[self.name].input.text() == 'Vent'):
-                        self.parent.equip[self.name].input.clear()
-                        print('Venting')
-                        yield self.parent.rvc.set_mode_flo()
-                        yield self.parent.rvc.set_nom_flo('100.0')
-                    else:
-                        prs = self.parent.equip[self.name].input.text()
-                        print(prs)
-                        self.parent.equip[self.name].input.clear()
-                        ans = yield self.parent.rvc.set_mode_prs()
-                        print(ans)
-                        ans = yield self.parent.rvc.set_nom_prs(str(prs))
-                        print(ans)
+                    yield self.parent.rvc.set_nom_prs(prs)
+            else:
+                self.state = False
+                self.setToolTip('Closed')
+                self.parent.equip[self.name].status = False
+                print(self.name + " manually closed")
+                if self.name == 'gate valve':
+                    yield self.parent.vrs.gate_close()
+                elif self.name == 'chamber valve':
+                    yield self.parent.vrs.chamber_valve_close()
+                elif self.name == 'turbo valve':
+                    yield self.parent.vrs.turbo_valve_close()
                 else:
                     print('Incorrect name')
-            self.update()
+        else:
+            self.state = True
+            self.setToolTip('Open')
+            self.parent.equip[self.name].status = True
+            print(self.name + " manually opened")
+            if self.name == 'gate valve':
+                yield self.parent.vrs.gate_open()
+            elif self.name == 'chamber valve':
+                yield self.parent.vrs.chamber_valve_open()
+            elif self.name == 'turbo valve':
+                yield self.parent.vrs.turbo_valve_open()
+            elif self.name == 'leak valve':
+                if self.parent.equip[self.name].input.text() == '':
+                    prs = str('5.00E-03')
+                    print(prs)
+                    ans = yield self.parent.rvc.set_mode_prs()
+                    print(ans)
+
+                    ans = yield self.parent.rvc.set_nom_prs(prs)
+                    print(ans)
+                elif (self.parent.equip[self.name].input.text() == 'vent') or \
+                     (self.parent.equip[self.name].input.text() == 'Vent'):
+                    self.parent.equip[self.name].input.clear()
+                    print('Venting')
+                    yield self.parent.rvc.set_mode_flo()
+                    yield self.parent.rvc.set_nom_flo('100.0')
+                else:
+                    prs = self.parent.equip[self.name].input.text()
+                    print(prs)
+                    self.parent.equip[self.name].input.clear()
+                    ans = yield self.parent.rvc.set_mode_prs()
+                    print(ans)
+                    ans = yield self.parent.rvc.set_nom_prs(str(prs))
+                    print(ans)
+            else:
+                print('Incorrect name')
+        self.update()
 
     def popup_clicked(self, i):
         """
@@ -561,65 +613,65 @@ class Pump(QtWidgets.QPushButton):
 
         return: None
         """
-        if self.parent.main.status == "active":
-            msg = QtWidgets.QMessageBox()
-            msg.setWindowTitle("System is active")
-            msg.setText("Please pause or stop the recipe before activating the manual control.")
-
-            msg.setIcon(QtWidgets.QMessageBox.Critical)
-
-            stop = QtWidgets.QPushButton("Stop")
-            msg.addButton(stop, QtWidgets.QMessageBox.YesRole)
-            stop.clicked.connect(self.parent.stopprocess)
-
-            cancel = QtWidgets.QPushButton("Cancel")
-            msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
-            msg.setDefaultButton(cancel)
-            msg.exec_()
-        elif self.name == 'scroll pump' and self.state and self.parent.equip['turbo pump'].state:
-            msg = QtWidgets.QMessageBox()
-            msg.setWindowTitle("Turbo Pump Active")
-            msg.setText("Cannot turn off the scroll pump while the turbo pump is running.")
-
-            msg.setIcon(QtWidgets.QMessageBox.Critical)
-            cancel = QtWidgets.QPushButton("Continue")
-            msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
-            msg.setDefaultButton(cancel)
-            msg.exec_()
-        elif self.name == 'turbo pump' and not self.state and (not self.parent.equip['scroll pump'].state or not self.parent.equip['turbo valve'].state):
-            msg = QtWidgets.QMessageBox()
-            msg.setWindowTitle("Scroll Pump Off")
-            msg.setText("Cannot turn on turbo with the scroll pump off or turbo valve closed.")
-
-            msg.setIcon(QtWidgets.QMessageBox.Critical)
-            cancel = QtWidgets.QPushButton("Continue")
-            msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
-            msg.setDefaultButton(cancel)
-            msg.exec_()
-        else:
-            if self.state:
-                self.state = False
-                self.setToolTip('Off')
-                self.parent.equip[self.name].status = False
-                print(self.name + " manually turned off")
-                if self.name == 'turbo pump':
-                    self.parent.vrs.turbo_off()
-                elif self.name == 'scroll pump':
-                    self.parent.vrs.scroll_off()
-                else:
-                    print('Incorrect Pump Name')
+        # if self.parent.main.status == "active":
+        #     msg = QtWidgets.QMessageBox()
+        #     msg.setWindowTitle("System is active")
+        #     msg.setText("Please pause or stop the recipe before activating the manual control.")
+        #
+        #     msg.setIcon(QtWidgets.QMessageBox.Critical)
+        #
+        #     stop = QtWidgets.QPushButton("Stop")
+        #     msg.addButton(stop, QtWidgets.QMessageBox.YesRole)
+        #     stop.clicked.connect(self.parent.stopprocess)
+        #
+        #     cancel = QtWidgets.QPushButton("Cancel")
+        #     msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
+        #     msg.setDefaultButton(cancel)
+        #     msg.exec_()
+        # elif self.name == 'scroll pump' and self.state and self.parent.equip['turbo pump'].state:
+        #     msg = QtWidgets.QMessageBox()
+        #     msg.setWindowTitle("Turbo Pump Active")
+        #     msg.setText("Cannot turn off the scroll pump while the turbo pump is running.")
+        #
+        #     msg.setIcon(QtWidgets.QMessageBox.Critical)
+        #     cancel = QtWidgets.QPushButton("Continue")
+        #     msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
+        #     msg.setDefaultButton(cancel)
+        #     msg.exec_()
+        # elif self.name == 'turbo pump' and not self.state and (not self.parent.equip['scroll pump'].state or not self.parent.equip['turbo valve'].state):
+        #     msg = QtWidgets.QMessageBox()
+        #     msg.setWindowTitle("Scroll Pump Off")
+        #     msg.setText("Cannot turn on turbo with the scroll pump off or turbo valve closed.")
+        #
+        #     msg.setIcon(QtWidgets.QMessageBox.Critical)
+        #     cancel = QtWidgets.QPushButton("Continue")
+        #     msg.addButton(cancel, QtWidgets.QMessageBox.YesRole)
+        #     msg.setDefaultButton(cancel)
+        #     msg.exec_()
+        # else:
+        if self.state:
+            self.state = False
+            self.setToolTip('Off')
+            self.parent.equip[self.name].status = False
+            print(self.name + " manually turned off")
+            if self.name == 'turbo pump':
+                self.parent.vrs.turbo_off()
+            elif self.name == 'scroll pump':
+                self.parent.vrs.scroll_off()
             else:
-                self.state = True
-                self.setToolTip('On')
-                self.parent.equip[self.name].status = True
-                print(self.name + " manually turned on")
-                if self.name == 'turbo pump':
-                    self.parent.vrs.turbo_on()
-                elif self.name == 'scroll pump':
-                    self.parent.vrs.scroll_on()
-                else:
-                    print('Incorrect Pump Name')
-            self.update()
+                print('Incorrect Pump Name')
+        else:
+            self.state = True
+            self.setToolTip('On')
+            self.parent.equip[self.name].status = True
+            print(self.name + " manually turned on")
+            if self.name == 'turbo pump':
+                self.parent.vrs.turbo_on()
+            elif self.name == 'scroll pump':
+                self.parent.vrs.scroll_on()
+            else:
+                print('Incorrect Pump Name')
+        self.update()
 
     def popup_clicked(self, i):
         """
