@@ -54,14 +54,19 @@ class ValveRelayWrapper(DeviceWrapper):
     @inlineCallbacks
     def connect(self, server, port):
         """Connect to a device."""
-        print('connecting to "%s" on port "%s"...' % (server.name, port), end=' ')
+        print("Got Here")
+        #print(server.name)
+        #print(port)
+        print('connecting to "%s" on port "%s"...' % (server.name, port), end='\n')
         self.server = server
         self.ctx = server.context()
         self.port = port
         p = self.packet()
-        # p.open(port)
+        print('after packet')
+        #p.open(port)
         # Testing no pulse serial connect
         p.open(port, True)
+        print("open port")
         p.baudrate(BAUD)
         p.bytesize(BYTESIZE)
         p.stopbits(STOPBITS)
@@ -108,6 +113,7 @@ class ValveRelayServer(DeviceServer):
     deviceName = 'Valve and Relay Controller'
     deviceWrapper = ValveRelayWrapper
     def __init__(self):
+        print("__init__")
         super().__init__()
         self.state = dict()
         self.state['turbo pump'] = False
@@ -115,6 +121,7 @@ class ValveRelayServer(DeviceServer):
         self.state['gate valve'] = False
         self.state['chamber valve'] = False
         self.state['turbo valve'] = False
+
 
     @inlineCallbacks
     def initServer(self):
@@ -124,6 +131,7 @@ class ValveRelayServer(DeviceServer):
         print('done.')
         print(self.serialLinks)
         yield DeviceServer.initServer(self)
+        print("Got Here 2")
 
     @inlineCallbacks
     def loadConfigInfo(self):
@@ -220,7 +228,7 @@ class ValveRelayServer(DeviceServer):
         yield dev.write("oar")
         ans = yield dev.read()
         return ans
-    
+
     @setting(412,returns='s')
     def argon_close(self,c):
         """Closes valve 4."""

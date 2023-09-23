@@ -122,6 +122,8 @@ class SerialServer(LabradServer):
             try:
                 c['PortObject'] = Serial(port, timeout=0, dsrdtr=DTR) # Be careful setting dsrdtr=True
             except SerialException as e:
+                print(e)
+                print(e.message)
                 if e.message.find('cannot find') >= 0:
                     raise Error(code=1, msg=e.message)
                 else:
@@ -305,7 +307,12 @@ class SerialServer(LabradServer):
         """Reads data from the port."""
         recd = yield self.readSome(c, count)
         if not isinstance(recd, str):
-            recd = recd.decode("utf-8")
+            try:
+                recd = recd.decode("utf-8")
+            except UnicodeDecodeError:
+                print("Error: Unicode decoding error: ",recd)
+                print("Byte ignored to not crash the process.")
+                recd = recd.decode("utf-8","ignore")
         return recd
 
     @setting(51, 'Read as Words',

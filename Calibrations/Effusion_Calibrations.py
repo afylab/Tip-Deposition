@@ -16,7 +16,7 @@ class Effusion_Deposition_Test(CalibrationRecipe):
         servers.append('evaporator_shutter_server')
         servers.append('eurotherm_server')
 
-        super().__init__(*args, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.0.1")
         #
 
     def proceed(self):
@@ -76,8 +76,8 @@ class Effusion_Deposition_Test(CalibrationRecipe):
 
         step1.add_input_param("Idle Temperature", default=self.default("Idle Temperature"), limits=(0,1400))
         step1.add_input_param("Dep. Temperature", default=self.default("Dep. Temperature"), limits=(0,1400))
-        # step1.add_input_param("Therm. Time", default=self.default("Therm. Time"), limits=(0,100))
-        # step1.add_input_param("He Pressure (mbar)", default=self.default("He Pressure (mbar)"), limits=(1e-9,10))
+        step1.add_input_param("Therm. Time", default=self.default("Therm. Time"), limits=(0,100))
+        step1.add_input_param("He Pressure (mbar)", default=self.default("He Pressure (mbar)"), limits=(1e-9,10))
         step1.add_input_param("Calibration Thickness (A)", default=self.default("Calibration Thickness (A)"), limits=(0,5000))
 
         yield step1
@@ -96,7 +96,7 @@ class Effusion_Deposition_Test(CalibrationRecipe):
         '''
         Thermalization step to make sure the chip is thermalized when doing cryogenic deposition
         '''
-        Step(True, "Press proceed thermalize the tip.")
+        Step(True, "Cooldown the Tip, if not done already. Press proceed thermalize the tip.")
         # Open the helium at ~1e-3 Torr for 10 min to make sure tip is cold
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(params["Therm. Time"])

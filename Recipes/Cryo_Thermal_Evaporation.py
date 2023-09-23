@@ -136,7 +136,7 @@ class Cryo_Thermal_Evaporation(Recipe):
         self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (Vmin, Vmax), Ramp_time, heatup_time) #heatup_time (float) : If nonzero will heat up the boat at offset voltage over a given number of seconds before starting the loop.
         self.wait_for(0.95/60*(float(Ramp_time)+float(heatup_time)))
         self.shutter("evaporator", True)
-        self.wait_stable('Deposition Rate', setpoint, 2, window=5)
+        self.wait_stable('Deposition Rate', setpoint, 1, window=5)
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
 
@@ -161,28 +161,32 @@ class Cryo_Thermal_Evaporation(Recipe):
         # self.wait_for(params["Therm. Time 2"])
         # self.leakvalve(False)
         # self.wait_for(0.2)
-        self.wait_for(0.75)
-        self.leakvalve(False)
-        self.valve('gate', False)
+        # self.wait_for(0.75)
+        # self.leakvalve(False)
+        # self.valve('gate', False)
         self.wait_for(params["Therm. Time 1"])
-        self.valve('gate', True)
-        self.wait_for(0.2)
-        yield Step(True, "Ready to begin first contact deposition. Will wait 30 sec for evaporator to heat up")
+        # self.valve('gate', True)
+        self.leakvalve(False)
+        self.wait_for(0.5)
+        yield Step(True, "Ready to begin first contact deposition. Will wait ~30 sec for evaporator to heat up")
 
         # First Contact Depositon
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 30)
-        self.wait_for(0.45)
+        self.resumePIDLoop('Deposition Rate', 60)
+
+        # Wait until just before the PID loop is about to resume
+        self.wait_for(0.85)
         self.shutter("evaporator", True)
 
         self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
 
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
-        yield Step(False, "First contact deposition finished")
+        yield Step(False, "First contact deposition finished. Waiting 30sec.")
+        self.wait_for(0.5)
 
-        # Deposit the SQUID head
-        yield Step(True, "Rotate Tip to 230&deg;")
+        # Deposit the second contact
+        yield Step(True, "Rotate Tip to 340&deg;")
 
         yield Step(False, "Beginning second thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
 
@@ -190,28 +194,31 @@ class Cryo_Thermal_Evaporation(Recipe):
         # self.wait_for(params["Therm. Time 2"])
         # self.leakvalve(False)
         # self.wait_for(0.2)
-        self.wait_for(0.75)
+        # self.wait_for(0.75)
+        # self.leakvalve(False)
+        # self.valve('gate', False)
+        self.wait_for(params["Therm. Time 2"])
+        # self.valve('gate', True)
+        # self.wait_for(0.2)
         self.leakvalve(False)
-        self.valve('gate', False)
-        self.wait_for(params["Therm. Time 1"])
-        self.valve('gate', True)
-        self.wait_for(0.2)
-        yield Step(True, "Ready to begin second contact deposition.")
+        self.wait_for(0.5)
+        yield Step(True, "Ready to begin head on deposition.")
 
-        # SQUID Head Deposition
+        # Second contact deposition
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 30)
-        self.wait_for(0.45)
+        self.resumePIDLoop('Deposition Rate', 60)
+        self.wait_for(0.85)
         self.shutter("evaporator", True)
 
-        self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
+        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
 
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
-        yield Step(False, "Second contact deposition finished")
+        yield Step(False, "Head on deposition finished. Waiting 30sec.")
+        self.wait_for(0.5)
 
-        # Deposit the second contact
-        yield Step(True, "Rotate Tip to 340&deg;")
+        # Deposit the head
+        yield Step(True, "Rotate Tip to 230&deg;")
 
         yield Step(False, "Beginning third thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
 
@@ -219,26 +226,28 @@ class Cryo_Thermal_Evaporation(Recipe):
         # self.wait_for(params["Therm. Time 2"])
         # self.leakvalve(False)
         # self.wait_for(0.2)
-        self.wait_for(0.75)
+        # self.wait_for(0.75)
+        # self.leakvalve(False)
+        # self.valve('gate', False)
+        self.wait_for(params["Therm. Time 2"])
+        # self.valve('gate', True)
+        # self.wait_for(0.2)
         self.leakvalve(False)
-        self.valve('gate', False)
-        self.wait_for(params["Therm. Time 1"])
-        self.valve('gate', True)
-        self.wait_for(0.2)
+        self.wait_for(0.5)
         yield Step(True, "Ready to begin second contact deposition.")
 
-        # Second Contact Depositon
+        # Second contact deposition
         self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.resumePIDLoop('Deposition Rate', 30)
-        self.wait_for(0.45)
+        self.resumePIDLoop('Deposition Rate', 60)
+        self.wait_for(0.85)
         self.shutter("evaporator", True)
 
-        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
+        self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
 
         self.pausePIDLoop('Deposition Rate')
         self.shutter("evaporator", False)
-
-        yield Step(False, "Head deposition finished")
+        yield Step(False, "Second contact deposition finished. Waiting 5 min.")
+        self.wait_for(5)
 
         yield Step(True, "Deposition Finished. Follow warm up procedure.")
 

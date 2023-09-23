@@ -17,6 +17,12 @@ class Ui_MainWindow(object):
         self.equip.errorSignal.connect(self.equipErrorSlot)
         self.equip.serverNotFoundSignal.connect(self.serverErrorSlot)
         self.equip.start()
+        
+        cxn = labrad.connect()
+        self.dv = cxn.data_vault
+        
+        self.resistance = 3.9e3
+        
         self.connect()
 
     def setupUi(self, MainWindow):
@@ -98,12 +104,21 @@ class Ui_MainWindow(object):
             Steps = 100
         # print('sweep')
         # print(self.Voltage_start.text(), ' ', self.Voltage_end.text(), ' ', self.AC_excitation.text(), ' ', self.Steps.text())
+        AC_Current = AC_excitation/self.resistance
+        
+        print("Starting datavault")
+        path, dset = yield self.dv.new("Tip Resistance", ["Voltage", "Current"], ["Delta Voltage","Resistance (Ohms)"])
+        print("Saving to", dset)
+        #yield self.dv.add_parameter('Bias Resistance', self.resistance)
+        # dset = yield self.dv.current_identifier()
+        # print("data saved to:", dset)
+        
         voltages = np.linspace(Voltage_start, Voltage_end, Steps)
-        print(voltages)
+        # print(voltages)
         ans = yield self.sr860.sine_offset(Voltage_start)
-        print(ans)
+        # print(ans)
         ans = yield self.sr860.sine_out_amplitude(AC_excitation)
-        print(ans)
+        # print(ans)
         data = []
         ramp_up_voltage = np.linspace(0, Voltage_start, 500)
         ramp_down_voltage = np.linspace(Voltage_end, 0, 500)
@@ -112,19 +127,23 @@ class Ui_MainWindow(object):
             yield self.sr860.sine_offset(ramp_up_voltage[i])
 
         for i in range(Steps):
-            print(voltages[i])
             yield self.sr860.sine_offset(voltages[i])
             x = yield self.sr860.x()
             data.append(x)
             
         for i in range(500):
             yield self.sr860.sine_offset(ramp_down_voltage[i])
-
+        
+        for i in range(len(voltages)):
+            current = voltages[i]/self.resistance
+            Rtip = data[i]/AC_Current
+            print((voltages[i],current,data[i],Rtip))
+            yield self.dv.add((voltages[i],current,data[i],Rtip))
+        
         self.graphWidget.clear()
         self.graphWidget.plot(voltages, data)
         self.graphWidget.enableAutoRange()
-
-
+        
 
 
     def equipErrorSlot(self):

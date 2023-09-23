@@ -241,7 +241,7 @@ class Boat_Single_Evaporation(CalibrationRecipe):
         servers.append('power_supply_server')
         servers.append('evaporator_shutter_server')
 
-        super().__init__(*args, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.1.0")
     #
 
     def proceed(self):
@@ -299,9 +299,11 @@ class Boat_Single_Evaporation(CalibrationRecipe):
         step1.add_input_param("P", default=self.default("P"), limits=(0,1))
         step1.add_input_param("I", default=self.default("I"), limits=(0,1))
         step1.add_input_param("D", default=self.default("D"), limits=(0,1))
-
+        step1.add_input_param("Vmin", default=self.default("Vmin"), limits=(0,10))
         step1.add_input_param("Vmax", default=self.default("Vmax"), limits=(0,10))
         step1.add_input_param("Voffset", default=self.default("Voffset"), limits=(0,10))
+        step1.add_input_param("Ramp_time", default=self.default("Ramp_time"), limits=(0,240))
+        step1.add_input_param("heatup_time", default=self.default("heatup_time"), limits=(0,240))
         yield step1
 
         params = step1.get_all_params()
@@ -332,10 +334,15 @@ class Boat_Single_Evaporation(CalibrationRecipe):
         I = params['I']
         D = params['D']
         Voffset = params['Voffset']
+        Vmin = params['Vmin']
         Vmax = params['Vmax']
+        Ramp_time = params['Ramp_time']
+        heatup_time = params['heatup_time']
         setpoint = float(params["Deposition Rate (A/s)"])
 
-        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (0, Vmax))
+        self.PIDLoop('Deposition Rate', 'power_supply_server', 'volt_set', P, I, D, setpoint, Voffset, (Vmin, Vmax), Ramp_time, heatup_time)
+        self.wait_for(0.95/60*(float(Ramp_time)+float(heatup_time)))
+        self.shutter("evaporator", True)
         self.wait_until("Thickness", params["Thickness (A)"], conditional="greater than")
         self.shutter("evaporator", False)
         self.stopPIDLoop('Deposition Rate')

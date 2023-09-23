@@ -413,6 +413,9 @@ class EurothermServer(LabradServer):
         except minimalmodbus.InvalidResponseError:
             print("Response Error in get_temperature")
             return "INVALID"
+        except minimalmodbus.NoResponseError:
+            print("No Response Error in get_temperature")
+            return "INVALID"
 
     @setting(11, returns='?')
     def get_setpoint(self, c):
@@ -423,6 +426,9 @@ class EurothermServer(LabradServer):
         except minimalmodbus.InvalidResponseError:
             print("Response Error in get_setpoint")
             return "INVALID"
+        except minimalmodbus.NoResponseError:
+            print("No Response Error in get_setpoint")
+            return "INVALID"
 
     @setting(12, value='?', returns='?')
     def set_setpoint(self, c, value):
@@ -432,11 +438,18 @@ class EurothermServer(LabradServer):
 
         Works in integer values.
         '''
-        if type(value) != int:
-            value = int(value)
-        #register32bits = int(str((2 * self._registers['Target_setpoint'] + 8000)), 16)
-        res = yield self.instrument.write_register(self._registers['Target_setpoint'], value)
-        return res
+        try:
+            if type(value) != int:
+                value = int(value)
+            #register32bits = int(str((2 * self._registers['Target_setpoint'] + 8000)), 16)
+            res = yield self.instrument.write_register(self._registers['Target_setpoint'], value)
+            return res
+        except minimalmodbus.InvalidResponseError:
+            print("Response Error in set_setpoint")
+            return "INVALID"
+        except minimalmodbus.NoResponseError:
+            print("No Response Error in set_setpoint")
+            return "INVALID"
 
     @setting(13, returns='?')
     def get_P(self, c):
@@ -491,6 +504,9 @@ class EurothermServer(LabradServer):
         except minimalmodbus.InvalidResponseError:
             print("Invalid Response to get_power")
             res = "INVALID"
+        except minimalmodbus.NoResponseError:
+            print("No Response Error in get_power")
+            return "INVALID"
         return res
 
     @setting(22, value='?', returns='?')
@@ -528,18 +544,26 @@ class EurothermServer(LabradServer):
         '''
         Turns the controller into automatic mode, which is used for normal operation.
         '''
-        yield self.instrument.write_register(self._registers['Auto_man_select'], 0)
-        mode = yield self.instrument.read_register(self._registers['Auto_man_select'], 0)
-        return mode
+        try:
+            yield self.instrument.write_register(self._registers['Auto_man_select'], 0)
+            mode = yield self.instrument.read_register(self._registers['Auto_man_select'], 0)
+            return mode
+        except minimalmodbus.InvalidResponseError:
+            print("Response Error in set_auto_mode")
+            return "INVALID"
 
     @setting(26, returns='?')
     def set_manual_mode(self, c):
         '''
         Turns the controller into manual mode, generall used when shutting down
         '''
-        res = yield self.instrument.write_register(self._registers['Auto_man_select'], 1)
-        mode = yield self.instrument.read_register(self._registers['Auto_man_select'], 0)
-        return mode
+        try:
+            res = yield self.instrument.write_register(self._registers['Auto_man_select'], 1)
+            mode = yield self.instrument.read_register(self._registers['Auto_man_select'], 0)
+            return mode
+        except minimalmodbus.InvalidResponseError:
+            print("Response Error in set_manual_mode")
+            return "INVALID"
 
     @setting(27, returns='?')
     def ramp_to_room(self, c):
@@ -592,14 +616,24 @@ class EurothermServer(LabradServer):
         except minimalmodbus.InvalidResponseError:
             print("Response Error in get_temperature")
             return "INVALID"
+        except minimalmodbus.NoResponseError:
+            print("No Response Error in get_ramprate")
+            return "INVALID"
 
     @setting(35, value='?', returns='?')
     def set_ramprate(self, c, value):
         '''
         Changes the temeprature setpoint ramprate.
         '''
-        res = yield self.instrument.write_register(self._registers['Setpoint_rate_limit'], value)
-        return res
+        try:
+            res = yield self.instrument.write_register(self._registers['Setpoint_rate_limit'], value)
+            return res
+        except minimalmodbus.InvalidResponseError:
+            print("Response Error in set_ramprate")
+            return "INVALID"
+        except minimalmodbus.NoResponseError:
+            print("No Response Error in set_ramprate")
+            return "INVALID"
 
     @setting(36, returns='?')
     def get_ramprate_units(self, c):

@@ -18,10 +18,11 @@ void loop() {
     while (input != 'r'){
       if (Serial.available()){
          input = Serial.read();
+         Serial.println(input);
          if (input != 'r'){
            m += input;
          }
-         else if (input = 'r'){
+         else if (input == 'r'){
            valve();
          }
          else{
@@ -90,6 +91,10 @@ void valve(){
     digitalWrite(17, LOW);
     Serial.print("Argon Valve Close\r\n");
   }
+  else {
+    Serial.println("Unrecognized Command");
+  }
+  Serial.flush();
   m = "";
-      
-  }  
+        
+}  

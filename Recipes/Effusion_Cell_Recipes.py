@@ -13,7 +13,7 @@ class Cryogenic_Effusion_Evap(Recipe):
         # Then process specific servers
         servers.append('eurotherm_server')
 
-        super().__init__(*args, required_servers=servers, version="1.0.0")
+        super().__init__(*args, required_servers=servers, version="1.0.1")
     #
 
     def proceed(self):
@@ -141,36 +141,9 @@ class Cryogenic_Effusion_Evap(Recipe):
         self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
         self.wait_until('Temperature', idle_temp+10, "less than")
 
-        # Deposit the SQUID head
-
-        yield Step(False, "Beginning second thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
-        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
-        self.wait_for(params["Therm. Time 2"])
-        self.leakvalve(False)
-        self.wait_for(0.5)
-
-        yield Step(True, "Rotate Tip to 345&deg;.")
-
-        yield Step(True, "Ready to begin head deposition. Press proceed to heat up the effusion cell to the deposition temperature.")
-        self.command('eurotherm_server', 'set_setpoint', setpoint-15)
-        self.wait_until('Temperature', setpoint-15, "greater than")
-        self.wait_for(1)
-        self.command('eurotherm_server', 'set_setpoint', setpoint)
-        self.wait_stable('Temperature', setpoint, 2, window=30)
-
-        # SQUID Head Deposition
-        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
-        self.shutter("effusion", True)
-        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
-        self.shutter("effusion", False)
-
-        yield Step(False, "Head deposition finished, returning to idle temp.")
-        self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
-        self.wait_until('Temperature', idle_temp+10, "less than")
-
         # Deposit the second contact
 
-        yield Step(False, "Beginning third thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
+        yield Step(False, "Beginning second thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
         self.leakvalve(True, pressure=params["He Pressure (mbar)"])
         self.wait_for(params["Therm. Time 2"])
         self.leakvalve(False)
@@ -191,7 +164,33 @@ class Cryogenic_Effusion_Evap(Recipe):
         self.wait_until('Thickness', params["Contact Thickness (A)"], conditional='greater than')
         self.shutter("effusion", False)
 
-        yield Step(False, "Second contact deposition finished")
+        yield Step(False, "Second contact deposition finished, returning to idle temp.")
+        self.command('eurotherm_server', 'ramp_to_idle_temp', idle_temp)
+        self.wait_until('Temperature', idle_temp+10, "less than")
+
+        # Deposit the SQUID head
+
+        yield Step(False, "Beginning third thermalization, waiting " + str(params["Therm. Time 2"]) + " minutes")
+        self.leakvalve(True, pressure=params["He Pressure (mbar)"])
+        self.wait_for(params["Therm. Time 2"])
+        self.leakvalve(False)
+        self.wait_for(0.5)
+
+        yield Step(True, "Rotate Tip to 345&deg;.")
+
+        yield Step(True, "Ready to begin head deposition. Press proceed to heat up the effusion cell to the deposition temperature.")
+        self.command('eurotherm_server', 'set_setpoint', setpoint-15)
+        self.wait_until('Temperature', setpoint-15, "greater than")
+        self.wait_for(1)
+        self.command('eurotherm_server', 'set_setpoint', setpoint)
+        self.wait_stable('Temperature', setpoint, 2, window=30)
+
+        # SQUID Head Deposition
+        self.command('ftm_server', 'zero_rates_thickness') # Zero the thickness
+        self.shutter("effusion", True)
+        self.wait_until('Thickness', params["Head Thickness (A)"], conditional='greater than')
+        self.shutter("effusion", False)
+
 
         yield Step(False, "Deposition Finished. Ramping the effusion cell down to room temperature. Remove cryogen and start warming up the SQUID.")
 

@@ -31,7 +31,7 @@ timeout = 20
 import platform
 global serial_server_name
 serial_server_name = platform.node() + '_serial_server'
-
+import numpy as np
 from labrad.server import setting
 from labrad.devices import DeviceServer,DeviceWrapper
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -296,6 +296,8 @@ class SIM921Server(DeviceServer):
         yield dev.write('CONN %s,"cometzir"\r'%channel)
         ans=yield dev.query('RVAL?\r')
         yield dev.write('cometzir\r')
+        if abs(float(ans)) > 5000:
+            ans = 5000
         returnValue(ans)
 
     @setting(319)

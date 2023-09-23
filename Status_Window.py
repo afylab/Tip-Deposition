@@ -75,7 +75,8 @@ class Status_Window(Ui_StatusWindow):
         self.plot0 = pg.PlotWidget(self.defaultPlotFrame)
         self.plot0.setGeometry(QtCore.QRect(0, 0, 550, 400))
         self.plot0.setObjectName("plot0")
-
+        # self.plot0.setDownsampling(auto=True)
+        
         self.plot1 = pg.PlotWidget(self.plotFrame)
         self.plot1.setGeometry(QtCore.QRect(0, 0, 550, 400))
         self.plot1.setObjectName("plot1")
